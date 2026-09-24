@@ -205,8 +205,13 @@ jobs:
         run: |
           docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
             up -d --wait --wait-timeout 600 modern-postgres modern-mailpit modern-clamav modern-stripe-mock
-          docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
-            up -d --no-deps --wait --wait-timeout 600 modern-api
+          if ! docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
+            up -d --no-deps --wait --wait-timeout 600 modern-api; then
+            docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" ps --all
+            docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
+              logs --no-color --tail=120 modern-api
+            exit 1
+          fi
 
       - name: Wait for the real API OpenAPI endpoint
         run: >-
