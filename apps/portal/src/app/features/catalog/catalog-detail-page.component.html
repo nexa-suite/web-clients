@@ -1,0 +1,46 @@
+<section class="detail-page" aria-labelledby="detail-heading">
+  <a class="back-link" routerLink="/catalog"><i class="pi pi-arrow-left" aria-hidden="true"></i> Back to catalog</a>
+  @switch (store.detail().kind) {
+    @case ('loading') {
+      <nexa-surface tone="inset"><p class="state-message" role="status">Loading SKU details…</p></nexa-surface>
+    }
+    @case ('error') {
+      <nexa-surface tone="inset"><div class="state-message" role="alert"><strong>SKU details could not be loaded</strong><p>{{ store.detail().errorMessage }}</p><nexa-button variant="secondary" (click)="store.loadDetail(route.snapshot.paramMap.get('catalogItemId') || '')">Retry</nexa-button></div></nexa-surface>
+    }
+    @case ('not-found') {
+      <nexa-surface tone="inset"><div class="state-message"><strong>SKU is not listed in the current catalog</strong><p>It may have been removed from this workspace catalog.</p></div></nexa-surface>
+    }
+    @case ('loaded') {
+      @if (store.detail().item; as item) {
+        <header class="detail-heading">
+          <p class="page-kicker">SKU DETAILS</p>
+          <h1 id="detail-heading">{{ item.itemName }}</h1>
+          <p class="sku-identifier">{{ item.skuCode }}</p>
+        </header>
+        <article class="product-detail">
+          <div class="detail-art" aria-hidden="true"><i class="pi pi-box"></i></div>
+          <div class="detail-copy">
+            <p class="product-family">{{ item.brandName || item.productFamilyName || 'Catalog item' }}@if (item.categoryName) { <span aria-hidden="true"> · </span>{{ item.categoryName }} }</p>
+            @if (item.presentation) { <p>{{ item.presentation }}</p> }
+            <dl class="sku-facts">
+              <div><dt>SKU</dt><dd>{{ item.skuCode }}</dd></div>
+              @if (item.unitOfMeasure) { <div><dt>Unit of measure</dt><dd>{{ item.unitOfMeasure }}</dd></div> }
+              @if (item.packagingType) { <div><dt>Packaging</dt><dd>{{ item.packagingType }}</dd></div> }
+              @if (item.coldChainRequirement) { <div><dt>Cold-chain requirement</dt><dd><nexa-status-chip tone="info">{{ item.coldChainRequirement }}</nexa-status-chip></dd></div> }
+            </dl>
+            <section class="commercial-information" aria-labelledby="commercial-heading">
+              <h2 id="commercial-heading">Commercial information</h2>
+              <dl class="commercial-facts">
+                <div><dt>Current price</dt><dd>Not provided</dd></div>
+                <div><dt>Sellable Availability</dt><dd>Not provided</dd></div>
+              </dl>
+            </section>
+          </div>
+        </article>
+      }
+    }
+    @default {
+      <nexa-surface tone="inset"><p class="state-message">Choose a SKU from the catalog to review its details.</p></nexa-surface>
+    }
+  }
+</section>

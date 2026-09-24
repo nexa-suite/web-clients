@@ -47,13 +47,10 @@ assert(
   'Both applications must have independent Angular unit-test targets.',
 );
 
-for (const [name, project] of [
-  ['Platform', platform],
-  ['Portal', portal],
-]) {
-  const routes = read(project.sourceRoot + '/app/app.routes.ts');
-  assert(/export const routes:\s*Routes\s*=\s*\[\s*\]/.test(routes), name + ' must remain a neutral route skeleton.');
-}
+const platformRoutes = read(platform.sourceRoot + '/app/app.routes.ts');
+const portalRoutes = read(portal.sourceRoot + '/app/app.routes.ts');
+assert(/export const routes:\s*Routes\s*=\s*\[\s*\]/.test(platformRoutes), 'Platform must remain a neutral route skeleton.');
+assert(/export const routes:\s*Routes\s*=\s*\[\s*\S/.test(portalRoutes), 'Portal must define its own feature routes.');
 
 const uiPublicApi = read('libs/nexa-ui/src/public-api.ts');
 const uiPackage = JSON.parse(read('libs/nexa-ui/ng-package.json'));
