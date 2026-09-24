@@ -1,0 +1,53 @@
+{
+  "name": "nexa-web-clients",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@11.17.0",
+  "engines": {
+    "node": "^22.22.3 || ^24.15.0 || >=26.0.0",
+    "npm": ">=11.17.0"
+  },
+  "scripts": {
+    "ng": "ng",
+    "build:ui": "ng build nexa-ui",
+    "build:api": "ng build nexa-api",
+    "build:shared": "npm run build:ui && npm run build:api",
+    "build:platform": "ng build platform --configuration production",
+    "build:portal": "ng build portal --configuration production",
+    "build:all": "npm run build:shared && npm run build:platform && npm run build:portal",
+    "test:ui": "ng test nexa-ui --watch=false",
+    "test:api": "ng test nexa-api --watch=false",
+    "test:platform": "ng test platform --watch=false",
+    "test:portal": "ng test portal --watch=false",
+    "test:e2e": "playwright test",
+    "test:shared": "npm run build:shared && npm run test:ui && npm run test:api",
+    "test": "npm run test:shared && npm run test:platform && npm run test:portal",
+    "validate:tokens": "node tooling/scripts/generate-design-tokens.mjs --check && node --no-warnings --experimental-strip-types tooling/scripts/validate-design-tokens.ts",
+    "validate:architecture": "node tooling/scripts/validate-foundation.mjs",
+    "validate:design": "npm run validate:tokens && npm run validate:architecture"
+  },
+  "dependencies": {
+    "@angular/cdk": "22.1.2",
+    "@angular/common": "22.1.2",
+    "@angular/compiler": "22.1.2",
+    "@angular/core": "22.1.2",
+    "@angular/forms": "22.1.2",
+    "@angular/material": "22.1.2",
+    "@angular/platform-browser": "22.1.2",
+    "@angular/router": "22.1.2",
+    "primeicons": "8.0.0",
+    "rxjs": "7.8.2",
+    "tslib": "2.8.1"
+  },
+  "devDependencies": {
+    "@angular/build": "22.1.4",
+    "@angular/cli": "22.1.4",
+    "@angular/compiler-cli": "22.1.2",
+    "@playwright/test": "1.62.1",
+    "jsdom": "28.0.0",
+    "ng-packagr": "22.1.1",
+    "prettier": "3.8.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
+  }
+}

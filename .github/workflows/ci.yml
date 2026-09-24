@@ -1,0 +1,260 @@
+name: Web clients CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  design-and-architecture:
+    name: Design and architecture gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out web clients
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+          cache: npm
+
+      - name: Select locked npm version
+        run: npm install --global npm@11.17.0
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Validate architecture and design tokens
+        run: npm run validate:design
+
+  unit-tests:
+    name: Shared and app unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out web clients
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+          cache: npm
+
+      - name: Select locked npm version
+        run: npm install --global npm@11.17.0
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run shared and app unit tests
+        run: npm test
+
+  production-builds:
+    name: Angular production builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out web clients
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+          cache: npm
+
+      - name: Select locked npm version
+        run: npm install --global npm@11.17.0
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build shared libraries and applications
+        run: npm run build:all
+
+  production-images:
+    name: ${{ matrix.application }} production image
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - application: Platform
+            dockerfile: apps/platform/Dockerfile
+            image: nexa-platform:ci
+          - application: Portal
+            dockerfile: apps/portal/Dockerfile
+            image: nexa-portal:ci
+    steps:
+      - name: Check out web clients
+        uses: actions/checkout@v4
+
+      - name: Build production image
+        run: docker build --file "${{ matrix.dockerfile }}" --tag "${{ matrix.image }}" .
+
+  api-integration:
+    name: Real API and Platform browser integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      NEXA_API_REPOSITORY_PATH: ${{ github.workspace }}/api
+    steps:
+      - name: Check out web clients
+        uses: actions/checkout@v4
+
+      - name: Check out the captured Nexa API source
+        uses: actions/checkout@v4
+        with:
+          repository: nexa-suite/api
+          ref: 9c74f3d01b7a60c7ba3df25e673d76d0e54986c7
+          path: api
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+          cache: npm
+
+      - name: Select locked npm version
+        run: npm install --global npm@11.17.0
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build shared Angular libraries for the browser integration
+        run: npm run build:shared
+
+      - name: Install Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Generate ephemeral API keys and seeded integration identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          # The access slice does not exercise object storage; use the API's local filesystem adapter.
+          cat > "$RUNNER_TEMP/nexa-api-access.override.yml" <<'YAML'
+          services:
+            modern-api:
+              environment:
+                SPRING_PROFILES_ACTIVE: local
+                NEXA_OBJECT_STORAGE_ROOT: /tmp/nexa-ci-object-storage
+          YAML
+
+          mkdir -p api/.local-keys
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out api/.local-keys/access-token-private.pem
+          openssl pkey -in api/.local-keys/access-token-private.pem -pubout -out api/.local-keys/access-token-public.pem
+          sudo chown 10001:10001 api/.local-keys/access-token-private.pem api/.local-keys/access-token-public.pem
+          sudo chmod 0400 api/.local-keys/access-token-private.pem
+          sudo chmod 0444 api/.local-keys/access-token-public.pem
+
+          database_password="$(openssl rand -hex 32)"
+          demo_password="$(openssl rand -hex 32)"
+          minio_password="$(openssl rand -hex 32)"
+          reset_key="$(openssl rand -hex 32)"
+          outbox_key="$(openssl rand -hex 32)"
+          operator_token="$(openssl rand -hex 32)"
+          echo "::add-mask::$database_password"
+          echo "::add-mask::$demo_password"
+          echo "::add-mask::$minio_password"
+          echo "::add-mask::$reset_key"
+          echo "::add-mask::$outbox_key"
+          echo "::add-mask::$operator_token"
+
+          {
+            printf 'NEXA_MODERN_POSTGRES_DB=nexa_modern\n'
+            printf 'NEXA_MODERN_POSTGRES_USER=nexa_migrator\n'
+            printf 'NEXA_MODERN_POSTGRES_PASSWORD=%s\n' "$database_password"
+            printf 'NEXA_PASSWORD_RESET_THROTTLE_KEY=%s\n' "$reset_key"
+            printf 'NEXA_NOTIFICATION_OUTBOX_KEY=%s\n' "$outbox_key"
+            printf 'NEXA_SYSTEM_OPERATOR_TOKEN=%s\n' "$operator_token"
+            printf 'NEXA_MINIO_ROOT_USER=nexa_ci\n'
+            printf 'NEXA_MINIO_ROOT_PASSWORD=%s\n' "$minio_password"
+            printf 'NEXA_DEV_BOOTSTRAP_ENABLED=true\n'
+            printf 'NEXA_DEV_WORKSPACE_SLUG=icisa\n'
+            printf 'NEXA_DEV_OWNER_EMAIL=owner@icisa.test\n'
+            printf 'NEXA_DEV_OWNER_PASSWORD=%s\n' "$demo_password"
+            printf 'NEXA_DEV_TENANT_ADMIN_EMAIL=tenant.admin@icisa.test\n'
+            printf 'NEXA_DEV_TENANT_ADMIN_PASSWORD=%s\n' "$demo_password"
+            printf 'NEXA_DEV_SALES_EMAIL=sales@icisa.test\n'
+            printf 'NEXA_DEV_SALES_PASSWORD=%s\n' "$demo_password"
+            printf 'NEXA_DEV_WAREHOUSE_EMAIL=warehouse@icisa.test\n'
+            printf 'NEXA_DEV_WAREHOUSE_PASSWORD=%s\n' "$demo_password"
+            printf 'NEXA_DEV_LOGISTICS_EMAIL=logistics@icisa.test\n'
+            printf 'NEXA_DEV_LOGISTICS_PASSWORD=%s\n' "$demo_password"
+            printf 'NEXA_DEV_DEMO_PASSWORD=%s\n' "$demo_password"
+          } > api/.env.local
+
+          {
+            printf 'NEXA_DEV_WORKSPACE_SLUG=icisa\n'
+            printf 'NEXA_DEV_OWNER_EMAIL=owner@icisa.test\n'
+            printf 'NEXA_DEV_OWNER_PASSWORD=%s\n' "$demo_password"
+            printf 'NEXA_DEV_TENANT_ADMIN_EMAIL=tenant.admin@icisa.test\n'
+            printf 'NEXA_DEV_TENANT_ADMIN_PASSWORD=%s\n' "$demo_password"
+            printf 'NEXA_DEV_SALES_EMAIL=sales@icisa.test\n'
+            printf 'NEXA_DEV_SALES_PASSWORD=%s\n' "$demo_password"
+            printf 'NEXA_DEV_WAREHOUSE_EMAIL=warehouse@icisa.test\n'
+            printf 'NEXA_DEV_WAREHOUSE_PASSWORD=%s\n' "$demo_password"
+            printf 'NEXA_DEV_LOGISTICS_EMAIL=logistics@icisa.test\n'
+            printf 'NEXA_DEV_LOGISTICS_PASSWORD=%s\n' "$demo_password"
+          } >> "$GITHUB_ENV"
+
+      - name: Start API dependencies
+        working-directory: api
+        run: |
+          docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
+            up -d --wait --wait-timeout 600 modern-postgres modern-mailpit modern-clamav modern-stripe-mock
+
+      - name: Provision the least-privilege API runtime database role
+        working-directory: api
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          . .env.local
+          set +a
+          docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
+            exec -T modern-postgres psql -q -v ON_ERROR_STOP=1 -U "$NEXA_MODERN_POSTGRES_USER" -d "$NEXA_MODERN_POSTGRES_DB" \
+              -v runtime_password="$NEXA_MODERN_POSTGRES_PASSWORD" <<'SQL'
+          SELECT set_config('nexa.runtime_database_password', :'runtime_password', false) AS _runtime_password \gset
+          DO $do$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'nexa_runtime') THEN
+              EXECUTE format('CREATE ROLE nexa_runtime LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L', current_setting('nexa.runtime_database_password'));
+            ELSE
+              EXECUTE format('ALTER ROLE nexa_runtime LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L', current_setting('nexa.runtime_database_password'));
+            END IF;
+          END
+          $do$;
+          SQL
+
+      - name: Start the real API Docker container
+        working-directory: api
+        run: |
+          if ! docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
+            up -d --no-deps --wait --wait-timeout 600 modern-api; then
+            docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" ps --all
+            docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
+              logs --no-color --tail=120 modern-api
+            exit 1
+          fi
+
+      - name: Wait for the real API OpenAPI endpoint
+        run: >-
+          curl --fail --silent --show-error --retry 60 --retry-delay 5 --retry-connrefused
+          http://127.0.0.1:8080/v3/api-docs -o /dev/null
+
+      - name: Run Platform E2E against the real API
+        run: npm run test:e2e
+
+      - name: Stop API services and remove ephemeral volumes
+        if: always()
+        working-directory: api
+        run: |
+          if [ -f .env.local ]; then
+            docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" down --volumes --remove-orphans
+          fi

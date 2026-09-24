@@ -1,0 +1,13 @@
+<button
+  class="tooltip-trigger"
+  type="button"
+  [attr.aria-label]="triggerLabel()"
+  [attr.aria-describedby]="visible() ? id() : null"
+  (pointerenter)="show()"
+  (focus)="show()"
+>
+  <ng-content />
+</button>
+@if (visible()) {
+  <span class="tooltip" [class]="'tooltip tooltip-' + placement()" [id]="id()" role="tooltip" (pointerenter)="cancelHide()" (pointerleave)="scheduleHide()">{{ content() }}</span>
+}

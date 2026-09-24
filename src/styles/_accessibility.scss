@@ -1,0 +1,3 @@
+:focus-visible { outline: 3px solid var(--nexa-color-primary-600); outline-offset: 3px; }
+.skip-link { position: fixed; z-index: 10; top: 8px; left: 8px; padding: 8px 12px; border-radius: var(--nexa-radius-md); background: var(--nexa-color-primary-700); color: var(--nexa-color-text-inverse); font-weight: var(--nexa-font-weight-semibold); transform: translateY(-180%); transition: transform var(--nexa-motion-standard); }
+.skip-link:focus { transform: translateY(0); }

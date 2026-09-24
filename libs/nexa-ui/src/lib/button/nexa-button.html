@@ -1,0 +1,11 @@
+@if (routerLink(); as link) {
+  <a class="nexa-button" [class]="classes()" [routerLink]="linkDisabled() ? null : link" [attr.aria-label]="ariaLabel()" [attr.aria-busy]="loading()" [attr.aria-disabled]="linkDisabled() ? 'true' : null" [attr.tabindex]="linkDisabled() ? -1 : null" (click)="guardLink($event)" (keydown.enter)="guardLink($event)" (keydown.space)="guardLink($event)">
+    @if (loading()) { <span class="spinner" aria-hidden="true"></span> }
+    <ng-content />
+  </a>
+} @else {
+  <button class="nexa-button" [class]="classes()" [disabled]="disabled() || loading()" [type]="type()" [attr.aria-label]="ariaLabel()" [attr.aria-busy]="loading()">
+    @if (loading()) { <span class="spinner" aria-hidden="true"></span> }
+    <ng-content />
+  </button>
+}

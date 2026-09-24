@@ -1,0 +1,31 @@
+<div class="platform-shell">
+  <header class="platform-shell__header">
+    <div class="platform-shell__brand">
+      <nexa-logo class="platform-shell__logo" alt="Nexa" />
+      <span class="platform-shell__brand-divider" aria-hidden="true"></span>
+      <span class="platform-shell__product-name">Nexa Platform</span>
+    </div>
+
+    @if (contextLabel; as activeContext) {
+      <div class="platform-shell__context">
+        <span class="platform-shell__context-label">Active business context</span>
+        <span class="platform-shell__context-value">{{ activeContext }}</span>
+      </div>
+    }
+
+    @if (session) {
+      <div class="platform-shell__account">
+        @if (identityLabel; as identity) {
+          <span class="platform-shell__identity">{{ identity }}</span>
+        }
+        <nexa-button variant="quiet" size="compact" (click)="signOut.emit()">
+          Sign out
+        </nexa-button>
+      </div>
+    }
+  </header>
+
+  <main id="main-content" class="platform-shell__content" tabindex="-1">
+    <router-outlet />
+  </main>
+</div>

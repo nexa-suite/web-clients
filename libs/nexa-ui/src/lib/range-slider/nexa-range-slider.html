@@ -1,0 +1,5 @@
+<label class="range" [class.disabled]="disabled()" [for]="id()">
+  <span class="range-heading"><strong>{{ label() }}</strong><output [for]="id()">{{ value() }}{{ unit() }}</output></span>
+  <input [id]="id()" type="range" [min]="min()" [max]="max()" [step]="step()" [value]="value()" [disabled]="disabled()" [attr.aria-valuetext]="value() + unit()" (input)="update($event)" />
+  <span class="range-scale"><small>{{ min() }}{{ unit() }}</small><small>{{ max() }}{{ unit() }}</small></span>
+</label>
