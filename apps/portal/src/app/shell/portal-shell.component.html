@@ -1,0 +1,25 @@
+<div class="portal-shell">
+  <a class="skip-link" href="#main-content" (click)="skipToMainContent($event)">Skip to main content</a>
+  <header class="portal-topbar">
+    <a class="portal-brand" routerLink="/catalog" aria-label="Nexa Buyer Portal">
+      <nexa-logo alt="Nexa" />
+      <span>Buyer Portal</span>
+    </a>
+    <nav class="buyer-navigation" aria-label="Buyer navigation">
+      <a routerLink="/catalog" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }" ariaCurrentWhenActive="page">
+        <i class="pi pi-box" aria-hidden="true"></i>
+        <span>Catalog</span>
+      </a>
+    </nav>
+    <div class="account-actions">
+      <span class="account-name">{{ accountName() }}</span>
+      <nexa-button size="large" variant="quiet" (click)="signOut()">Sign out</nexa-button>
+    </div>
+  </header>
+  @if (session.signOutError(); as message) {
+    <p class="sign-out-error" role="alert">{{ message }}</p>
+  }
+  <main #mainContent class="portal-content" id="main-content" tabindex="-1">
+    <router-outlet />
+  </main>
+</div>
