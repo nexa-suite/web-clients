@@ -133,6 +133,15 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
+          # The access slice does not exercise object storage; use the API's local filesystem adapter.
+          cat > "$RUNNER_TEMP/nexa-api-access.override.yml" <<'YAML'
+          services:
+            modern-api:
+              environment:
+                SPRING_PROFILES_ACTIVE: local
+                NEXA_OBJECT_STORAGE_ROOT: /tmp/nexa-ci-object-storage
+          YAML
+
           mkdir -p api/.local-keys
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out api/.local-keys/access-token-private.pem
           openssl pkey -in api/.local-keys/access-token-private.pem -pubout -out api/.local-keys/access-token-public.pem
@@ -191,11 +200,13 @@ jobs:
             printf 'NEXA_DEV_LOGISTICS_PASSWORD=%s\n' "$demo_password"
           } >> "$GITHUB_ENV"
 
-      - name: Start the API Docker stack
+      - name: Start API dependencies and the real API Docker container
         working-directory: api
-        run: >-
-          docker compose --env-file .env.local -f ops/compose/modern.compose.yml up -d
-          modern-postgres modern-mailpit modern-minio modern-clamav modern-stripe-mock modern-api
+        run: |
+          docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
+            up -d --wait --wait-timeout 600 modern-postgres modern-mailpit modern-clamav modern-stripe-mock
+          docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
+            up -d --no-deps --wait --wait-timeout 600 modern-api
 
       - name: Wait for the real API OpenAPI endpoint
         run: >-
@@ -210,5 +221,5 @@ jobs:
         working-directory: api
         run: |
           if [ -f .env.local ]; then
-            docker compose --env-file .env.local -f ops/compose/modern.compose.yml down --volumes --remove-orphans
+            docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" down --volumes --remove-orphans
           fi
