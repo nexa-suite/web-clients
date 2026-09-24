@@ -14,6 +14,7 @@ export class NexaTextField implements FormValueControl<string> {
   readonly label = input.required<string>();
   readonly value = model('');
   readonly type = input<NexaTextFieldType>('text');
+  readonly autoComplete = input<string | null>(null);
   readonly placeholder = input('');
   readonly helper = input('');
   readonly error = input('');

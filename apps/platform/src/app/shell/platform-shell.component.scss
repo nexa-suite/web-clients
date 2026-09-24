@@ -1,0 +1,129 @@
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.platform-shell {
+  min-height: 100vh;
+  background: var(--nexa-surface-page);
+}
+
+.platform-shell__header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--nexa-space-4);
+  padding: var(--nexa-space-4) var(--nexa-space-6);
+  border-bottom: 1px solid var(--nexa-color-border-structural);
+  background: var(--nexa-surface-card);
+}
+
+.platform-shell__brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--nexa-space-3);
+}
+
+.platform-shell__logo {
+  flex: 0 0 auto;
+  width: calc(var(--nexa-space-16) + var(--nexa-space-4));
+}
+
+.platform-shell__brand-divider {
+  width: 1px;
+  height: var(--nexa-space-6);
+  flex: 0 0 auto;
+  background: var(--nexa-color-border-structural);
+}
+
+.platform-shell__product-name {
+  overflow: hidden;
+  color: var(--nexa-color-text-secondary);
+  font-size: var(--nexa-font-size-sm);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-shell__context {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  gap: var(--nexa-space-1);
+  text-align: center;
+}
+
+.platform-shell__context-label {
+  color: var(--nexa-color-text-muted);
+  font-size: var(--nexa-font-size-xs);
+}
+
+.platform-shell__context-value {
+  overflow-wrap: anywhere;
+  color: var(--nexa-color-text-primary);
+  font-size: var(--nexa-font-size-sm);
+  font-weight: 600;
+}
+
+.platform-shell__account {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--nexa-space-3);
+}
+
+.platform-shell__identity {
+  overflow: hidden;
+  max-width: calc(var(--nexa-space-16) * 3);
+  color: var(--nexa-color-text-secondary);
+  font-size: var(--nexa-font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-shell__content {
+  min-width: 0;
+  padding: var(--nexa-space-6);
+}
+
+@media (max-width: 48rem) {
+  .platform-shell__header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--nexa-space-3);
+    padding-inline: var(--nexa-space-4);
+  }
+
+  .platform-shell__context {
+    grid-column: 1 / -1;
+    justify-items: start;
+    text-align: start;
+  }
+
+  .platform-shell__identity {
+    max-width: 35vw;
+  }
+
+  .platform-shell__content {
+    padding: var(--nexa-space-4);
+  }
+}
+
+@media (max-width: 24rem) {
+  .platform-shell__header {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .platform-shell__context {
+    grid-column: 1;
+  }
+
+  .platform-shell__account {
+    justify-content: space-between;
+  }
+
+  .platform-shell__identity {
+    max-width: none;
+  }
+}

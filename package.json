@@ -19,6 +19,7 @@
     "test:api": "ng test nexa-api --watch=false",
     "test:platform": "ng test platform --watch=false",
     "test:portal": "ng test portal --watch=false",
+    "test:e2e": "playwright test",
     "test:shared": "npm run build:shared && npm run test:ui && npm run test:api",
     "test": "npm run test:shared && npm run test:platform && npm run test:portal",
     "validate:tokens": "node tooling/scripts/generate-design-tokens.mjs --check && node --no-warnings --experimental-strip-types tooling/scripts/validate-design-tokens.ts",

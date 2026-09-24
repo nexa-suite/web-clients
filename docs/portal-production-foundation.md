@@ -4,7 +4,8 @@
 
 | Source | Revision used | Working state observed |
 | --- | --- | --- |
-| Shared Angular foundation | `22c151da0d9447568970aa7c6a10f48fde79e090` — `chore(web): establish shared Angular foundation` | Exact remote checkpoint used as the Portal branch base; the verified checkpoint diff adds 128 files and 14,289 lines. |
+| Shared Angular foundation | `22c151da0d9447568970aa7c6a10f48fde79e090` — `chore(web): establish shared Angular foundation` | Exact remote checkpoint used to create the Portal branch; the verified checkpoint diff adds 128 files and 14,289 lines. |
+| Stacked Platform base | `1db3148a8483185a21d8c0d951fb0c4fdfb1d7c5` — `feat(platform): add API-backed access slice` | Merged into the Portal branch after opening the stacked PR to resolve its base conflicts and validate the current shared/Platform state. |
 | Blueprint | `812cb4a73ec2ecdef1853acaaeb8ba656e583a42` | Existing local deletions under `91-reference/legacy/` and `tooling/structurizr/README.md` were left untouched. |
 | Design Lab | `ec590abd4c3c6fae97dd7c14d866443e3f67e1e0` | Clean at inspection. |
 | API | `9c74f3d01b7a60c7ba3df25e673d76d0e54986c7` | Clean at inspection. Relevant Buyer catalog, relationship and sales-commitment contracts have no committed source changes from the foundation baseline `c59388a7a791425dacdaa0edf2d622f5a3be2919`. |
@@ -59,9 +60,9 @@ Blueprint currently leaves final Web Acceptance Criteria pending. This document 
 
 ## Executed validation
 
-- `npm test` passed: shared UI 18/18, shared API 13/13, Platform 1/1, Portal 15/15 (47 tests total).
+- `npm test` passed after integrating the current Platform base: shared UI 18/18, shared API 18/18, Platform 21/21, Portal 15/15 (72 tests total).
 - `npm run build:all` passed: shared UI and API packages, Platform production build, Portal production build.
-- `npm run validate:design` passed: token artifacts current; 301 token declarations and 188 references valid; architecture boundaries valid with Platform kept neutral and Portal routes checked.
+- `npm run validate:design` passed: token artifacts current; 301 token declarations and 188 references valid; architecture boundaries validate Platform authenticated-session routes and Portal-owned feature routes.
 - API Docker build from the current API checkout passed: Maven ran 486 tests with 0 failures, 0 errors, and 152 skipped; Spring Boot package completed. The modern API container reports healthy and runtime OpenAPI version `0.17.0`.
 - Playwright against the Docker API passed workspace preview and the access-page responsive/label smoke at 1440, 1024, 768, 390, and 320 px. The configured development Buyer identity returned HTTP 401 in the authenticated scenario, which was recorded as skipped; no alternate password was attempted. Therefore authenticated session/account/catalog/detail/sign-out requests, Buyer-shell responsive layout, keyboard skip navigation, active-route semantics, and touch-target size were not browser-verified. Shell skip-link and `aria-current` semantics and the exact-workspace-preview rule are covered by Portal component tests.
 - Portal Docker image built; the local container returned HTTP 200 for `/`, `ok` for `/healthz`, and Docker health `healthy`.

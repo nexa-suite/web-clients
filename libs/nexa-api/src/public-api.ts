@@ -3,6 +3,7 @@ export {
   provideNexaHttp,
   type NexaApiHttpConfiguration,
 } from './lib/http/nexa-http';
+export { NexaAuthenticationApi } from './lib/auth/authentication-api';
 export { NexaAccessTokenStore } from './lib/http/access-token.store';
 export { NexaHttpClient, type NexaHttpRequestOptions, type NexaQueryValue } from './lib/http/nexa-http-client';
 export {

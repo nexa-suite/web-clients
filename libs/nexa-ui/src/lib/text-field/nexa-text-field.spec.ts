@@ -9,6 +9,7 @@ describe('NexaTextField', () => {
     fixture.componentRef.setInput('id', 'email');
     fixture.componentRef.setInput('label', 'Email');
     fixture.componentRef.setInput('helper', 'Use your work address.');
+    fixture.componentRef.setInput('autoComplete', 'username');
     fixture.detectChanges();
 
     const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
@@ -19,5 +20,6 @@ describe('NexaTextField', () => {
     expect(fixture.componentInstance.value()).toBe('person@nexa.test');
     expect(input.getAttribute('aria-labelledby')).toBe('email-label');
     expect(input.getAttribute('aria-describedby')).toBe('email-help');
+    expect(input.getAttribute('autocomplete')).toBe('username');
   });
 });

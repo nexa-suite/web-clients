@@ -32,6 +32,16 @@
             "inlineStyleLanguage": "scss",
             "assets": [
               {
+                "glob": "runtime-config.js",
+                "input": "apps/platform/public",
+                "output": "."
+              },
+              {
+                "glob": "favicon.ico",
+                "input": "apps/platform/public",
+                "output": "."
+              },
+              {
                 "glob": "*.svg",
                 "input": "logo-nexa",
                 "output": "brand/canonical"
@@ -68,6 +78,9 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "proxyConfig": "apps/platform/proxy.conf.json"
+          },
           "configurations": {
             "production": {
               "buildTarget": "platform:build:production"
