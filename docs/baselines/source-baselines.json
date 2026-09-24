@@ -1,0 +1,16 @@
+{
+  "sources": [
+    {
+      "name": "Blueprint",
+      "revision": "812cb4a73ec2ecdef1853acaaeb8ba656e583a42"
+    },
+    {
+      "name": "Design Lab",
+      "revision": "ec590abd4c3c6fae97dd7c14d866443e3f67e1e0"
+    },
+    {
+      "name": "API",
+      "revision": "c59388a7a791425dacdaa0edf2d622f5a3be2919"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+services:
+  platform:
+    build:
+      context: .
+      dockerfile: apps/platform/Dockerfile
+    ports:
+      - "4200:80"
+
+  portal:
+    build:
+      context: .
+      dockerfile: apps/portal/Dockerfile
+    ports:
+      - "4300:80"

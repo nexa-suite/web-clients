@@ -1,0 +1,43 @@
+name: Web clients CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+      - feature/platform-production-foundation
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Validate architecture and design tokens
+        run: npm run validate:design
+
+      - name: Build shared libraries and applications
+        run: npm run build:all
+
+      - name: Run shared and app unit tests
+        run: npm test
+
+      - name: Build Platform production image
+        run: docker build --file apps/platform/Dockerfile --tag nexa-platform:foundation .
+
+      - name: Build Portal production image
+        run: docker build --file apps/portal/Dockerfile --tag nexa-portal:foundation .

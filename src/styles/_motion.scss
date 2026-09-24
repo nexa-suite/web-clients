@@ -1,0 +1,16 @@
+:root {
+  --nexa-mode-motion-standard: 160ms ease;
+  --nexa-mode-motion-emphasis: 240ms ease;
+  --nexa-mode-motion-spinner: 700ms;
+  --nexa-motion-standard: var(--nexa-mode-motion-standard);
+  --nexa-motion-emphasis: var(--nexa-mode-motion-emphasis);
+  --nexa-motion-spinner: var(--nexa-mode-motion-spinner);
+}
+:root[data-motion-mode='reduced'] {
+  --nexa-mode-motion-standard: 0.01ms linear;
+  --nexa-mode-motion-emphasis: 0.01ms linear;
+  --nexa-mode-motion-spinner: 0.01ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms; animation-iteration-count: 1; scroll-behavior: auto; transition-duration: .01ms; }
+}

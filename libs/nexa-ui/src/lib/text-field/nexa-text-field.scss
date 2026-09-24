@@ -1,0 +1,19 @@
+:host { display: block; min-width: 0; }
+.nexa-field { display: grid; gap: var(--nexa-control-label-gap); color: var(--nexa-color-text-primary); font-size: var(--nexa-font-size-sm); font-weight: 600; }
+.field-label { display: block; }
+.required-mark { color: var(--nexa-color-danger-text); }
+.field-control { display: flex; min-height: var(--nexa-control-height-lg); align-items: center; gap: var(--nexa-space-2); padding: 0 var(--nexa-space-3); border: 1px solid var(--nexa-color-border-interactive); border-radius: var(--nexa-radius-control); background: var(--nexa-surface-card); transition: border-color var(--nexa-motion-standard), box-shadow var(--nexa-motion-standard); }
+.field-control:focus-within { border-color: var(--nexa-color-primary-500); box-shadow: var(--nexa-focus-ring); }
+.field-control > i { color: var(--nexa-color-primary-600); }
+input { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--nexa-color-text-primary); background: transparent; font: inherit; }
+input::placeholder { color: var(--nexa-color-text-muted); }
+.field-action { display: grid; width: var(--nexa-field-action-size); height: var(--nexa-field-action-size); flex: 0 0 var(--nexa-field-action-size); place-items: center; border: 0; border-radius: 50%; color: var(--nexa-color-text-secondary); background: transparent; cursor: pointer; }
+.field-action:hover:not(:disabled) { color: var(--nexa-color-primary-700); background: var(--nexa-color-primary-50); }
+.field-action:focus-visible { outline: none; box-shadow: var(--nexa-focus-ring); }
+.field-support, .field-error { color: var(--nexa-color-text-secondary); font-size: var(--nexa-font-size-xs); font-weight: 400; line-height: 1.4; }
+.field-error { display: inline-flex; gap: 6px; align-items: flex-start; color: var(--nexa-color-danger-text); }
+.invalid .field-control { border-color: var(--nexa-color-danger-600); }
+.read-only .field-control { background: var(--nexa-surface-inset); }
+.disabled { color: var(--nexa-color-text-muted); }
+.disabled .field-control { background: var(--nexa-surface-inset); cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) { .field-control { transition: none; } }

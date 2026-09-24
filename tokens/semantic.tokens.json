@@ -1,0 +1,732 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "$description": "Canonical Nexa semantic design tokens. Values are source data for generated SCSS artifacts.",
+  "nexa-color-primary-50": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-blue-50)",
+    "$description": "Nexa semantic token nexa-color-primary-50."
+  },
+  "nexa-color-primary-100": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-blue-100)",
+    "$description": "Nexa semantic token nexa-color-primary-100."
+  },
+  "nexa-color-primary-200": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-blue-200)",
+    "$description": "Nexa semantic token nexa-color-primary-200."
+  },
+  "nexa-color-primary-300": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-blue-300)",
+    "$description": "Nexa semantic token nexa-color-primary-300."
+  },
+  "nexa-color-primary-400": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-blue-400)",
+    "$description": "Nexa semantic token nexa-color-primary-400."
+  },
+  "nexa-color-primary-500": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-blue-500)",
+    "$description": "Nexa semantic token nexa-color-primary-500."
+  },
+  "nexa-color-primary-600": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-blue-600)",
+    "$description": "Nexa semantic token nexa-color-primary-600."
+  },
+  "nexa-color-primary-700": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-blue-700)",
+    "$description": "Nexa semantic token nexa-color-primary-700."
+  },
+  "nexa-color-primary-800": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-blue-800)",
+    "$description": "Nexa semantic token nexa-color-primary-800."
+  },
+  "nexa-color-primary-900": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-blue-900)",
+    "$description": "Nexa semantic token nexa-color-primary-900."
+  },
+  "nexa-color-primary-950": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-blue-950)",
+    "$description": "Nexa semantic token nexa-color-primary-950."
+  },
+  "nexa-color-neutral-50": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-slate-50)",
+    "$description": "Nexa semantic token nexa-color-neutral-50."
+  },
+  "nexa-color-neutral-100": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-slate-100)",
+    "$description": "Nexa semantic token nexa-color-neutral-100."
+  },
+  "nexa-color-neutral-200": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-slate-200)",
+    "$description": "Nexa semantic token nexa-color-neutral-200."
+  },
+  "nexa-color-neutral-300": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-slate-300)",
+    "$description": "Nexa semantic token nexa-color-neutral-300."
+  },
+  "nexa-color-neutral-400": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-slate-400)",
+    "$description": "Nexa semantic token nexa-color-neutral-400."
+  },
+  "nexa-color-neutral-500": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-slate-500)",
+    "$description": "Nexa semantic token nexa-color-neutral-500."
+  },
+  "nexa-color-neutral-600": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-slate-600)",
+    "$description": "Nexa semantic token nexa-color-neutral-600."
+  },
+  "nexa-color-neutral-700": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-slate-700)",
+    "$description": "Nexa semantic token nexa-color-neutral-700."
+  },
+  "nexa-color-neutral-950": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-slate-900)",
+    "$description": "Nexa semantic token nexa-color-neutral-950."
+  },
+  "nexa-color-text-primary": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-slate-900)",
+    "$description": "Nexa semantic token nexa-color-text-primary."
+  },
+  "nexa-mode-text-secondary": {
+    "$type": "other",
+    "$value": "var(--nexa-primitive-slate-500)",
+    "$description": "Nexa semantic token nexa-mode-text-secondary."
+  },
+  "nexa-mode-text-muted": {
+    "$type": "other",
+    "$value": "var(--nexa-primitive-slate-400)",
+    "$description": "Nexa semantic token nexa-mode-text-muted."
+  },
+  "nexa-mode-border-interactive": {
+    "$type": "other",
+    "$value": "var(--nexa-primitive-slate-300)",
+    "$description": "Nexa semantic token nexa-mode-border-interactive."
+  },
+  "nexa-mode-focus-ring": {
+    "$type": "shadow",
+    "$value": "var(--nexa-primitive-blue-600)",
+    "$description": "Nexa semantic token nexa-mode-focus-ring."
+  },
+  "nexa-color-text-secondary": {
+    "$type": "color",
+    "$value": "var(--nexa-mode-text-secondary)",
+    "$description": "Nexa semantic token nexa-color-text-secondary."
+  },
+  "nexa-color-text-muted": {
+    "$type": "color",
+    "$value": "var(--nexa-mode-text-muted)",
+    "$description": "Nexa semantic token nexa-color-text-muted."
+  },
+  "nexa-color-text-inverse": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-white)",
+    "$description": "Nexa semantic token nexa-color-text-inverse."
+  },
+  "nexa-color-border-default": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-slate-200)",
+    "$description": "Nexa semantic token nexa-color-border-default."
+  },
+  "nexa-color-border-strong": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-slate-300)",
+    "$description": "Nexa semantic token nexa-color-border-strong."
+  },
+  "nexa-color-border-decorative": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-slate-200)",
+    "$description": "Nexa semantic token nexa-color-border-decorative."
+  },
+  "nexa-color-border-structural": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-slate-200)",
+    "$description": "Nexa semantic token nexa-color-border-structural."
+  },
+  "nexa-color-border-interactive": {
+    "$type": "color",
+    "$value": "var(--nexa-mode-border-interactive)",
+    "$description": "Nexa semantic token nexa-color-border-interactive."
+  },
+  "nexa-color-focus-ring": {
+    "$type": "shadow",
+    "$value": "var(--nexa-mode-focus-ring)",
+    "$description": "Nexa semantic token nexa-color-focus-ring."
+  },
+  "nexa-color-info-50": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-blue-50)",
+    "$description": "Nexa semantic token nexa-color-info-50."
+  },
+  "nexa-color-info-700": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-blue-700)",
+    "$description": "Nexa semantic token nexa-color-info-700."
+  },
+  "nexa-color-info-standard-background": {
+    "$type": "color",
+    "$value": "var(--nexa-surface-info)",
+    "$description": "Standard information status background."
+  },
+  "nexa-color-info-standard-border": {
+    "$type": "color",
+    "$value": "var(--nexa-color-primary-300)",
+    "$description": "Standard information status boundary."
+  },
+  "nexa-color-info-standard-text": {
+    "$type": "color",
+    "$value": "var(--nexa-color-info-700)",
+    "$description": "Standard information status text."
+  },
+  "nexa-color-info-emphasized-background": {
+    "$type": "color",
+    "$value": "var(--nexa-color-info-700)",
+    "$description": "Strong information status background."
+  },
+  "nexa-color-info-emphasized-border": {
+    "$type": "color",
+    "$value": "var(--nexa-color-info-700)",
+    "$description": "Strong information status boundary."
+  },
+  "nexa-color-info-emphasized-text": {
+    "$type": "color",
+    "$value": "var(--nexa-color-text-inverse)",
+    "$description": "Strong information status text."
+  },
+  "nexa-color-success-50": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-green-50)",
+    "$description": "Nexa semantic token nexa-color-success-50."
+  },
+  "nexa-color-success-200": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-green-200)",
+    "$description": "Nexa semantic token nexa-color-success-200."
+  },
+  "nexa-color-success-border": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-green-200)",
+    "$description": "Nexa semantic token nexa-color-success-border."
+  },
+  "nexa-color-success-700": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-green-700)",
+    "$description": "Nexa semantic token nexa-color-success-700."
+  },
+  "nexa-color-success-standard-background": {
+    "$type": "color",
+    "$value": "var(--nexa-surface-success)",
+    "$description": "Standard success status background."
+  },
+  "nexa-color-success-standard-text": {
+    "$type": "color",
+    "$value": "var(--nexa-color-success-700)",
+    "$description": "Standard success status text."
+  },
+  "nexa-color-success-emphasized-background": {
+    "$type": "color",
+    "$value": "var(--nexa-color-success-700)",
+    "$description": "Strong success status background."
+  },
+  "nexa-color-success-emphasized-border": {
+    "$type": "color",
+    "$value": "var(--nexa-color-success-700)",
+    "$description": "Strong success status boundary."
+  },
+  "nexa-color-success-emphasized-text": {
+    "$type": "color",
+    "$value": "var(--nexa-color-text-inverse)",
+    "$description": "Strong success status text."
+  },
+  "nexa-color-role-sales-surface": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-green-50)",
+    "$description": "Nexa semantic token nexa-color-role-sales-surface."
+  },
+  "nexa-color-role-sales-border": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-green-200)",
+    "$description": "Nexa semantic token nexa-color-role-sales-border."
+  },
+  "nexa-color-role-sales-text": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-green-700)",
+    "$description": "Nexa semantic token nexa-color-role-sales-text."
+  },
+  "nexa-color-warning-50": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-amber-50)",
+    "$description": "Nexa semantic token nexa-color-warning-50."
+  },
+  "nexa-color-warning-600": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-amber-600)",
+    "$description": "Nexa semantic token nexa-color-warning-600."
+  },
+  "nexa-color-warning-text": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-amber-800)",
+    "$description": "Nexa semantic token nexa-color-warning-text."
+  },
+  "nexa-color-warning-border": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-amber-200)",
+    "$description": "Subtle warning boundary for documented attention states."
+  },
+  "nexa-color-warning-subtle-background": {
+    "$type": "color",
+    "$value": "var(--nexa-surface-warning)",
+    "$description": "Nexa semantic token nexa-color-warning-subtle-background."
+  },
+  "nexa-color-warning-subtle-border": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-amber-600)",
+    "$description": "Nexa semantic token nexa-color-warning-subtle-border."
+  },
+  "nexa-color-warning-subtle-text": {
+    "$type": "color",
+    "$value": "var(--nexa-color-warning-text)",
+    "$description": "Nexa semantic token nexa-color-warning-subtle-text."
+  },
+  "nexa-color-warning-emphasized-background": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-amber-800)",
+    "$description": "Nexa semantic token nexa-color-warning-emphasized-background."
+  },
+  "nexa-color-warning-emphasized-border": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-amber-800)",
+    "$description": "Nexa semantic token nexa-color-warning-emphasized-border."
+  },
+  "nexa-color-warning-emphasized-text": {
+    "$type": "color",
+    "$value": "var(--nexa-color-text-inverse)",
+    "$description": "Nexa semantic token nexa-color-warning-emphasized-text."
+  },
+  "nexa-color-warning-standard-background": {
+    "$type": "color",
+    "$value": "var(--nexa-surface-warning)",
+    "$description": "Standard warning status background."
+  },
+  "nexa-color-warning-standard-text": {
+    "$type": "color",
+    "$value": "var(--nexa-color-warning-text)",
+    "$description": "Standard warning status text."
+  },
+  "nexa-color-danger-50": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-red-50)",
+    "$description": "Nexa semantic token nexa-color-danger-50."
+  },
+  "nexa-color-danger-200": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-red-200)",
+    "$description": "Nexa semantic token nexa-color-danger-200."
+  },
+  "nexa-color-danger-600": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-red-600)",
+    "$description": "Nexa semantic token nexa-color-danger-600."
+  },
+  "nexa-color-danger-text": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-red-800)",
+    "$description": "Nexa semantic token nexa-color-danger-text."
+  },
+  "nexa-color-danger-subtle-background": {
+    "$type": "color",
+    "$value": "var(--nexa-surface-danger)",
+    "$description": "Nexa semantic token nexa-color-danger-subtle-background."
+  },
+  "nexa-color-danger-subtle-border": {
+    "$type": "color",
+    "$value": "var(--nexa-color-danger-200)",
+    "$description": "Nexa semantic token nexa-color-danger-subtle-border."
+  },
+  "nexa-color-danger-subtle-text": {
+    "$type": "color",
+    "$value": "var(--nexa-color-danger-text)",
+    "$description": "Nexa semantic token nexa-color-danger-subtle-text."
+  },
+  "nexa-color-danger-standard-background": {
+    "$type": "color",
+    "$value": "var(--nexa-surface-danger)",
+    "$description": "Nexa semantic token nexa-color-danger-standard-background."
+  },
+  "nexa-color-danger-standard-border": {
+    "$type": "color",
+    "$value": "var(--nexa-color-danger-600)",
+    "$description": "Nexa semantic token nexa-color-danger-standard-border."
+  },
+  "nexa-color-danger-standard-text": {
+    "$type": "color",
+    "$value": "var(--nexa-color-danger-text)",
+    "$description": "Nexa semantic token nexa-color-danger-standard-text."
+  },
+  "nexa-color-danger-strong-background": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-red-800)",
+    "$description": "Nexa semantic token nexa-color-danger-strong-background."
+  },
+  "nexa-color-danger-strong-border": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-red-800)",
+    "$description": "Nexa semantic token nexa-color-danger-strong-border."
+  },
+  "nexa-color-danger-strong-text": {
+    "$type": "color",
+    "$value": "var(--nexa-color-text-inverse)",
+    "$description": "Nexa semantic token nexa-color-danger-strong-text."
+  },
+  "nexa-color-neutral-standard-background": {
+    "$type": "color",
+    "$value": "var(--nexa-surface-inset)",
+    "$description": "Standard neutral status background."
+  },
+  "nexa-color-neutral-standard-border": {
+    "$type": "color",
+    "$value": "var(--nexa-color-neutral-300)",
+    "$description": "Standard neutral status boundary."
+  },
+  "nexa-color-neutral-standard-text": {
+    "$type": "color",
+    "$value": "var(--nexa-color-neutral-700)",
+    "$description": "Standard neutral status text."
+  },
+  "nexa-color-neutral-emphasized-background": {
+    "$type": "color",
+    "$value": "var(--nexa-color-neutral-700)",
+    "$description": "Strong neutral status background."
+  },
+  "nexa-color-neutral-emphasized-border": {
+    "$type": "color",
+    "$value": "var(--nexa-color-neutral-700)",
+    "$description": "Strong neutral status boundary."
+  },
+  "nexa-color-neutral-emphasized-text": {
+    "$type": "color",
+    "$value": "var(--nexa-color-text-inverse)",
+    "$description": "Strong neutral status text."
+  },
+  "nexa-color-attention-500": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-orange-500)",
+    "$description": "Nexa semantic token nexa-color-attention-500."
+  },
+  "nexa-color-attention-surface": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-orange-50)",
+    "$description": "Subtle operational attention surface."
+  },
+  "nexa-color-attention-border": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-orange-200)",
+    "$description": "Subtle operational attention boundary."
+  },
+  "nexa-color-attention-text": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-orange-800)",
+    "$description": "Operational attention text role."
+  },
+  "nexa-color-sky-600": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-sky-600)",
+    "$description": "Semantic data-visualization accent for sky series."
+  },
+  "nexa-color-indigo-600": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-indigo-600)",
+    "$description": "Semantic data-visualization accent for indigo series."
+  },
+  "nexa-color-orange-500": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-orange-500)",
+    "$description": "Semantic data-visualization accent for orange series."
+  },
+  "nexa-color-cold-refrigerated": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-sky-600)",
+    "$description": "Nexa semantic token nexa-color-cold-refrigerated."
+  },
+  "nexa-color-cold-refrigerated-text": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-sky-800)",
+    "$description": "Nexa semantic token nexa-color-cold-refrigerated-text."
+  },
+  "nexa-color-cold-refrigerated-soft": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-sky-50)",
+    "$description": "Nexa semantic token nexa-color-cold-refrigerated-soft."
+  },
+  "nexa-color-cold-refrigerated-border": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-sky-200)",
+    "$description": "Cold-chain refrigerated boundary role."
+  },
+  "nexa-color-cold-frozen": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-indigo-600)",
+    "$description": "Nexa semantic token nexa-color-cold-frozen."
+  },
+  "nexa-color-cold-frozen-soft": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-indigo-50)",
+    "$description": "Nexa semantic token nexa-color-cold-frozen-soft."
+  },
+  "nexa-color-cold-frozen-border": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-indigo-200)",
+    "$description": "Cold-chain frozen boundary role."
+  },
+  "nexa-color-cold-frozen-text": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-indigo-800)",
+    "$description": "Cold-chain frozen text role."
+  },
+  "nexa-surface-page": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-canvas)",
+    "$description": "Nexa semantic token nexa-surface-page."
+  },
+  "nexa-surface-card": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-white)",
+    "$description": "Nexa semantic token nexa-surface-card."
+  },
+  "nexa-surface-inset": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-slate-100)",
+    "$description": "Nexa semantic token nexa-surface-inset."
+  },
+  "nexa-surface-overlay": {
+    "$type": "color",
+    "$value": "rgb(15 23 42 / 48%)",
+    "$description": "Nexa semantic token nexa-surface-overlay."
+  },
+  "nexa-surface-nav-active": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-blue-50)",
+    "$description": "Nexa semantic token nexa-surface-nav-active."
+  },
+  "nexa-surface-info": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-blue-50)",
+    "$description": "Nexa semantic token nexa-surface-info."
+  },
+  "nexa-surface-success": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-green-50)",
+    "$description": "Nexa semantic token nexa-surface-success."
+  },
+  "nexa-surface-warning": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-amber-50)",
+    "$description": "Nexa semantic token nexa-surface-warning."
+  },
+  "nexa-surface-danger": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-red-50)",
+    "$description": "Nexa semantic token nexa-surface-danger."
+  },
+  "nexa-surface-table-header": {
+    "$type": "color",
+    "$value": "var(--nexa-primitive-slate-50)",
+    "$description": "Nexa semantic token nexa-surface-table-header."
+  },
+  "nexa-space-1": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-space-1)",
+    "$description": "Nexa semantic token nexa-space-1."
+  },
+  "nexa-space-2": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-space-2)",
+    "$description": "Nexa semantic token nexa-space-2."
+  },
+  "nexa-space-3": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-space-3)",
+    "$description": "Nexa semantic token nexa-space-3."
+  },
+  "nexa-space-4": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-space-4)",
+    "$description": "Nexa semantic token nexa-space-4."
+  },
+  "nexa-space-5": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-space-5)",
+    "$description": "Nexa semantic token nexa-space-5."
+  },
+  "nexa-space-6": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-space-6)",
+    "$description": "Nexa semantic token nexa-space-6."
+  },
+  "nexa-space-7": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-space-7)",
+    "$description": "Nexa semantic token nexa-space-7."
+  },
+  "nexa-space-8": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-space-8)",
+    "$description": "Nexa semantic token nexa-space-8."
+  },
+  "nexa-space-10": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-space-10)",
+    "$description": "Nexa semantic token nexa-space-10."
+  },
+  "nexa-space-12": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-space-12)",
+    "$description": "Nexa semantic token nexa-space-12."
+  },
+  "nexa-space-16": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-space-16)",
+    "$description": "Nexa semantic token nexa-space-16."
+  },
+  "nexa-radius-sm": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-radius-sm)",
+    "$description": "Nexa semantic token nexa-radius-sm."
+  },
+  "nexa-radius-md": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-radius-md)",
+    "$description": "Nexa semantic token nexa-radius-md."
+  },
+  "nexa-radius-lg": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-radius-lg)",
+    "$description": "Nexa semantic token nexa-radius-lg."
+  },
+  "nexa-radius-xl": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-radius-xl)",
+    "$description": "Nexa semantic token nexa-radius-xl."
+  },
+  "nexa-radius-full": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-radius-pill)",
+    "$description": "Nexa semantic token nexa-radius-full."
+  },
+  "nexa-radius-control": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-radius-control)",
+    "$description": "Nexa semantic token nexa-radius-control."
+  },
+  "nexa-radius-card": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-radius-card)",
+    "$description": "Nexa semantic token nexa-radius-card."
+  },
+  "nexa-radius-panel": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-radius-panel)",
+    "$description": "Nexa semantic token nexa-radius-panel."
+  },
+  "nexa-radius-overlay": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-radius-overlay)",
+    "$description": "Nexa semantic token nexa-radius-overlay."
+  },
+  "nexa-radius-dialog": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-radius-dialog)",
+    "$description": "Nexa semantic token nexa-radius-dialog."
+  },
+  "nexa-radius-pill": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-radius-pill)",
+    "$description": "Nexa semantic token nexa-radius-pill."
+  },
+  "nexa-radius-nav-active": {
+    "$type": "dimension",
+    "$value": "var(--nexa-primitive-radius-md)",
+    "$description": "Nexa semantic token nexa-radius-nav-active."
+  },
+  "nexa-shadow-xs": {
+    "$type": "shadow",
+    "$value": "var(--nexa-primitive-shadow-xs)",
+    "$description": "Nexa semantic token nexa-shadow-xs."
+  },
+  "nexa-shadow-sm": {
+    "$type": "shadow",
+    "$value": "var(--nexa-primitive-shadow-sm)",
+    "$description": "Nexa semantic token nexa-shadow-sm."
+  },
+  "nexa-shadow-overlay": {
+    "$type": "shadow",
+    "$value": "0 22px 60px rgb(15 23 42 / 18%)",
+    "$description": "Nexa semantic token nexa-shadow-overlay."
+  },
+  "nexa-shadow-menu": {
+    "$type": "shadow",
+    "$value": "0 14px 32px rgb(15 23 42 / 14%)",
+    "$description": "Nexa semantic token nexa-shadow-menu."
+  },
+  "nexa-font-family-display": {
+    "$type": "fontFamily",
+    "$value": "var(--nexa-primitive-font-display)",
+    "$description": "Nexa semantic token nexa-font-family-display."
+  },
+  "nexa-font-family-body": {
+    "$type": "fontFamily",
+    "$value": "var(--nexa-primitive-font-body)",
+    "$description": "Nexa semantic token nexa-font-family-body."
+  },
+  "nexa-font-family-mono": {
+    "$type": "fontFamily",
+    "$value": "var(--nexa-primitive-font-mono)",
+    "$description": "Nexa semantic token nexa-font-family-mono."
+  },
+  "$extensions": {
+    "nexa": {
+      "modes": {
+        "contrast-increased": {
+          "nexa-mode-text-secondary": {
+            "$type": "other",
+            "$value": "var(--nexa-primitive-slate-700)",
+            "$description": "Increased contrast override for nexa-mode-text-secondary."
+          },
+          "nexa-mode-text-muted": {
+            "$type": "other",
+            "$value": "var(--nexa-primitive-slate-600)",
+            "$description": "Increased contrast override for nexa-mode-text-muted."
+          },
+          "nexa-mode-border-interactive": {
+            "$type": "other",
+            "$value": "var(--nexa-primitive-slate-500)",
+            "$description": "Increased contrast override for nexa-mode-border-interactive."
+          },
+          "nexa-mode-focus-ring": {
+            "$type": "shadow",
+            "$value": "var(--nexa-primitive-blue-800)",
+            "$description": "Increased contrast override for nexa-mode-focus-ring."
+          }
+        }
+      }
+    }
+  }
+}

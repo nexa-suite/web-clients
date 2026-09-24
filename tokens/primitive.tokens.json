@@ -1,0 +1,359 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "$description": "Canonical Nexa primitive design tokens. Values are source data for generated SCSS artifacts.",
+  "nexa-primitive-blue-50": {
+    "$type": "color",
+    "$value": "oklch(96.9% 0.014 264.5)",
+    "$description": "Nexa primitive token nexa-primitive-blue-50."
+  },
+  "nexa-primitive-blue-100": {
+    "$type": "color",
+    "$value": "oklch(92.9% 0.034 263.6)",
+    "$description": "Nexa primitive token nexa-primitive-blue-100."
+  },
+  "nexa-primitive-blue-200": {
+    "$type": "color",
+    "$value": "oklch(86% 0.068 262.1)",
+    "$description": "Nexa primitive token nexa-primitive-blue-200."
+  },
+  "nexa-primitive-blue-300": {
+    "$type": "color",
+    "$value": "oklch(77% 0.117 262.4)",
+    "$description": "Nexa primitive token nexa-primitive-blue-300."
+  },
+  "nexa-primitive-blue-400": {
+    "$type": "color",
+    "$value": "oklch(68% 0.168 262.9)",
+    "$description": "Nexa primitive token nexa-primitive-blue-400."
+  },
+  "nexa-primitive-blue-500": {
+    "$type": "color",
+    "$value": "oklch(60% 0.199 262.8)",
+    "$description": "Nexa primitive token nexa-primitive-blue-500."
+  },
+  "nexa-primitive-blue-600": {
+    "$type": "color",
+    "$value": "oklch(54.6% 0.215 262.9)",
+    "$description": "Nexa primitive token nexa-primitive-blue-600."
+  },
+  "nexa-primitive-blue-700": {
+    "$type": "color",
+    "$value": "oklch(48% 0.19 262.9)",
+    "$description": "Nexa primitive token nexa-primitive-blue-700."
+  },
+  "nexa-primitive-blue-800": {
+    "$type": "color",
+    "$value": "oklch(41% 0.15 262.7)",
+    "$description": "Nexa primitive token nexa-primitive-blue-800."
+  },
+  "nexa-primitive-blue-900": {
+    "$type": "color",
+    "$value": "oklch(34.1% 0.11 262.6)",
+    "$description": "Nexa primitive token nexa-primitive-blue-900."
+  },
+  "nexa-primitive-blue-950": {
+    "$type": "color",
+    "$value": "oklch(24.9% 0.075 263)",
+    "$description": "Nexa primitive token nexa-primitive-blue-950."
+  },
+  "nexa-primitive-slate-50": {
+    "$type": "color",
+    "$value": "#f8fafc",
+    "$description": "Nexa primitive token nexa-primitive-slate-50."
+  },
+  "nexa-primitive-slate-100": {
+    "$type": "color",
+    "$value": "#f1f5f9",
+    "$description": "Nexa primitive token nexa-primitive-slate-100."
+  },
+  "nexa-primitive-slate-200": {
+    "$type": "color",
+    "$value": "#e2e8f0",
+    "$description": "Nexa primitive token nexa-primitive-slate-200."
+  },
+  "nexa-primitive-slate-300": {
+    "$type": "color",
+    "$value": "#cbd5e1",
+    "$description": "Nexa primitive token nexa-primitive-slate-300."
+  },
+  "nexa-primitive-slate-400": {
+    "$type": "color",
+    "$value": "#94a3b8",
+    "$description": "Nexa primitive token nexa-primitive-slate-400."
+  },
+  "nexa-primitive-slate-500": {
+    "$type": "color",
+    "$value": "#64748b",
+    "$description": "Nexa primitive token nexa-primitive-slate-500."
+  },
+  "nexa-primitive-slate-600": {
+    "$type": "color",
+    "$value": "#475569",
+    "$description": "Nexa primitive token nexa-primitive-slate-600."
+  },
+  "nexa-primitive-slate-700": {
+    "$type": "color",
+    "$value": "#334155",
+    "$description": "Nexa primitive token nexa-primitive-slate-700."
+  },
+  "nexa-primitive-slate-900": {
+    "$type": "color",
+    "$value": "#0f172a",
+    "$description": "Nexa primitive token nexa-primitive-slate-900."
+  },
+  "nexa-primitive-white": {
+    "$type": "color",
+    "$value": "#ffffff",
+    "$description": "Nexa primitive token nexa-primitive-white."
+  },
+  "nexa-primitive-canvas": {
+    "$type": "color",
+    "$value": "#f6faff",
+    "$description": "Nexa primitive token nexa-primitive-canvas."
+  },
+  "nexa-primitive-green-50": {
+    "$type": "color",
+    "$value": "#f0fdf4",
+    "$description": "Nexa primitive token nexa-primitive-green-50."
+  },
+  "nexa-primitive-green-200": {
+    "$type": "color",
+    "$value": "#bbf7d0",
+    "$description": "Nexa primitive token nexa-primitive-green-200."
+  },
+  "nexa-primitive-green-700": {
+    "$type": "color",
+    "$value": "#15803d",
+    "$description": "Nexa primitive token nexa-primitive-green-700."
+  },
+  "nexa-primitive-amber-50": {
+    "$type": "color",
+    "$value": "#fffbeb",
+    "$description": "Nexa primitive token nexa-primitive-amber-50."
+  },
+  "nexa-primitive-amber-200": {
+    "$type": "color",
+    "$value": "#fcd34d",
+    "$description": "Nexa primitive token nexa-primitive-amber-200."
+  },
+  "nexa-primitive-amber-600": {
+    "$type": "color",
+    "$value": "#d97706",
+    "$description": "Nexa primitive token nexa-primitive-amber-600."
+  },
+  "nexa-primitive-amber-800": {
+    "$type": "color",
+    "$value": "#92400e",
+    "$description": "Nexa primitive token nexa-primitive-amber-800."
+  },
+  "nexa-primitive-orange-500": {
+    "$type": "color",
+    "$value": "#f97316",
+    "$description": "Nexa primitive token nexa-primitive-orange-500."
+  },
+  "nexa-primitive-orange-50": {
+    "$type": "color",
+    "$value": "#fff7ed",
+    "$description": "Nexa primitive token nexa-primitive-orange-50."
+  },
+  "nexa-primitive-orange-200": {
+    "$type": "color",
+    "$value": "#fed7aa",
+    "$description": "Nexa primitive token nexa-primitive-orange-200."
+  },
+  "nexa-primitive-orange-800": {
+    "$type": "color",
+    "$value": "#9a3412",
+    "$description": "Nexa primitive token nexa-primitive-orange-800."
+  },
+  "nexa-primitive-red-50": {
+    "$type": "color",
+    "$value": "#fef2f2",
+    "$description": "Nexa primitive token nexa-primitive-red-50."
+  },
+  "nexa-primitive-red-200": {
+    "$type": "color",
+    "$value": "#fecaca",
+    "$description": "Nexa primitive token nexa-primitive-red-200."
+  },
+  "nexa-primitive-red-600": {
+    "$type": "color",
+    "$value": "#dc2626",
+    "$description": "Nexa primitive token nexa-primitive-red-600."
+  },
+  "nexa-primitive-red-800": {
+    "$type": "color",
+    "$value": "#991b1b",
+    "$description": "Nexa primitive token nexa-primitive-red-800."
+  },
+  "nexa-primitive-sky-50": {
+    "$type": "color",
+    "$value": "#f0f9ff",
+    "$description": "Nexa primitive token nexa-primitive-sky-50."
+  },
+  "nexa-primitive-sky-200": {
+    "$type": "color",
+    "$value": "#bae6fd",
+    "$description": "Nexa primitive token nexa-primitive-sky-200."
+  },
+  "nexa-primitive-sky-600": {
+    "$type": "color",
+    "$value": "#0284c7",
+    "$description": "Nexa primitive token nexa-primitive-sky-600."
+  },
+  "nexa-primitive-sky-800": {
+    "$type": "color",
+    "$value": "#075985",
+    "$description": "Nexa primitive token nexa-primitive-sky-800."
+  },
+  "nexa-primitive-indigo-50": {
+    "$type": "color",
+    "$value": "#eef2ff",
+    "$description": "Nexa primitive token nexa-primitive-indigo-50."
+  },
+  "nexa-primitive-indigo-200": {
+    "$type": "color",
+    "$value": "#c7d2fe",
+    "$description": "Nexa primitive token nexa-primitive-indigo-200."
+  },
+  "nexa-primitive-indigo-600": {
+    "$type": "color",
+    "$value": "#4f46e5",
+    "$description": "Nexa primitive token nexa-primitive-indigo-600."
+  },
+  "nexa-primitive-indigo-800": {
+    "$type": "color",
+    "$value": "#3730a3",
+    "$description": "Nexa primitive token nexa-primitive-indigo-800."
+  },
+  "nexa-primitive-space-1": {
+    "$type": "dimension",
+    "$value": "4px",
+    "$description": "Nexa primitive token nexa-primitive-space-1."
+  },
+  "nexa-primitive-space-2": {
+    "$type": "dimension",
+    "$value": "8px",
+    "$description": "Nexa primitive token nexa-primitive-space-2."
+  },
+  "nexa-primitive-space-3": {
+    "$type": "dimension",
+    "$value": "12px",
+    "$description": "Nexa primitive token nexa-primitive-space-3."
+  },
+  "nexa-primitive-space-4": {
+    "$type": "dimension",
+    "$value": "16px",
+    "$description": "Nexa primitive token nexa-primitive-space-4."
+  },
+  "nexa-primitive-space-5": {
+    "$type": "dimension",
+    "$value": "20px",
+    "$description": "Nexa primitive token nexa-primitive-space-5."
+  },
+  "nexa-primitive-space-6": {
+    "$type": "dimension",
+    "$value": "24px",
+    "$description": "Nexa primitive token nexa-primitive-space-6."
+  },
+  "nexa-primitive-space-7": {
+    "$type": "dimension",
+    "$value": "28px",
+    "$description": "Nexa primitive token nexa-primitive-space-7."
+  },
+  "nexa-primitive-space-8": {
+    "$type": "dimension",
+    "$value": "32px",
+    "$description": "Nexa primitive token nexa-primitive-space-8."
+  },
+  "nexa-primitive-space-10": {
+    "$type": "dimension",
+    "$value": "40px",
+    "$description": "Nexa primitive token nexa-primitive-space-10."
+  },
+  "nexa-primitive-space-12": {
+    "$type": "dimension",
+    "$value": "48px",
+    "$description": "Nexa primitive token nexa-primitive-space-12."
+  },
+  "nexa-primitive-space-16": {
+    "$type": "dimension",
+    "$value": "64px",
+    "$description": "Nexa primitive token nexa-primitive-space-16."
+  },
+  "nexa-primitive-radius-sm": {
+    "$type": "dimension",
+    "$value": "6px",
+    "$description": "Nexa primitive token nexa-primitive-radius-sm."
+  },
+  "nexa-primitive-radius-md": {
+    "$type": "dimension",
+    "$value": "8px",
+    "$description": "Nexa primitive token nexa-primitive-radius-md."
+  },
+  "nexa-primitive-radius-lg": {
+    "$type": "dimension",
+    "$value": "12px",
+    "$description": "Nexa primitive token nexa-primitive-radius-lg."
+  },
+  "nexa-primitive-radius-xl": {
+    "$type": "dimension",
+    "$value": "16px",
+    "$description": "Nexa primitive token nexa-primitive-radius-xl."
+  },
+  "nexa-primitive-radius-control": {
+    "$type": "dimension",
+    "$value": "10px",
+    "$description": "Nexa primitive token nexa-primitive-radius-control."
+  },
+  "nexa-primitive-radius-card": {
+    "$type": "dimension",
+    "$value": "16px",
+    "$description": "Nexa primitive token nexa-primitive-radius-card."
+  },
+  "nexa-primitive-radius-panel": {
+    "$type": "dimension",
+    "$value": "18px",
+    "$description": "Nexa primitive token nexa-primitive-radius-panel."
+  },
+  "nexa-primitive-radius-overlay": {
+    "$type": "dimension",
+    "$value": "18px",
+    "$description": "Nexa primitive token nexa-primitive-radius-overlay."
+  },
+  "nexa-primitive-radius-dialog": {
+    "$type": "dimension",
+    "$value": "24px",
+    "$description": "Nexa primitive token nexa-primitive-radius-dialog."
+  },
+  "nexa-primitive-radius-pill": {
+    "$type": "dimension",
+    "$value": "999px",
+    "$description": "Nexa primitive token nexa-primitive-radius-pill."
+  },
+  "nexa-primitive-shadow-xs": {
+    "$type": "shadow",
+    "$value": "0 1px 2px rgb(15 23 42 / 5%)",
+    "$description": "Nexa primitive token nexa-primitive-shadow-xs."
+  },
+  "nexa-primitive-shadow-sm": {
+    "$type": "shadow",
+    "$value": "0 1px 3px rgb(15 23 42 / 6%), 0 1px 2px rgb(15 23 42 / 4%)",
+    "$description": "Nexa primitive token nexa-primitive-shadow-sm."
+  },
+  "nexa-primitive-font-display": {
+    "$type": "other",
+    "$value": "'Plus Jakarta Sans', sans-serif",
+    "$description": "Nexa primitive token nexa-primitive-font-display."
+  },
+  "nexa-primitive-font-body": {
+    "$type": "other",
+    "$value": "'Inter', sans-serif",
+    "$description": "Nexa primitive token nexa-primitive-font-body."
+  },
+  "nexa-primitive-font-mono": {
+    "$type": "other",
+    "$value": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    "$description": "Nexa primitive token nexa-primitive-font-mono."
+  }
+}

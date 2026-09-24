@@ -1,0 +1,12 @@
+<label class="nexa-field" [class.invalid]="error()" [class.read-only]="readOnly()" [class.disabled]="disabled()" [for]="id()">
+  <span class="field-label" [id]="id() + '-label'">{{ label() }} @if (required()) { <span class="required-mark" aria-hidden="true">*</span> }</span>
+  <span class="field-control">
+    @if (leadingIcon()) { <i class="pi {{ leadingIcon() }}" aria-hidden="true"></i> }
+    <input [id]="id()" [type]="type()" [value]="value()" [placeholder]="placeholder()" [required]="required()" [disabled]="disabled()" [readOnly]="readOnly()" [attr.aria-labelledby]="id() + '-label'" [attr.aria-describedby]="describedBy()" [attr.aria-invalid]="error() ? 'true' : null" (input)="updateValue($event)" (blur)="touch.emit()" />
+    @if (trailingActionLabel()) {
+      <button class="field-action" type="button" [attr.aria-label]="trailingActionLabel()" [disabled]="disabled()" (click)="emitTrailingAction()"><i class="pi pi-times" aria-hidden="true"></i></button>
+    }
+  </span>
+  @if (helper()) { <span class="field-support" [id]="id() + '-help'">{{ helper() }}</span> }
+  @if (error()) { <span class="field-error" [id]="id() + '-error'" role="alert"><i class="pi pi-exclamation-circle" aria-hidden="true"></i>{{ error() }}</span> }
+</label>
