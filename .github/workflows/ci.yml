@@ -200,11 +200,38 @@ jobs:
             printf 'NEXA_DEV_LOGISTICS_PASSWORD=%s\n' "$demo_password"
           } >> "$GITHUB_ENV"
 
-      - name: Start API dependencies and the real API Docker container
+      - name: Start API dependencies
         working-directory: api
         run: |
           docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
             up -d --wait --wait-timeout 600 modern-postgres modern-mailpit modern-clamav modern-stripe-mock
+
+      - name: Provision the least-privilege API runtime database role
+        working-directory: api
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          . .env.local
+          set +a
+          docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
+            exec -T modern-postgres psql -q -v ON_ERROR_STOP=1 -U "$NEXA_MODERN_POSTGRES_USER" -d "$NEXA_MODERN_POSTGRES_DB" \
+              -v runtime_password="$NEXA_MODERN_POSTGRES_PASSWORD" <<'SQL'
+          SELECT set_config('nexa.runtime_database_password', :'runtime_password', false) AS _runtime_password \gset
+          DO $do$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'nexa_runtime') THEN
+              EXECUTE format('CREATE ROLE nexa_runtime LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L', current_setting('nexa.runtime_database_password'));
+            ELSE
+              EXECUTE format('ALTER ROLE nexa_runtime LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L', current_setting('nexa.runtime_database_password'));
+            END IF;
+          END
+          $do$;
+          SQL
+
+      - name: Start the real API Docker container
+        working-directory: api
+        run: |
           if ! docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
             up -d --no-deps --wait --wait-timeout 600 modern-api; then
             docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" ps --all
