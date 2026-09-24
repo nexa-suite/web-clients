@@ -31,7 +31,10 @@ describe('PortalShellComponent', () => {
 
     const skipLink = fixture.nativeElement.querySelector('.skip-link') as HTMLAnchorElement;
     const catalogLink = fixture.nativeElement.querySelector('.buyer-navigation a') as HTMLAnchorElement;
+    const mainContent = fixture.nativeElement.querySelector('#main-content') as HTMLElement;
     expect(skipLink.getAttribute('href')).toBe('#main-content');
+    skipLink.click();
+    expect(document.activeElement).toBe(mainContent);
     expect(catalogLink.getAttribute('aria-current')).toBe('page');
   });
 });

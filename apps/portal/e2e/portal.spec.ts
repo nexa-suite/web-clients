@@ -60,7 +60,7 @@ test('Buyer signs in, searches the server catalog, reviews SKU details, and uses
   await page.keyboard.press('Tab');
   expect(await page.evaluate(() => document.activeElement?.getAttribute('href'))).toBe('#main-content');
   await page.keyboard.press('Enter');
-  expect(await page.evaluate(() => (document.activeElement as HTMLElement | null)?.id)).toBe('main-content');
+  await expect(page.locator('#main-content')).toBeFocused();
   await expect(page.locator('.buyer-navigation a')).toHaveAttribute('aria-current', 'page');
 
   for (const width of [1440, 1024, 768, 390, 320]) {

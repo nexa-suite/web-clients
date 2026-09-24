@@ -1,5 +1,5 @@
 <div class="portal-shell">
-  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <a class="skip-link" href="#main-content" (click)="skipToMainContent($event)">Skip to main content</a>
   <header class="portal-topbar">
     <a class="portal-brand" routerLink="/catalog" aria-label="Nexa Buyer Portal">
       <nexa-logo alt="Nexa" />
@@ -19,7 +19,7 @@
   @if (session.signOutError(); as message) {
     <p class="sign-out-error" role="alert">{{ message }}</p>
   }
-  <main class="portal-content" id="main-content" tabindex="-1">
+  <main #mainContent class="portal-content" id="main-content" tabindex="-1">
     <router-outlet />
   </main>
 </div>
