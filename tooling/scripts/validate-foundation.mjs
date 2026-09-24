@@ -47,13 +47,17 @@ assert(
   'Both applications must have independent Angular unit-test targets.',
 );
 
-for (const [name, project] of [
-  ['Platform', platform],
-  ['Portal', portal],
-]) {
-  const routes = read(project.sourceRoot + '/app/app.routes.ts');
-  assert(/export const routes:\s*Routes\s*=\s*\[\s*\]/.test(routes), name + ' must remain a neutral route skeleton.');
-}
+const platformRoutes = read(platform.sourceRoot + '/app/app.routes.ts');
+const accessRoutes = read('apps/platform/src/app/features/access/access.routes.ts');
+const authenticationGuard = read('apps/platform/src/app/core/platform-authentication.guard.ts');
+const portalRoutes = read(portal.sourceRoot + '/app/app.routes.ts');
+assert(/accessRoutes/.test(platformRoutes), 'Platform must mount its access feature routes.');
+assert(/path:\s*'sign-in'/.test(accessRoutes), 'Platform must provide its public sign-in route.');
+assert(/canActivate:\s*\[requirePlatformAuthentication\]/.test(accessRoutes), 'Platform protected routes must require an authenticated session.');
+assert(/canActivateChild:\s*\[requirePlatformAuthenticationForChild\]/.test(accessRoutes), 'Platform protected child routes must require an authenticated session.');
+assert(/state\.status\s*===\s*'authenticated'/.test(authenticationGuard), 'Platform route guards must use authenticated session state.');
+assert(!/\b(?:roles|permissions|capabilities)\b/.test(authenticationGuard), 'Platform UI roles and capabilities must not authorize routes.');
+assert(/export const routes:\s*Routes\s*=\s*\[\s*\]/.test(portalRoutes), 'Portal must remain route-neutral until its own story slice is accepted.');
 
 const uiPublicApi = read('libs/nexa-ui/src/public-api.ts');
 const uiPackage = JSON.parse(read('libs/nexa-ui/ng-package.json'));

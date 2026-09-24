@@ -11,7 +11,10 @@ import {
   withInterceptors,
 } from '@angular/common/http';
 import { catchError, throwError, timeout } from 'rxjs';
-import { NexaSurface } from '../contracts/authentication.contracts';
+import {
+  NEXA_AUTH_API_PATHS,
+  NexaSurface,
+} from '../contracts/authentication.contracts';
 import { NexaAccessTokenStore } from './access-token.store';
 import { mapNexaApiError } from './api-error';
 
@@ -71,9 +74,10 @@ const nexaApiInterceptor: HttpInterceptorFn = (request, next) => {
   }
 
   const accessToken = accessTokens.read();
-  const bearerExcludedPaths = [
-    '/authentication/sign-in',
-    '/authentication/refresh',
+  const bearerExcludedPaths: readonly string[] = [
+    NEXA_AUTH_API_PATHS.workspacePreview,
+    NEXA_AUTH_API_PATHS.signIn,
+    NEXA_AUTH_API_PATHS.refresh,
   ];
   if (
     accessToken &&

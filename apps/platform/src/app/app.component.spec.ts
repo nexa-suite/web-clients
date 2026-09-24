@@ -15,11 +15,12 @@ describe('Platform app foundation', () => {
     }).compileComponents();
   });
 
-  it('renders a neutral landing page with a router outlet', () => {
+  it('provides the route outlet for Platform access and session routes', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('h1')?.textContent).toContain('Nexa Platform');
     expect(fixture.nativeElement.querySelector('router-outlet')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.skip-link')?.getAttribute('href')).toBe('#main-content');
+    expect(routes.some((route) => route.path === 'sign-in')).toBe(true);
   });
 });
