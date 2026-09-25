@@ -22,6 +22,12 @@ export const accessRoutes: Routes = [
         component: PlatformActiveContextComponent,
         title: 'Active context | Nexa Platform',
       },
+      {
+        path: 'operations/overview',
+        loadComponent: () => import('../operations/operations-overview.component')
+          .then((module) => module.PlatformOperationsOverviewComponent),
+        title: 'Operations overview | Nexa Platform',
+      },
     ],
   },
 ];

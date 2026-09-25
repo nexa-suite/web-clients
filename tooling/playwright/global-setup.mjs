@@ -1,5 +1,6 @@
 import {
   platformApiBaseUrl,
+  platformApiPort,
   requirePlatformIntegrationEnvironment,
 } from './local-environment.mjs';
 
@@ -7,7 +8,7 @@ export default async function globalSetup() {
   requirePlatformIntegrationEnvironment();
 
   const apiBase = new URL(platformApiBaseUrl);
-  if (apiBase.protocol !== 'http:' || apiBase.hostname !== '127.0.0.1' || apiBase.port !== '8080') {
+  if (apiBase.protocol !== 'http:' || apiBase.hostname !== '127.0.0.1' || apiBase.port !== String(platformApiPort)) {
     throw new Error('Platform browser checks must target the local Nexa API.');
   }
 
@@ -15,7 +16,7 @@ export default async function globalSetup() {
   try {
     response = await fetch(new URL('/v3/api-docs', apiBase));
   } catch {
-    throw new Error('The local Nexa API runtime is unavailable at localhost:8080.');
+    throw new Error(`The local Nexa API runtime is unavailable at 127.0.0.1:${platformApiPort}.`);
   }
 
   if (!response.ok) {

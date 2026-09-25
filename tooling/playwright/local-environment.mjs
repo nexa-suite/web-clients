@@ -8,7 +8,15 @@ const apiRepositoryRoot = process.env.NEXA_API_REPOSITORY_PATH
   ? resolve(process.env.NEXA_API_REPOSITORY_PATH)
   : resolve(clientRoot, '../api');
 const apiEnvironmentPath = resolve(apiRepositoryRoot, '.env.local');
-export const platformApiBaseUrl = 'http://127.0.0.1:8080/api/v1';
+const configuredApiPort = process.env.NEXA_E2E_API_PORT ?? '8080';
+if (!/^\d+$/.test(configuredApiPort)) {
+  throw new Error('NEXA_E2E_API_PORT must be a local TCP port between 1 and 65535.');
+}
+export const platformApiPort = Number(configuredApiPort);
+if (!Number.isInteger(platformApiPort) || platformApiPort < 1 || platformApiPort > 65535) {
+  throw new Error('NEXA_E2E_API_PORT must be a local TCP port between 1 and 65535.');
+}
+export const platformApiBaseUrl = `http://127.0.0.1:${platformApiPort}/api/v1`;
 
 const platformEnvironmentKeys = [
   'NEXA_DEV_WORKSPACE_SLUG',

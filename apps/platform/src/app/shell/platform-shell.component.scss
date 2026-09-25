@@ -46,6 +46,33 @@
   white-space: nowrap;
 }
 
+.platform-shell__navigation {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  margin-inline-start: var(--nexa-space-3);
+}
+
+.platform-shell__navigation-link {
+  border-radius: var(--nexa-radius-interactive, var(--nexa-radius-control));
+  padding: var(--nexa-space-2) var(--nexa-space-3);
+  color: var(--nexa-color-text-secondary);
+  font-size: var(--nexa-font-size-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.platform-shell__navigation-link:hover,
+.platform-shell__navigation-link--active {
+  color: var(--nexa-color-primary-700);
+  background: var(--nexa-surface-inset);
+}
+
+.platform-shell__navigation-link:focus-visible {
+  outline: none;
+  box-shadow: var(--nexa-focus-ring);
+}
+
 .platform-shell__context {
   display: grid;
   min-width: 0;
@@ -105,6 +132,10 @@
     max-width: 35vw;
   }
 
+  .platform-shell__navigation {
+    margin-inline-start: auto;
+  }
+
   .platform-shell__content {
     padding: var(--nexa-space-4);
   }
@@ -117,6 +148,15 @@
 
   .platform-shell__context {
     grid-column: 1;
+  }
+
+  .platform-shell__brand {
+    flex-wrap: wrap;
+  }
+
+  .platform-shell__navigation {
+    flex-basis: 100%;
+    margin-inline-start: 0;
   }
 
   .platform-shell__account {

@@ -104,6 +104,29 @@ test('uses the live API for preview, sign in, restored session, and sign out', a
   await expect(page.locator('#main-content')).toBeFocused();
 });
 
+test('loads the live Operations overview for a Logistics membership', async ({ page }) => {
+  const logistics = platformAccountDefinitions.find((account) => account.key === 'apiLogisticsIdentity');
+  if (!logistics) throw new Error('The required Logistics account definition is missing.');
+  const credentials = getPlatformAccountCredentials(logistics);
+  if (!credentials) throw new Error('The required Logistics credentials are unavailable.');
+
+  await page.goto('/sign-in');
+  await page.getByLabel('Workspace slug').fill(getPlatformWorkspaceSlug());
+  await page.getByRole('button', { name: 'Preview workspace' }).click();
+  await expect(page.getByTestId('workspace-preview')).toBeVisible();
+  await page.getByLabel('Work email or user ID').fill(credentials.identifier);
+  await page.getByLabel('Password').fill(credentials.password);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+
+  await page.goto('/operations/overview');
+  await expect(page.getByRole('heading', { name: 'Operations overview' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Current operations' })).toBeVisible();
+  await expect(page.locator('.operations-overview__metric')).toHaveCount(11);
+  await page.getByRole('button', { name: 'Refresh' }).click();
+  await expect(page.locator('.operations-overview__metric')).toHaveCount(11);
+});
+
 const roleExpectations = {
   tenantAdministrator: { apiRole: 'TENANT_ADMIN', actorName: 'Tenant Administrator' },
   salesRepresentative: { apiRole: 'SALES', actorName: 'Sales Representative' },

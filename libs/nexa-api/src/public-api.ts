@@ -4,7 +4,15 @@ export {
   type NexaApiHttpConfiguration,
 } from './lib/http/nexa-http';
 export { NexaAuthenticationApi } from './lib/auth/authentication-api';
+export { NexaLogisticsApi } from './lib/logistics/logistics-api';
 export { NexaAccessTokenStore } from './lib/http/access-token.store';
+export { NexaHttpClient, type NexaHttpRequestOptions, type NexaQueryValue } from './lib/http/nexa-http-client';
+export {
+  NexaApiTransport,
+  type NexaApiHeaderValue,
+  type NexaApiQueryValue,
+  type NexaApiRequestOptions,
+} from './lib/http/nexa-api-transport';
 export {
   NexaApiError,
   mapNexaApiError,
@@ -31,3 +39,7 @@ export {
   type WorkspacePreviewRequest,
   type WorkspacePreviewResponse,
 } from './lib/contracts/authentication.contracts';
+export {
+  NEXA_LOGISTICS_API_PATHS,
+  type LogisticsOperationsDashboardResponse,
+} from './lib/contracts/logistics.contracts';

@@ -80,11 +80,13 @@ export interface SessionUser {
 
 export interface TenantContext {
   tenantId?: string;
+  tenantName?: string;
   tenantSlug?: string;
 }
 
 export interface WorkspaceContext {
   workspaceId?: string;
+  workspaceName?: string;
   workspaceSlug?: string;
 }
 

@@ -1,0 +1,52 @@
+<section class="operations-overview" aria-labelledby="operations-overview-title">
+  <header class="operations-overview__heading">
+    <div>
+      <h1 id="operations-overview-title">Operations overview</h1>
+      <p>Current operational counts for the active business context.</p>
+    </div>
+    @if (state(); as overview) {
+      @if (overview.status === 'ready') {
+        <nexa-button variant="secondary" size="compact" (click)="refresh()">Refresh</nexa-button>
+      }
+    }
+  </header>
+
+  @let overview = state();
+  @switch (overview.status) {
+    @case ('loading') {
+      <div class="operations-overview__state" role="status" aria-live="polite">
+        <span class="operations-overview__spinner" aria-hidden="true"></span>
+        <p>Loading operational overview…</p>
+      </div>
+    }
+    @case ('error') {
+      <div class="operations-overview__state operations-overview__state--error" role="alert">
+        <div>
+          <h2>Overview unavailable</h2>
+          <p>{{ overview.message }}</p>
+        </div>
+        @if (overview.retryable) {
+          <nexa-button variant="secondary" size="compact" (click)="refresh()">Try again</nexa-button>
+        }
+      </div>
+    }
+    @case ('ready') {
+      <section class="operations-overview__results" aria-labelledby="operations-overview-counts-title">
+        <div class="operations-overview__results-heading">
+          <h2 id="operations-overview-counts-title">Current operations</h2>
+          <p>Values shown are returned by Nexa API for the active business context.</p>
+        </div>
+        <div class="operations-overview__metrics">
+          @for (metric of overview.metrics; track metric.id) {
+            <article class="operations-overview__metric">
+              <dl>
+                <dt>{{ metric.label }}</dt>
+                <dd>{{ metric.value.toLocaleString() }}</dd>
+              </dl>
+            </article>
+          }
+        </div>
+      </section>
+    }
+  }
+</section>

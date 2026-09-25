@@ -1,0 +1,18 @@
+:host { display: block; min-height: 100dvh; }
+.portal-shell { min-height: 100dvh; background: var(--nexa-surface-page); }
+.portal-topbar { display: flex; flex-wrap: wrap; min-height: 68px; align-items: center; gap: var(--nexa-space-3) var(--nexa-space-5); padding: var(--nexa-space-2) clamp(var(--nexa-space-4), 4vw, 42px); border-bottom: 1px solid var(--nexa-color-border-structural); background: var(--nexa-surface-card); }
+.portal-brand { display: inline-flex; flex: 0 0 auto; align-items: center; gap: var(--nexa-space-3); color: var(--nexa-color-text-primary); font: 700 var(--nexa-font-size-sm)/1.2 var(--nexa-font-family-display); text-decoration: none; }
+.portal-brand nexa-logo { display: block; width: 86px; }
+.buyer-navigation { display: flex; flex: 1; align-items: center; min-width: 0; }
+.buyer-navigation a { display: inline-flex; min-height: 44px; align-items: center; gap: var(--nexa-space-2); padding: 0 var(--nexa-space-3); border-radius: var(--nexa-radius-nav-active); color: var(--nexa-color-neutral-600); font-size: var(--nexa-font-size-sm); text-decoration: none; transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease; }
+.buyer-navigation a:hover { background: var(--nexa-color-neutral-50); color: var(--nexa-color-primary-700); }
+.buyer-navigation a.active { background: var(--nexa-surface-nav-active); color: var(--nexa-color-primary-700); font-weight: 700; box-shadow: inset 3px 0 0 var(--nexa-color-primary-600); }
+.buyer-navigation i { font-size: 15px; }
+.account-actions { display: flex; flex: 0 0 auto; align-items: center; gap: var(--nexa-space-3); }
+.sign-out-error { margin: var(--nexa-space-3) clamp(var(--nexa-space-4), 4vw, 42px) 0; color: var(--nexa-color-danger-text); }
+.account-name { max-width: min(30vw, 240px); overflow: hidden; color: var(--nexa-color-text-secondary); font-size: var(--nexa-font-size-sm); text-overflow: ellipsis; white-space: nowrap; }
+.portal-content { width: min(100%, 1440px); margin-inline: auto; padding: clamp(var(--nexa-space-4), 3vw, var(--nexa-space-8)); }
+.portal-content:focus { outline: none; }
+@media (max-width: 620px) { .portal-topbar { gap: var(--nexa-space-2) var(--nexa-space-3); padding-inline: var(--nexa-space-4); } .portal-brand { min-height: 44px; } .buyer-navigation { flex: 0 0 auto; } .account-actions { margin-left: auto; } .account-name { display: none; } .portal-content { padding: var(--nexa-space-4); } }
+@media (max-width: 360px) { .portal-brand nexa-logo { width: 72px; } .portal-brand { gap: var(--nexa-space-2); } }
+@media (prefers-reduced-motion: reduce) { .buyer-navigation a { transition: none; } }

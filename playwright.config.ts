@@ -60,7 +60,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run ng -- serve platform --configuration development --host 127.0.0.1 --port 4200',
+    command: 'npm run ng -- serve platform --configuration development --host 127.0.0.1 --port 4200 --proxy-config apps/platform/proxy.e2e.conf.cjs',
     cwd: projectRoot,
     url: new URL('/sign-in', baseURL).toString(),
     reuseExistingServer: !process.env.CI,
