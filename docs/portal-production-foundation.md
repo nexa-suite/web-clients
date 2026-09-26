@@ -1,5 +1,10 @@
 # Buyer Portal production foundation
 
+> Historical foundation snapshot: the source/runtime references and validation
+> below describe the v0.17.0-era work recorded at the original API revisions.
+> The current consumer contract baseline is v0.18.0 and is documented at the
+> end of this file. Product acceptance status remains separate.
+
 ## Source checkpoints
 
 | Source | Revision used | Working state observed |
@@ -70,3 +75,27 @@ Blueprint currently leaves final Web Acceptance Criteria pending. This document 
 - GitHub Actions created no check suite for stacked PR #2: the current `pull_request` branch filter only includes `develop` and `main`, while this PR targets `feature/platform-production-foundation`. Hosted CI is therefore unverified for the Portal head. The current Platform target run at `6f0dfa39f11490aaf0ae699832085f75dc011ae6` passed all six jobs, including its real API/Platform browser integration; that run validates the parent branch, not this Portal head.
 
 The following remain product or acceptance review decisions rather than locally verifiable claims: final behavior for `WEB-US-043/044`; whether the current catalog semantics meet their eligibility wording; approved price and availability projections; buyer/account eligibility and family activation policy; independent security review; final design and Product acceptance gates; and whether later Buyer projections share a cross-surface contract.
+
+## v0.18.0 consumer baseline
+
+The current web baseline pins the released Nexa API v0.18.0 at commit
+`05cb9ed3100e44d7ab0c6593cf6fbda86a4aa383`. The shared API package and Portal
+catalog adapter represent the server's `currentOfferPrice` and
+`sellableAvailability` projections without substituting `unitPrice` or
+`effectivePrice` when the current offer is absent. The detail view renders only
+those API-provided values. Buyer draft collection and resume response types
+are available in the shared API package; no draft UI or workflow is added.
+
+The current API OpenAPI document has two consumer-contract discrepancies that
+remain visible for follow-up: `MoneyResponse.amount` is declared numeric while
+the API implementation and integration tests emit a decimal string for the
+catalog current offer; and the Buyer draft detail operation resolves to a
+`DraftView` schema with the manual Sales Order Draft shape rather than the
+Buyer Purchase Request Draft response. The Web money DTO accepts either wire
+type without coercion. The Portal does not consume the draft detail endpoint.
+
+`WEB-US-043` and `WEB-US-044` remain partial technical implementation pending
+Product Acceptance Criteria and acceptance. `WEB-US-047` remains unimplemented
+in the Portal; API draft collection and resume support do not complete that
+story. The Operations overview for `WEB-US-129` remains partial and does not
+add client-created business totals or new Product state.

@@ -1,6 +1,7 @@
 import { HttpHeaders } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { NEXA_BUYER_API_PATHS, type BuyerPurchaseRequestDraftPage } from '../../public-api';
 import { NexaAccessTokenStore } from './access-token.store';
 import { afterEach, describe, expect, it } from 'vitest';
 import { provideNexaHttp } from './nexa-http';
@@ -26,6 +27,14 @@ describe('NexaHttpClient', () => {
     expect(request.request.method).toBe('GET');
     request.flush({ items: ['buyer-visible'] });
     await expect(response).resolves.toEqual({ items: ['buyer-visible'] });
+  });
+
+  it('supports the v0.18 Buyer purchase-request draft collection contract', async () => {
+    const response = client.get<BuyerPurchaseRequestDraftPage>(NEXA_BUYER_API_PATHS.purchaseRequestDrafts);
+    const request = http.expectOne('/api/v1/buyer/purchase-request-drafts');
+    request.flush({ items: [], page: 0, size: 20, totalItems: 0, totalPages: 0 });
+
+    await expect(response).resolves.toEqual({ items: [], page: 0, size: 20, totalItems: 0, totalPages: 0 });
   });
 
   it('rejects absolute URLs so callers cannot bypass the configured transport', () => {

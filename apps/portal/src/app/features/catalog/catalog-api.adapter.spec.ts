@@ -31,10 +31,11 @@ describe('CatalogApiAdapter', () => {
         unitOfMeasure: 'EA',
         packagingType: 'BOX',
         coldChainRequirement: 'NONE',
-        effectivePrice: 19.99,
-        availabilityStatus: 'AVAILABLE',
-        availableQuantity: 999,
-        nearExpiry: true,
+        currentOfferPrice: { amount: '19.99', currency: 'PEN' },
+        effectivePrice: { amount: '999.00', currency: 'PEN' },
+        sellableAvailability: 4.5,
+        pricingAsOf: '2026-09-26T02:00:00Z',
+        availabilityAsOf: '2026-09-26T02:00:00Z',
       }],
     });
 
@@ -69,9 +70,29 @@ describe('CatalogApiAdapter', () => {
       unitOfMeasure: 'EA',
       packagingType: 'BOX',
       coldChainRequirement: 'None',
+      currentOfferPrice: { amount: '19.99', currency: 'PEN' },
+      sellableAvailability: 4.5,
+      pricingAsOf: '2026-09-26T02:00:00Z',
+      availabilityAsOf: '2026-09-26T02:00:00Z',
     });
-    expect(page.items[0]).not.toHaveProperty('effectivePrice');
-    expect(page.items[0]).not.toHaveProperty('availableQuantity');
+    expect(page.items[0].currentOfferPrice?.amount).not.toBe(999);
+  });
+
+  it('does not infer the current offer or sellable availability from other catalog fields', async () => {
+    http.get.mockResolvedValue({
+      catalogItemId: 'CAT-1002',
+      skuCode: 'SKU-1002',
+      itemName: 'Unpriced item',
+      unitPrice: { amount: '10.00', currency: 'PEN' },
+      effectivePrice: { amount: '9.00', currency: 'PEN' },
+    });
+
+    await expect(adapter.detail('CAT-1002')).resolves.toMatchObject({
+      currentOfferPrice: null,
+      sellableAvailability: null,
+      pricingAsOf: null,
+      availabilityAsOf: null,
+    });
   });
 
   it('requests detail through the buyer-scoped catalog item operation', async () => {

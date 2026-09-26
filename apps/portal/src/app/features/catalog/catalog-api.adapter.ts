@@ -1,29 +1,9 @@
 import { inject, Injectable } from '@angular/core';
 import { NexaApiError, NexaHttpClient } from '@nexa/api';
+import type { BuyerCatalogItemResponse, BuyerCatalogPageResponse } from '@nexa/api';
 import type { BuyerCatalogItem, BuyerCatalogPage, CatalogSearch } from './catalog.models';
 
-interface CatalogItemDto {
-  readonly catalogItemId?: string;
-  readonly itemName?: string;
-  readonly brandName?: string | null;
-  readonly categoryName?: string | null;
-  readonly presentation?: string | null;
-  readonly productFamilyName?: string | null;
-  readonly skuCode?: string;
-  readonly unitOfMeasure?: string | null;
-  readonly packagingType?: string | null;
-  readonly coldChainRequirement?: string | null;
-}
-
-interface CatalogPageDto {
-  readonly items?: readonly CatalogItemDto[];
-  readonly page?: number;
-  readonly size?: number;
-  readonly totalItems?: number;
-  readonly totalPages?: number;
-}
-
-export function mapCatalogItem(dto: CatalogItemDto): BuyerCatalogItem {
+export function mapCatalogItem(dto: BuyerCatalogItemResponse): BuyerCatalogItem {
   return {
     catalogItemId: dto.catalogItemId ?? '',
     skuCode: dto.skuCode ?? '',
@@ -35,6 +15,10 @@ export function mapCatalogItem(dto: CatalogItemDto): BuyerCatalogItem {
     unitOfMeasure: dto.unitOfMeasure ?? null,
     packagingType: dto.packagingType ?? null,
     coldChainRequirement: formatColdChainRequirement(dto.coldChainRequirement),
+    currentOfferPrice: dto.currentOfferPrice ?? null,
+    sellableAvailability: dto.sellableAvailability ?? null,
+    pricingAsOf: dto.pricingAsOf ?? null,
+    availabilityAsOf: dto.availabilityAsOf ?? null,
   };
 }
 
@@ -52,7 +36,7 @@ export class CatalogApiAdapter {
   private readonly http = inject(NexaHttpClient);
 
   async list(search: CatalogSearch): Promise<BuyerCatalogPage> {
-    const response = await this.http.get<CatalogPageDto>('/catalog-items', {
+    const response = await this.http.get<BuyerCatalogPageResponse>('/catalog-items', {
       query: {
         page: search.page,
         size: 12,
@@ -76,7 +60,7 @@ export class CatalogApiAdapter {
   }
 
   async detail(catalogItemId: string): Promise<BuyerCatalogItem> {
-    const response = await this.http.get<CatalogItemDto>(`/catalog-items/${encodeURIComponent(catalogItemId)}`);
+    const response = await this.http.get<BuyerCatalogItemResponse>(`/catalog-items/${encodeURIComponent(catalogItemId)}`);
     const item = mapCatalogItem(response);
     if (!item.catalogItemId || !item.skuCode || !item.itemName) {
       throw new NexaApiError('unknown', null, null);

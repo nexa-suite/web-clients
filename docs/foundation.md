@@ -21,7 +21,7 @@ The browser refresh token remains server-managed in an HttpOnly cookie. The acce
 
 The error mapper reads Retry-After when the browser exposes it. The current API CORS configuration does not expose that response header, so browser callers must not rely on a retry delay being available.
 
-The contracts reflect the current checked-in OpenAPI baseline. Workspace preview identifies a workspace; sign-in supplies the selected workspace slug and surface. See [Platform access traceability](traceability/platform-access.md) for story scope, current contract coverage, role mapping gaps and the distinction between technical verification and pending Product Acceptance Criteria.
+The current consumer baseline is released Nexa API v0.18.0, pinned by immutable commit in CI and recorded in the source traceability document. Workspace preview identifies a workspace; sign-in supplies the selected workspace slug and surface. See [Platform access traceability](traceability/platform-access.md) for story scope, current contract coverage, role mapping gaps and the distinction between technical verification and pending Product Acceptance Criteria.
 
 ## Local commands
 

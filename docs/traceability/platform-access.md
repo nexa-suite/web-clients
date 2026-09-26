@@ -3,7 +3,7 @@ status: implementation-evidence
 maturity: AS-IS / technical verification
 scope: Platform access slice
 owner: web
-last-reviewed: 2026-09-24
+last-reviewed: 2026-09-25
 ---
 
 # Platform access slice traceability
@@ -16,15 +16,18 @@ claim.
 
 ## Evidence references
 
-The following revisions were captured on 2026-09-24. The short revisions below
-are included only for readability; the full revisions are the evidence refs.
+Blueprint, Design Lab, and the original API snapshot below record foundation
+evidence captured on 2026-09-24. The current API consumer baseline is the
+released v0.18.0 revision recorded separately in this table. Short revisions
+are included only for readability; full revisions are the evidence refs.
 
 | Source                            | Revision                                   | Relevant evidence                                                                                                                                |
 | --------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Blueprint                         | `812cb4a73ec2ecdef1853acaaeb8ba656e583a42` | Current Product decisions, Web story catalog, BC-01, actor catalog and role-capability matrix                                                    |
 | Design Lab                        | `ec590abd4c3c6fae97dd7c14d866443e3f67e1e0` | Reusable Angular UI package, tokens, accessibility styles and authentication pattern evidence                                                    |
-| API OpenAPI baseline              | `c59388a7a791425dacdaa0edf2d622f5a3be2919` | Revision recorded by `docs/baselines/source-baselines.json`; `docs/openapi/openapi.json` is v0.17.0                                              |
-| API source checkout used by CI    | `9c74f3d01b7a60c7ba3df25e673d76d0e54986c7` | Exact `feature/api-production-foundation` checkout used by the executed API integration; no OpenAPI snapshot diff from the recorded API baseline |
+| Historical API OpenAPI baseline   | `c59388a7a791425dacdaa0edf2d622f5a3be2919` | v0.17.0 foundation snapshot recorded by `docs/baselines/source-baselines.json`; retained as historical provenance                         |
+| Current released API source       | `05cb9ed3100e44d7ab0c6593cf6fbda86a4aa383` | Nexa API `v0.18.0`; peeled tag commit and immutable source pin used by current CI                                                           |
+| Historical API source checkout    | `9c74f3d01b7a60c7ba3df25e673d76d0e54986c7` | Pre-release source checkout used by the original foundation API integration; not the current CI pin                                         |
 | Web clients foundation checkpoint | `22c151da0d9447568970aa7c6a10f48fde79e090` | Signed `chore(web): establish shared Angular foundation` checkpoint on `feature/platform-production-foundation`                                  |
 | Web clients access-slice ref      | Reported in the Git/PR handoff             | The final source revision is captured at branch publication and reported with the handoff.                                                       |
 

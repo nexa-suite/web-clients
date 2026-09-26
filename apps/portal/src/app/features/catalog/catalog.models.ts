@@ -1,3 +1,5 @@
+import type { BuyerMoneyResponse } from '@nexa/api';
+
 export interface CatalogSearch {
   readonly q: string;
   readonly brand: string;
@@ -17,6 +19,10 @@ export interface BuyerCatalogItem {
   readonly unitOfMeasure: string | null;
   readonly packagingType: string | null;
   readonly coldChainRequirement: string | null;
+  readonly currentOfferPrice: BuyerMoneyResponse | null;
+  readonly sellableAvailability: number | null;
+  readonly pricingAsOf: string | null;
+  readonly availabilityAsOf: string | null;
 }
 
 export interface BuyerCatalogPage {

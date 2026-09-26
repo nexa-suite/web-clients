@@ -31,8 +31,30 @@
             <section class="commercial-information" aria-labelledby="commercial-heading">
               <h2 id="commercial-heading">Commercial information</h2>
               <dl class="commercial-facts">
-                <div><dt>Current price</dt><dd>Not provided</dd></div>
-                <div><dt>Sellable Availability</dt><dd>Not provided</dd></div>
+                <div>
+                  <dt>Current price</dt>
+                  <dd>
+                    @if (item.currentOfferPrice; as currentOfferPrice) {
+                      @if (currentOfferPrice.amount !== undefined && currentOfferPrice.amount !== null && currentOfferPrice.currency) {
+                        {{ currentOfferPrice.amount }} {{ currentOfferPrice.currency }}
+                      } @else {
+                        Not provided
+                      }
+                    } @else {
+                      Not provided
+                    }
+                  </dd>
+                </div>
+                <div>
+                  <dt>Sellable Availability</dt>
+                  <dd>
+                    @if (item.sellableAvailability !== null) {
+                      {{ item.sellableAvailability }}
+                    } @else {
+                      Not provided
+                    }
+                  </dd>
+                </div>
               </dl>
             </section>
           </div>

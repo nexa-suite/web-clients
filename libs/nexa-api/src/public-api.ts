@@ -40,6 +40,20 @@ export {
   type WorkspacePreviewResponse,
 } from './lib/contracts/authentication.contracts';
 export {
+  NEXA_BUYER_API_PATHS,
+  type BuyerAppliedPromotionResponse,
+  type BuyerCatalogItemResponse,
+  type BuyerCatalogPageResponse,
+  type BuyerMoneyResponse,
+  type BuyerPurchaseRequestDraftDestination,
+  type BuyerPurchaseRequestDraftLine,
+  type BuyerPurchaseRequestDraftPage,
+  type BuyerPurchaseRequestDraftRoute,
+  type BuyerPurchaseRequestDraftSummary,
+  type BuyerPurchaseRequestDraftView,
+  type BuyerPurchaseRequestDraftWarehouseSelection,
+} from './lib/contracts/buyer.contracts';
+export {
   NEXA_LOGISTICS_API_PATHS,
   type LogisticsOperationsDashboardResponse,
 } from './lib/contracts/logistics.contracts';

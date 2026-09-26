@@ -46,10 +46,31 @@ test('Buyer signs in, searches the server catalog, reviews SKU details, and uses
   await page.getByLabel('Search SKUs').fill(skuCode);
   await page.getByRole('button', { name: 'Search' }).click();
   await expect(page.locator('.product-card')).toHaveCount(1);
+  const detailResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'GET'
+      && url.pathname.startsWith('/api/v1/catalog-items/')
+      && url.pathname !== '/api/v1/catalog-items/';
+  });
   await page.locator('.product-card').first().locator('a.product-detail-link').click();
+  const detailResponse = await detailResponsePromise;
+  expect(detailResponse.ok()).toBe(true);
+  const detailPayload = await detailResponse.json() as {
+    readonly currentOfferPrice?: { readonly amount?: number | string | null; readonly currency?: string | null } | null;
+    readonly sellableAvailability?: number | null;
+  };
   await expect(page.locator('.sku-identifier')).toHaveText(skuCode);
   await expect(page.getByRole('heading', { name: 'Commercial information' })).toBeVisible();
-  await expect(page.getByText('Not provided')).toHaveCount(2);
+  const currentOfferPrice = detailPayload.currentOfferPrice;
+  const expectedCurrentPrice = currentOfferPrice?.amount != null && currentOfferPrice.currency
+    ? `${currentOfferPrice.amount} ${currentOfferPrice.currency}`
+    : 'Not provided';
+  const expectedSellableAvailability = detailPayload.sellableAvailability == null
+    ? 'Not provided'
+    : String(detailPayload.sellableAvailability);
+  const commercialFacts = page.locator('.commercial-facts > div');
+  await expect(commercialFacts.nth(0).locator('dd')).toHaveText(expectedCurrentPrice);
+  await expect(commercialFacts.nth(1).locator('dd')).toHaveText(expectedSellableAvailability);
   await page.getByRole('link', { name: /Back to catalog/ }).click();
   await expect(page.getByLabel('Search SKUs')).toHaveValue(skuCode);
 
