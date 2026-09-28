@@ -4,6 +4,7 @@ export {
   type NexaApiHttpConfiguration,
 } from './lib/http/nexa-http';
 export { NexaAuthenticationApi } from './lib/auth/authentication-api';
+export { NexaLogisticsApi } from './lib/logistics/logistics-api';
 export { NexaAccessTokenStore } from './lib/http/access-token.store';
 export {
   NexaApiError,
@@ -31,3 +32,7 @@ export {
   type WorkspacePreviewRequest,
   type WorkspacePreviewResponse,
 } from './lib/contracts/authentication.contracts';
+export {
+  NEXA_LOGISTICS_API_PATHS,
+  type LogisticsOperationsDashboardResponse,
+} from './lib/contracts/logistics.contracts';

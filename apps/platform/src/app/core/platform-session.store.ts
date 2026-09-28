@@ -118,6 +118,13 @@ export class PlatformSessionStore {
     );
   }
 
+  expireLocalSession(): void {
+    this.operationVersion++;
+    this.restorationRequest = null;
+    this.accessTokens.clear();
+    this.state.set({ status: 'unauthenticated' });
+  }
+
   private loadSession(
     response: AuthenticationResponse,
     operationVersion: number,

@@ -36,7 +36,35 @@ describe('PlatformShellComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Active business context');
     expect(fixture.nativeElement.textContent).toContain('Tenant: north-distribution');
     expect(fixture.nativeElement.textContent).toContain('Workspace: main');
+    expect(fixture.nativeElement.querySelector('nav[aria-label="Platform navigation"]')).toBeNull();
     expect(fixture.nativeElement.querySelector('nexa-button')?.textContent).toContain('Sign out');
+  });
+
+  it('uses server session names for the active business context when present', () => {
+    const fixture = TestBed.createComponent(PlatformShellComponent);
+    fixture.componentRef.setInput('session', {
+      tenant: { tenantName: 'North Distribution', tenantSlug: 'north-distribution' },
+      workspace: { workspaceName: 'Main Warehouse', workspaceSlug: 'main' },
+    } satisfies SessionResponse);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Tenant: North Distribution (north-distribution)');
+    expect(fixture.nativeElement.textContent).toContain('Workspace: Main Warehouse (main)');
+  });
+
+  it('shows the operational overview link only for an API-returned supported read permission', () => {
+    const fixture = TestBed.createComponent(PlatformShellComponent);
+    fixture.componentRef.setInput('session', {
+      membership: { roles: ['LOGISTICS'] },
+    } satisfies SessionResponse);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('a[routerLink="/operations/overview"]')).toBeNull();
+
+    fixture.componentRef.setInput('session', {
+      membership: { permissions: ['dispatch.read'] },
+    } satisfies SessionResponse);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('a[routerLink="/operations/overview"]')?.textContent).toContain('Operations overview');
   });
 
   it('uses the returned email when the session has no display name', () => {

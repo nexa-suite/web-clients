@@ -4,6 +4,19 @@
       <nexa-logo class="platform-shell__logo" alt="Nexa" />
       <span class="platform-shell__brand-divider" aria-hidden="true"></span>
       <span class="platform-shell__product-name">Nexa Platform</span>
+      @if (canViewOperationsOverview) {
+        <nav class="platform-shell__navigation" aria-label="Platform navigation">
+          <a
+            class="platform-shell__navigation-link"
+            routerLink="/operations/overview"
+            routerLinkActive="platform-shell__navigation-link--active"
+            [routerLinkActiveOptions]="{ exact: true }"
+            ariaCurrentWhenActive="page"
+          >
+            Operations overview
+          </a>
+        </nav>
+      }
     </div>
 
     @if (contextLabel; as activeContext) {
