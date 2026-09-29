@@ -6,6 +6,7 @@ export {
 export { NexaAuthenticationApi } from './lib/auth/authentication-api';
 export { NexaLogisticsApi } from './lib/logistics/logistics-api';
 export { NexaAccessTokenStore } from './lib/http/access-token.store';
+export { NexaHttpClient, type NexaHttpRequestOptions, type NexaQueryValue } from './lib/http/nexa-http-client';
 export {
   NexaApiError,
   mapNexaApiError,

@@ -1,0 +1,98 @@
+<section class="catalog-page" aria-labelledby="catalog-heading">
+  <header class="page-heading">
+    <div>
+      <p class="page-kicker">CATALOG</p>
+      <h1 id="catalog-heading">Browse catalog SKUs</h1>
+      <p class="page-intro">Search the SKUs listed in this workspace catalog.</p>
+    </div>
+  </header>
+
+  <nexa-surface tone="soft">
+    <form class="catalog-search" aria-label="Search catalog" (submit)="search($event)">
+      <nexa-text-field
+        id="catalog-query"
+        label="Search SKUs"
+        type="search"
+        placeholder="Name, family or SKU"
+        [value]="q()"
+        (valueChange)="q.set($event)"
+      />
+      <nexa-text-field id="catalog-brand" label="Brand" [value]="brand()" (valueChange)="brand.set($event)" />
+      <nexa-text-field id="catalog-category" label="Category" [value]="category()" (valueChange)="category.set($event)" />
+      <label class="cold-chain-filter" for="catalog-cold-chain">
+        <span>Cold-chain requirement</span>
+        <select id="catalog-cold-chain" [value]="coldChain()" (change)="coldChain.set($any($event.target).value)">
+          @for (option of coldChainOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+      </label>
+      <div class="search-actions">
+        <nexa-button type="submit" [loading]="store.page().kind === 'loading'">Search</nexa-button>
+        <nexa-button type="button" variant="quiet" [disabled]="store.page().kind === 'loading'" (click)="clear()">Clear</nexa-button>
+      </div>
+    </form>
+  </nexa-surface>
+
+  <div class="results-heading">
+    <h2>Catalog results</h2>
+    @if (store.page().page; as page) {
+      <span>{{ page.totalItems }} SKUs</span>
+    }
+  </div>
+
+  @switch (store.page().kind) {
+    @case ('loading') {
+      <nexa-surface tone="inset"><p class="state-message" role="status">Loading catalog results…</p></nexa-surface>
+    }
+    @case ('error') {
+      <nexa-surface tone="inset">
+        <div class="state-message error-state" role="alert">
+          <strong>Catalog could not be loaded</strong>
+          <p>{{ store.page().errorMessage }}</p>
+          <nexa-button variant="secondary" (click)="store.load()">Retry</nexa-button>
+        </div>
+      </nexa-surface>
+    }
+    @case ('empty') {
+      <nexa-surface tone="inset">
+        <div class="state-message empty-state">
+          <i class="pi pi-search" aria-hidden="true"></i>
+          <strong>No SKUs match this search</strong>
+          <p>Clear the search or adjust the filters to see other catalog items.</p>
+          <nexa-button variant="secondary" (click)="clear()">Clear filters</nexa-button>
+        </div>
+      </nexa-surface>
+    }
+    @case ('results') {
+      <div class="catalog-grid" aria-label="Catalog results">
+        @for (item of store.page().page?.items ?? []; track item.catalogItemId) {
+          <article class="product-card">
+            <a class="product-detail-link" [routerLink]="['/catalog', item.catalogItemId]">
+              <span class="product-art" aria-hidden="true"><i class="pi pi-box"></i></span>
+              <span class="product-family">{{ item.brandName || item.productFamilyName || 'Catalog item' }}<span aria-hidden="true"> · </span>{{ item.categoryName || 'SKU' }}</span>
+              <strong>{{ item.itemName }}</strong>
+              <span class="product-meta">{{ item.skuCode }}@if (item.presentation) { <span aria-hidden="true"> · </span>{{ item.presentation }} }</span>
+              @if (item.coldChainRequirement) {
+                <nexa-status-chip tone="info">{{ item.coldChainRequirement }}</nexa-status-chip>
+              }
+            </a>
+            <nexa-button size="compact" variant="secondary" [routerLink]="'/catalog/' + item.catalogItemId">View SKU details</nexa-button>
+          </article>
+        }
+      </div>
+      @if (store.page().page; as page) {
+        @if (page.totalPages > 1) {
+          <nav class="pagination" aria-label="Catalog pages">
+            <nexa-button variant="secondary" [disabled]="page.page <= 0" (click)="pageBy(-1)">Previous</nexa-button>
+            <span>Page {{ page.page + 1 }} of {{ page.totalPages }}</span>
+            <nexa-button variant="secondary" [disabled]="page.page + 1 >= page.totalPages" (click)="pageBy(1)">Next</nexa-button>
+          </nav>
+        }
+      }
+    }
+    @default {
+      <nexa-surface tone="inset"><p class="state-message">Catalog results are ready to load.</p></nexa-surface>
+    }
+  }
+</section>

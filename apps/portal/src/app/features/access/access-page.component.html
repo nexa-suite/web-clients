@@ -1,0 +1,59 @@
+<main class="access-page">
+  <section class="access-pattern" aria-labelledby="access-heading">
+    <aside class="access-brand-plane">
+      <nexa-logo variant="inverse" alt="Nexa" />
+      <p>Access the catalog available to your buyer relationship.</p>
+    </aside>
+    <form class="access-form" (submit)="authenticate($event)">
+      <div class="access-form-heading">
+        <p class="access-kicker">WORKSPACE ACCESS</p>
+        @if (session.workspacePreview(); as preview) {
+          @if (workspaceReady()) {
+            <span class="workspace-state" role="status">{{ preview.displayName || 'Workspace recognized' }}</span>
+          }
+        }
+      </div>
+      <h1 id="access-heading">Sign in to your workspace</h1>
+      <p class="access-intro">Use the workspace and account assigned to your buyer relationship.</p>
+      @if (session.signOutError(); as signOutError) {
+        <p class="access-message" role="alert">{{ signOutError }}</p>
+      }
+      <nexa-text-field
+        id="portal-workspace"
+        label="Workspace address"
+        [value]="workspaceSlug()"
+        [disabled]="previewBusy() || session.busy()"
+        helper="Enter the workspace address provided by your supplier."
+        (valueChange)="workspaceSlug.set($event)"
+      />
+      @if (workspaceReady()) {
+        <nexa-text-field
+          id="portal-identifier"
+          label="Email"
+          type="email"
+          [value]="identifier()"
+          [required]="true"
+          [disabled]="session.busy()"
+          (valueChange)="identifier.set($event)"
+        />
+        <nexa-text-field
+          id="portal-password"
+          label="Password"
+          type="password"
+          [value]="password()"
+          [required]="true"
+          [disabled]="session.busy()"
+          (valueChange)="password.set($event)"
+        />
+      }
+      @if (message()) {
+        <p class="access-message" role="alert">{{ message() }}</p>
+      }
+      <nexa-button
+        type="submit"
+        [fullWidth]="true"
+        [loading]="previewBusy() || session.busy()"
+      >{{ workspaceReady() ? 'Sign in' : 'Continue' }}</nexa-button>
+    </form>
+  </section>
+</main>

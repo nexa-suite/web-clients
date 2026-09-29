@@ -15,11 +15,11 @@ describe('Portal app foundation', () => {
     }).compileComponents();
   });
 
-  it('renders a neutral landing page with a router outlet', () => {
+  it('renders the application route outlet without a foundation demo page', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('h1')?.textContent).toContain('Nexa Portal');
     expect(fixture.nativeElement.querySelector('router-outlet')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Product routes are not configured');
   });
 });

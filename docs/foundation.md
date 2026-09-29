@@ -15,7 +15,9 @@ The applications have separate bootstrap, routing, build, test, Docker, and stat
 
 The API base is configurable before Angular starts through the Platform runtime configuration and `provideNexaHttp`. The current API's browser refresh cookie is scoped to `/api/v1/authentication`, so Platform accepts the current `/api/v1` path with either the same origin or an absolute HTTPS API origin; absolute HTTP is limited to `localhost`, `127.0.0.1` and `[::1]` development runtimes. The client and container entrypoint reject invalid ports, unsupported host forms and prefixes, protocol-relative URLs, credentials, queries and fragments. The Angular development server proxies `/api/v1` to the local API on `127.0.0.1:8080`. The Platform container can generate `runtime-config.js` from the non-secret `NEXA_PLATFORM_API_BASE_URL` environment variable at startup; configure an API origin when ingress does not route `/api/v1` to the API before it reaches the static container. The client adds the surface header on refresh and sign-out, sends browser-managed cookies on sign-in, refresh and sign-out, and attaches an available in-memory bearer token to API requests.
 
-The browser refresh token remains server-managed in an HttpOnly cookie. The access token is held only in a signal-backed in-memory store. Platform now has a real sign-in route, an authentication-only guard, and an API-backed active-context view. Role and capability data is an informational projection; it does not authorize client actions. The current API does not provide eligible-context listing or post-login context switching.
+The browser refresh token remains server-managed in an HttpOnly cookie. The access token is held only in a signal-backed in-memory store. Platform has a real sign-in route, an authentication-only guard, and an API-backed active-context view. Role and capability data is an informational projection; it does not authorize client actions. The current API does not provide eligible-context listing or post-login context switching. Each app owns its feature navigation and authorization guards; Portal resolves Customer Buyer access through the server account projection and matching membership identifiers.
+
+`NexaHttpClient` is the typed-consumer boundary over the shared HTTP interceptor. Feature adapters use its API-relative `get`, `post`, and `put` methods so bearer transport, browser cookies, timeouts, correlation, and Problem Details mapping stay configured centrally. Portal feature code must not inject Angular `HttpClient` directly.
 
 The error mapper reads Retry-After when the browser exposes it. The current API CORS configuration does not expose that response header, so browser callers must not rely on a retry delay being available.
 
@@ -35,6 +37,7 @@ The contracts reflect the current checked-in OpenAPI baseline. Workspace preview
 
 - Both standalone apps compile to separate production browser outputs.
 - Shared UI imports resolve through the public API and adopted package output.
+- Application API adapters use the shared `NexaHttpClient` transport boundary.
 - Token SCSS matches its source JSON and canonical logo assets are included in both app builds.
 - App boundaries, ephemeral auth-token handling, and shared transport boundaries pass the architecture check.
 - Platform sign-in, session restoration, current-context display and sign-out use real API contracts; full active-context selection remains blocked by missing API contracts.
