@@ -1,0 +1,4 @@
+<platform-shell [session]="session()" (signOut)="signOut()"></platform-shell>
+@if (signOutError(); as message) {
+  <p class="sign-out-error" role="alert">{{ message }}</p>
+}

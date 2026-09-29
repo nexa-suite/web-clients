@@ -1,0 +1,18 @@
+/* Generated from tokens/data-visualization.tokens.json; do not edit directly. */
+:root {
+  --nexa-viz-series-1: var(--nexa-color-primary-600);
+  --nexa-viz-series-2: var(--nexa-color-sky-600);
+  --nexa-viz-series-3: var(--nexa-color-indigo-600);
+  --nexa-viz-series-4: var(--nexa-color-orange-500);
+  --nexa-viz-series-5: var(--nexa-color-success-700);
+  --nexa-viz-series-6: var(--nexa-color-warning-600);
+  --nexa-viz-status-success: var(--nexa-color-success-700);
+  --nexa-viz-status-warning: var(--nexa-color-warning-600);
+  --nexa-viz-status-danger: var(--nexa-color-danger-600);
+  --nexa-viz-status-info: var(--nexa-color-info-700);
+  --nexa-viz-sequential-low: var(--nexa-color-primary-100);
+  --nexa-viz-sequential-high: var(--nexa-color-primary-700);
+  --nexa-viz-grid: var(--nexa-color-neutral-200);
+  --nexa-viz-axis-text: var(--nexa-color-text-secondary);
+  --nexa-viz-area-fill: color-mix(in oklab, var(--nexa-viz-series-1) 16%, transparent);
+}

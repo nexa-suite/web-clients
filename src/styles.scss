@@ -1,0 +1,40 @@
+@use 'primeicons/primeicons.css';
+@use './styles/tokens';
+@use './styles/typography';
+@use './styles/motion';
+@use './styles/material-theme';
+@use './styles/accessibility';
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+  background: var(--nexa-surface-page);
+  color: var(--nexa-color-text-primary);
+  font-family: var(--nexa-font-family-body);
+  font-size: var(--nexa-font-size-base);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: var(--nexa-color-primary-100);
+  color: var(--nexa-color-primary-800);
+}

@@ -1,0 +1,4 @@
+:host { display: block; }
+.nexa-surface { border: 1px solid var(--nexa-color-border-default); border-radius: var(--nexa-radius-panel); background: var(--nexa-surface-card); }
+.soft { background: var(--nexa-surface-info); border-color: var(--nexa-color-primary-200); }
+.inset { background: var(--nexa-surface-inset); }

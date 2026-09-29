@@ -1,0 +1,79 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "$description": "Nexa categorical, sequential and quantitative visualization roles. Data roles are not semantic status roles.",
+  "nexa-viz-series-1": {
+    "$type": "color",
+    "$value": "{nexa-color-primary-600}",
+    "$description": "Primary categorical series."
+  },
+  "nexa-viz-series-2": {
+    "$type": "color",
+    "$value": "{nexa-color-sky-600}",
+    "$description": "Sky categorical series."
+  },
+  "nexa-viz-series-3": {
+    "$type": "color",
+    "$value": "{nexa-color-indigo-600}",
+    "$description": "Indigo categorical series."
+  },
+  "nexa-viz-series-4": {
+    "$type": "color",
+    "$value": "{nexa-color-orange-500}",
+    "$description": "Orange categorical series."
+  },
+  "nexa-viz-series-5": {
+    "$type": "color",
+    "$value": "{nexa-color-success-700}",
+    "$description": "Green categorical series."
+  },
+  "nexa-viz-series-6": {
+    "$type": "color",
+    "$value": "{nexa-color-warning-600}",
+    "$description": "Amber categorical series."
+  },
+  "nexa-viz-status-success": {
+    "$type": "color",
+    "$value": "{nexa-color-success-700}",
+    "$description": "Semantic success status for analytics states; never a categorical series alias."
+  },
+  "nexa-viz-status-warning": {
+    "$type": "color",
+    "$value": "{nexa-color-warning-600}",
+    "$description": "Semantic warning status for analytics states; never a categorical series alias."
+  },
+  "nexa-viz-status-danger": {
+    "$type": "color",
+    "$value": "{nexa-color-danger-600}",
+    "$description": "Semantic danger status for analytics states; never a categorical series alias."
+  },
+  "nexa-viz-status-info": {
+    "$type": "color",
+    "$value": "{nexa-color-info-700}",
+    "$description": "Semantic information status for analytics states; never a categorical series alias."
+  },
+  "nexa-viz-sequential-low": {
+    "$type": "color",
+    "$value": "{nexa-color-primary-100}",
+    "$description": "Sequential low intensity."
+  },
+  "nexa-viz-sequential-high": {
+    "$type": "color",
+    "$value": "{nexa-color-primary-700}",
+    "$description": "Sequential high intensity."
+  },
+  "nexa-viz-grid": {
+    "$type": "color",
+    "$value": "{nexa-color-neutral-200}",
+    "$description": "Chart grid and track."
+  },
+  "nexa-viz-axis-text": {
+    "$type": "color",
+    "$value": "{nexa-color-text-secondary}",
+    "$description": "Chart axis and supporting labels."
+  },
+  "nexa-viz-area-fill": {
+    "$type": "color",
+    "$value": "color-mix(in oklab, var(--nexa-viz-series-1) 16%, transparent)",
+    "$description": "Documented low-opacity fill for area-trend evidence; data visualization only."
+  }
+}

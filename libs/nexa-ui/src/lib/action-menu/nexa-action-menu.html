@@ -1,0 +1,39 @@
+<div class="menu-anchor" [class.compact]="size() === 'compact'">
+  <button
+    class="menu-trigger"
+    type="button"
+    [id]="triggerId()"
+    [attr.aria-label]="triggerLabel()"
+    aria-haspopup="menu"
+    [attr.aria-expanded]="open()"
+    [attr.aria-controls]="triggerId() + '-menu'"
+    (pointerdown)="$event.stopPropagation()"
+    (click)="toggle()"
+    (keydown)="handleTriggerKeydown($event)"
+  >
+    <ng-content select="[trigger]" />
+    <span class="trigger-label">{{ triggerLabel() }}</span>
+    <i class="pi pi-chevron-down" aria-hidden="true"></i>
+  </button>
+  @if (open()) {
+    <div class="menu-panel" [id]="triggerId() + '-menu'" role="menu" [attr.aria-label]="menuLabel()" (keydown)="handleMenuKeydown($event)">
+      @for (item of items(); track item.id) {
+        @if (item.separatorBefore) { <div class="menu-separator" role="separator"></div> }
+        <button
+          #menuItem
+          class="menu-item"
+          [class.destructive]="item.destructive"
+          type="button"
+          role="menuitem"
+          [disabled]="item.disabled ?? false"
+          (click)="activate(item)"
+          (keydown)="handleItemKeydown($event, item)"
+        >
+          @if (item.icon) { <i class="pi {{ item.icon }}" aria-hidden="true"></i> }
+          <span>{{ item.label }}</span>
+          @if (item.shortcut) { <kbd>{{ item.shortcut }}</kbd> }
+        </button>
+      }
+    </div>
+  }
+</div>

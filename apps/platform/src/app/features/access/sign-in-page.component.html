@@ -1,0 +1,98 @@
+<main id="main-content" class="access-page" tabindex="-1">
+  <section class="auth-pattern" aria-label="Platform sign in">
+    <aside class="auth-brand-plane">
+      <nexa-logo variant="inverse" alt="Nexa" />
+      <p>Operational clarity for teams that need a trustworthy next step.</p>
+      <div class="auth-grid-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      <small>Cold-chain specialization remains a capability, not the definition of Nexa.</small>
+    </aside>
+
+    <form class="auth-form" (submit)="signIn($event)" novalidate>
+      <p class="proof-label">WORKSPACE ACCESS</p>
+      <h1>Sign in to your workspace</h1>
+      <p class="auth-notice">Use your work identity to continue.</p>
+
+      <nexa-text-field
+        id="workspace-slug"
+        label="Workspace slug"
+        placeholder="your-workspace"
+        helper="Use the workspace slug supplied by your organization."
+        [value]="workspaceSlug()"
+        [error]="workspaceError()"
+        [required]="true"
+        [disabled]="previewing() || signingIn()"
+        (valueChange)="setWorkspaceSlug($event)"
+      />
+
+      <nexa-button
+        type="button"
+        variant="secondary"
+        [fullWidth]="true"
+        [loading]="previewing()"
+        [disabled]="signingIn() || previewing()"
+        data-testid="workspace-preview-submit"
+        (click)="previewWorkspace()"
+      >
+        Preview workspace
+      </nexa-button>
+
+      @if (preview(); as workspacePreview) {
+        @if (workspacePreview.recognized && workspacePreview.loginAvailable) {
+          <aside class="workspace-preview" aria-label="Workspace preview" data-testid="workspace-preview">
+            <div class="workspace-preview__heading">
+              <span class="proof-label">WORKSPACE PREVIEW</span>
+              <nexa-status-chip tone="success" emphasis="standard">Available</nexa-status-chip>
+            </div>
+            @if (workspacePreview.displayName) {
+              <strong>{{ workspacePreview.displayName }}</strong>
+            }
+            @if (workspacePreview.workspaceUrl) {
+              <span>{{ workspacePreview.workspaceUrl }}</span>
+            }
+            <small>Workspace details are returned by the API.</small>
+          </aside>
+
+          <nexa-text-field
+            id="identifier"
+            label="Work email or user ID"
+            placeholder="name@company.com"
+            autoComplete="username"
+            [value]="identifier()"
+            [required]="true"
+            [disabled]="signingIn()"
+            (valueChange)="identifier.set($event)"
+          />
+          <nexa-text-field
+            id="password"
+            label="Password"
+            type="password"
+            autoComplete="current-password"
+            [value]="password()"
+            [required]="true"
+            [disabled]="signingIn()"
+            (valueChange)="password.set($event)"
+          />
+          <nexa-button
+            type="submit"
+            [fullWidth]="true"
+            [loading]="signingIn()"
+            [disabled]="!canSignIn() || previewing()"
+            data-testid="sign-in-submit"
+          >
+            Sign in
+          </nexa-button>
+        } @else {
+          <aside class="workspace-unavailable" role="status" data-testid="workspace-preview-unavailable">
+            <strong>Workspace sign in is unavailable</strong>
+            <small>The API did not return an available Platform sign-in context.</small>
+          </aside>
+        }
+      }
+
+      @if (requestError(); as message) {
+        <p class="form-error" role="alert">{{ message }}</p>
+      }
+      <p class="form-status" role="status" aria-live="polite">{{ statusMessage() }}</p>
+    </form>
+  </section>
+</main>

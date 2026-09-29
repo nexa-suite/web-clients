@@ -1,0 +1,71 @@
+<section class="context-page" aria-labelledby="context-title">
+  @if (session(); as currentSession) {
+    <header class="context-heading">
+      <p class="section-kicker">SESSION CONTEXT</p>
+      <h1 id="context-title">Active business context</h1>
+      <p>The identity, Tenant, Workspace and membership below come from the current API session.</p>
+      <p class="context-boundary">This context was selected for sign in. The current API contract does not provide a post-login context switch.</p>
+    </header>
+
+    <div class="context-grid">
+      <nexa-surface>
+        <h2>Current session</h2>
+        <dl class="session-values">
+          <div><dt>Identity</dt><dd>{{ apiValue(currentSession.user?.displayName || currentSession.user?.email) }}</dd></div>
+          <div><dt>User ID</dt><dd>{{ apiValue(currentSession.user?.userId) }}</dd></div>
+          <div><dt>Tenant ID</dt><dd>{{ apiValue(currentSession.tenant?.tenantId) }}</dd></div>
+          <div><dt>Tenant slug</dt><dd>{{ apiValue(currentSession.tenant?.tenantSlug) }}</dd></div>
+          <div><dt>Workspace ID</dt><dd>{{ apiValue(currentSession.workspace?.workspaceId) }}</dd></div>
+          <div><dt>Workspace slug</dt><dd>{{ apiValue(currentSession.workspace?.workspaceSlug) }}</dd></div>
+          <div><dt>Membership ID</dt><dd>{{ apiValue(currentSession.membership?.membershipId) }}</dd></div>
+          <div><dt>API surface</dt><dd>{{ apiValue(currentSession.surface) }}</dd></div>
+        </dl>
+      </nexa-surface>
+
+      <nexa-surface tone="soft">
+        <h2>API roles</h2>
+        <p class="section-note">Role strings are displayed as returned. Any actor label is informational and does not authorize client actions.</p>
+        @if (apiRoles(); as roleState) {
+          @switch (roleState.status) {
+            @case ('not-supplied') { <p class="empty-value">The API session did not include a roles field.</p> }
+            @case ('empty') { <p class="empty-value">The API returned no role entries.</p> }
+            @case ('provided') {
+              <ul class="api-values" data-testid="api-roles">
+                @for (role of roleState.values; track role.apiRole) {
+                  <li>
+                    <code>{{ role.apiRole }}</code>
+                    @if (role.canonicalActorName) {
+                      <span>Label only: {{ role.canonicalActorName }}</span>
+                    } @else {
+                      <span class="unmapped-role">No canonical Platform actor mapping is defined for this API role.</span>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          }
+        }
+      </nexa-surface>
+
+      <nexa-surface>
+        <h2>API permissions</h2>
+        <p class="section-note">Permission strings are displayed as returned by the API. Server authorization remains authoritative.</p>
+        @if (apiPermissions(); as permissionState) {
+          @switch (permissionState.status) {
+            @case ('not-supplied') { <p class="empty-value">The API session did not include a permissions field.</p> }
+            @case ('empty') { <p class="empty-value">The API returned no permission entries.</p> }
+            @case ('provided') {
+              <ul class="api-values" data-testid="api-permissions">
+                @for (permission of permissionState.values; track permission) {
+                  <li><code>{{ permission }}</code></li>
+                }
+              </ul>
+            }
+          }
+        }
+      </nexa-surface>
+    </div>
+  } @else {
+    <p role="status">Loading the current API session.</p>
+  }
+</section>

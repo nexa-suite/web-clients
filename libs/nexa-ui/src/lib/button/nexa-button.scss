@@ -1,0 +1,19 @@
+:host { display: inline-flex; min-width: 0; }
+.nexa-button { display: inline-flex; min-height: var(--nexa-control-height-md); align-items: center; justify-content: center; gap: var(--nexa-space-2); border: 1px solid transparent; border-radius: var(--nexa-radius-control); padding: 0 var(--nexa-space-4); font: 600 var(--nexa-font-size-sm)/1 var(--nexa-font-family-body); text-decoration: none; cursor: pointer; transition: background var(--nexa-motion-standard), border-color var(--nexa-motion-standard), color var(--nexa-motion-standard), transform var(--nexa-motion-standard); }
+.compact { min-height: var(--nexa-control-height-sm); padding-inline: var(--nexa-space-3); font-size: var(--nexa-font-size-xs); }
+.large { min-height: var(--nexa-control-height-lg); padding-inline: var(--nexa-space-5); font-size: var(--nexa-font-size-md); }
+.full-width { width: 100%; }
+.nexa-button:focus-visible { outline: none; box-shadow: var(--nexa-focus-ring); }
+.nexa-button:active:not(:disabled):not([aria-disabled="true"]) { transform: translateY(1px); }
+.primary { color: var(--nexa-color-text-inverse); background: var(--nexa-color-primary-600); }
+.primary:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--nexa-color-primary-700); }
+.secondary { color: var(--nexa-color-primary-700); background: var(--nexa-surface-card); border-color: var(--nexa-color-border-interactive); }
+.secondary:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--nexa-surface-info); border-color: var(--nexa-color-primary-300); }
+.quiet { color: var(--nexa-color-neutral-700); background: transparent; }
+.quiet:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--nexa-color-primary-700); background: var(--nexa-surface-info); }
+.danger { color: var(--nexa-color-danger-text); background: var(--nexa-surface-danger); border-color: var(--nexa-color-danger-subtle-border); }
+.danger:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--nexa-color-danger-200); }
+.nexa-button:disabled, .nexa-button[aria-disabled="true"] { cursor: not-allowed; opacity: 0.48; }
+.spinner { width: var(--nexa-button-spinner-size); height: var(--nexa-button-spinner-size); border: var(--nexa-button-spinner-border) solid currentColor; border-right-color: transparent; border-radius: 50%; animation: nexa-spin var(--nexa-motion-spinner) linear infinite; }
+@keyframes nexa-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .nexa-button { transition: none; } .spinner { animation: none; border-right-color: currentColor; } }
