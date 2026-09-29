@@ -1,0 +1,10 @@
+:host { display: block; }
+.range { display: grid; gap: var(--nexa-slider-gap); color: var(--nexa-color-text-primary); cursor: pointer; }
+.range-heading, .range-scale { display: flex; align-items: center; justify-content: space-between; gap: var(--nexa-slider-heading-gap); }
+.range-heading strong { font-size: var(--nexa-font-size-sm); }
+.range-heading output { color: var(--nexa-color-primary-700); font: 700 var(--nexa-font-size-md)/1 var(--nexa-font-family-mono); }
+input { width: 100%; height: var(--nexa-slider-track-size); accent-color: var(--nexa-color-primary-600); cursor: pointer; }
+input:focus-visible { outline: var(--nexa-focus-width) solid var(--nexa-color-focus-ring); outline-offset: var(--nexa-focus-offset); }
+.range-scale { color: var(--nexa-color-text-muted); font-size: var(--nexa-font-size-xs); }
+.disabled { color: var(--nexa-color-text-muted); cursor: not-allowed; }
+.disabled input { cursor: not-allowed; }

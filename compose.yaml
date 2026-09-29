@@ -1,0 +1,16 @@
+services:
+  platform:
+    build:
+      context: .
+      dockerfile: apps/platform/Dockerfile
+    environment:
+      NEXA_PLATFORM_API_BASE_URL: ${NEXA_PLATFORM_API_BASE_URL:-}
+    ports:
+      - "4200:80"
+
+  portal:
+    build:
+      context: .
+      dockerfile: apps/portal/Dockerfile
+    ports:
+      - "4300:80"

@@ -1,0 +1,5 @@
+h1, h2, h3, h4, p { margin-top: 0; }
+h1, h2, h3, h4 { color: var(--nexa-color-text-primary); font-family: var(--nexa-font-family-display); line-height: var(--nexa-line-height-tight); }
+p { line-height: var(--nexa-line-height-normal); }
+code, .numeric, .money-value { font-variant-numeric: tabular-nums; }
+code { font-family: var(--nexa-font-family-mono); font-size: .92em; }

@@ -1,0 +1,349 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "$description": "Canonical Nexa component design tokens. Values are source data for generated SCSS artifacts.",
+  "nexa-font-size-xs": {
+    "$type": "dimension",
+    "$value": "12px",
+    "$description": "Nexa component token nexa-font-size-xs."
+  },
+  "nexa-font-size-sm": {
+    "$type": "dimension",
+    "$value": "13px",
+    "$description": "Nexa component token nexa-font-size-sm."
+  },
+  "nexa-font-size-base": {
+    "$type": "dimension",
+    "$value": "14px",
+    "$description": "Nexa component token nexa-font-size-base."
+  },
+  "nexa-font-size-md": {
+    "$type": "dimension",
+    "$value": "16px",
+    "$description": "Nexa component token nexa-font-size-md."
+  },
+  "nexa-font-size-lg": {
+    "$type": "dimension",
+    "$value": "18px",
+    "$description": "Nexa component token nexa-font-size-lg."
+  },
+  "nexa-font-size-xl": {
+    "$type": "dimension",
+    "$value": "20px",
+    "$description": "Nexa component token nexa-font-size-xl."
+  },
+  "nexa-font-size-2xl": {
+    "$type": "dimension",
+    "$value": "24px",
+    "$description": "Nexa component token nexa-font-size-2xl."
+  },
+  "nexa-font-size-3xl": {
+    "$type": "dimension",
+    "$value": "30px",
+    "$description": "Nexa component token nexa-font-size-3xl."
+  },
+  "nexa-font-size-5xl": {
+    "$type": "dimension",
+    "$value": "clamp(36px, 5vw, 64px)",
+    "$description": "Nexa component token nexa-font-size-5xl."
+  },
+  "nexa-font-weight-medium": {
+    "$type": "number",
+    "$value": "500",
+    "$description": "Nexa component token nexa-font-weight-medium."
+  },
+  "nexa-font-weight-semibold": {
+    "$type": "number",
+    "$value": "600",
+    "$description": "Nexa component token nexa-font-weight-semibold."
+  },
+  "nexa-font-weight-bold": {
+    "$type": "number",
+    "$value": "700",
+    "$description": "Nexa component token nexa-font-weight-bold."
+  },
+  "nexa-font-weight-extrabold": {
+    "$type": "number",
+    "$value": "800",
+    "$description": "Nexa component token nexa-font-weight-extrabold."
+  },
+  "nexa-line-height-tight": {
+    "$type": "number",
+    "$value": "1.18",
+    "$description": "Nexa component token nexa-line-height-tight."
+  },
+  "nexa-line-height-normal": {
+    "$type": "number",
+    "$value": "1.5",
+    "$description": "Nexa component token nexa-line-height-normal."
+  },
+  "nexa-line-height-relaxed": {
+    "$type": "number",
+    "$value": "1.65",
+    "$description": "Nexa component token nexa-line-height-relaxed."
+  },
+  "nexa-a11y-text-spacing-line-height": {
+    "$type": "number",
+    "$value": "1.8",
+    "$description": "Line height used by the Lab increased text-spacing evaluation mode."
+  },
+  "nexa-a11y-text-spacing-letter": {
+    "$type": "dimension",
+    "$value": "0.12em",
+    "$description": "Letter spacing used by the Lab increased text-spacing evaluation mode."
+  },
+  "nexa-a11y-text-spacing-word": {
+    "$type": "dimension",
+    "$value": "0.16em",
+    "$description": "Word spacing used by the Lab increased text-spacing evaluation mode."
+  },
+  "nexa-layout-sidebar-width": {
+    "$type": "dimension",
+    "$value": "284px",
+    "$description": "Nexa component token nexa-layout-sidebar-width."
+  },
+  "nexa-layout-toolbar-height": {
+    "$type": "dimension",
+    "$value": "56px",
+    "$description": "Nexa component token nexa-layout-toolbar-height."
+  },
+  "nexa-layout-content-max": {
+    "$type": "dimension",
+    "$value": "1280px",
+    "$description": "Nexa component token nexa-layout-content-max."
+  },
+  "nexa-layout-page-gutter": {
+    "$type": "dimension",
+    "$value": "clamp(18px, 2.2vw, 34px)",
+    "$description": "Nexa component token nexa-layout-page-gutter."
+  },
+  "nexa-layout-section-gap": {
+    "$type": "dimension",
+    "$value": "48px",
+    "$description": "Nexa component token nexa-layout-section-gap."
+  },
+  "nexa-layout-card-padding": {
+    "$type": "dimension",
+    "$value": "20px",
+    "$description": "Nexa component token nexa-layout-card-padding."
+  },
+  "nexa-layout-nav-item-height": {
+    "$type": "dimension",
+    "$value": "38px",
+    "$description": "Nexa component token nexa-layout-nav-item-height."
+  },
+  "nexa-control-height-sm": {
+    "$type": "dimension",
+    "$value": "34px",
+    "$description": "Nexa component token nexa-control-height-sm."
+  },
+  "nexa-control-height-md": {
+    "$type": "dimension",
+    "$value": "40px",
+    "$description": "Nexa component token nexa-control-height-md."
+  },
+  "nexa-control-height-lg": {
+    "$type": "dimension",
+    "$value": "48px",
+    "$description": "Nexa component token nexa-control-height-lg."
+  },
+  "nexa-control-padding-inline": {
+    "$type": "dimension",
+    "$value": "var(--nexa-space-4)",
+    "$description": "Nexa component token nexa-control-padding-inline."
+  },
+  "nexa-control-padding-inline-compact": {
+    "$type": "dimension",
+    "$value": "var(--nexa-space-3)",
+    "$description": "Nexa component token nexa-control-padding-inline-compact."
+  },
+  "nexa-control-gap": {
+    "$type": "dimension",
+    "$value": "var(--nexa-space-1)",
+    "$description": "Nexa component token nexa-control-gap."
+  },
+  "nexa-control-label-gap": {
+    "$type": "dimension",
+    "$value": "var(--nexa-space-1)",
+    "$description": "Gap between a reusable control label and its control surface."
+  },
+  "nexa-target-size-min": {
+    "$type": "dimension",
+    "$value": "44px",
+    "$description": "Minimum interactive target used by documented evaluation controls."
+  },
+  "nexa-field-action-size": {
+    "$type": "dimension",
+    "$value": "30px",
+    "$description": "Circular trailing action target inside a text field."
+  },
+  "nexa-status-height": {
+    "$type": "dimension",
+    "$value": "26px",
+    "$description": "Status chip minimum height."
+  },
+  "nexa-status-padding-inline": {
+    "$type": "dimension",
+    "$value": "10px",
+    "$description": "Status chip inline padding."
+  },
+  "nexa-status-dot-size": {
+    "$type": "dimension",
+    "$value": "6px",
+    "$description": "Status chip dot diameter."
+  },
+  "nexa-toggle-width": {
+    "$type": "dimension",
+    "$value": "46px",
+    "$description": "Toggle track width."
+  },
+  "nexa-toggle-control-height": {
+    "$type": "dimension",
+    "$value": "28px",
+    "$description": "Toggle control hit-area height."
+  },
+  "nexa-toggle-height": {
+    "$type": "dimension",
+    "$value": "26px",
+    "$description": "Toggle track height."
+  },
+  "nexa-toggle-thumb-size": {
+    "$type": "dimension",
+    "$value": "20px",
+    "$description": "Toggle thumb diameter."
+  },
+  "nexa-toggle-thumb-inset": {
+    "$type": "dimension",
+    "$value": "2px",
+    "$description": "Toggle thumb inset within its track."
+  },
+  "nexa-button-spinner-size": {
+    "$type": "dimension",
+    "$value": "14px",
+    "$description": "Button loading indicator diameter."
+  },
+  "nexa-button-spinner-border": {
+    "$type": "dimension",
+    "$value": "2px",
+    "$description": "Button loading indicator stroke."
+  },
+  "nexa-stepper-gap": {
+    "$type": "dimension",
+    "$value": "var(--nexa-space-4)",
+    "$description": "Spacing between a numeric stepper label and its control."
+  },
+  "nexa-stepper-button-size": {
+    "$type": "dimension",
+    "$value": "var(--nexa-control-height-sm)",
+    "$description": "Numeric stepper button square size."
+  },
+  "nexa-stepper-output-width": {
+    "$type": "dimension",
+    "$value": "42px",
+    "$description": "Numeric stepper value readout width."
+  },
+  "nexa-stepper-control-gap": {
+    "$type": "dimension",
+    "$value": "3px",
+    "$description": "Numeric stepper control inset and internal gap."
+  },
+  "nexa-slider-gap": {
+    "$type": "dimension",
+    "$value": "10px",
+    "$description": "Vertical spacing within a reusable range slider."
+  },
+  "nexa-slider-heading-gap": {
+    "$type": "dimension",
+    "$value": "var(--nexa-space-3)",
+    "$description": "Inline spacing between range slider heading values."
+  },
+  "nexa-slider-track-size": {
+    "$type": "dimension",
+    "$value": "6px",
+    "$description": "Range slider track thickness."
+  },
+  "nexa-panel-padding": {
+    "$type": "dimension",
+    "$value": "var(--nexa-layout-card-padding)",
+    "$description": "Nexa component token nexa-panel-padding."
+  },
+  "nexa-card-padding": {
+    "$type": "dimension",
+    "$value": "var(--nexa-space-4)",
+    "$description": "Nexa component token nexa-card-padding."
+  },
+  "nexa-surface-gap": {
+    "$type": "dimension",
+    "$value": "var(--nexa-space-4)",
+    "$description": "Nexa component token nexa-surface-gap."
+  },
+  "nexa-radius-interactive": {
+    "$type": "dimension",
+    "$value": "var(--nexa-radius-control)",
+    "$description": "Nexa component token nexa-radius-interactive."
+  },
+  "nexa-focus-width": {
+    "$type": "dimension",
+    "$value": "3px",
+    "$description": "Nexa component token nexa-focus-width."
+  },
+  "nexa-focus-offset": {
+    "$type": "dimension",
+    "$value": "3px",
+    "$description": "Nexa component token nexa-focus-offset."
+  },
+  "nexa-focus-ring": {
+    "$type": "shadow",
+    "$value": "0 0 0 3px color-mix(in oklab, var(--nexa-color-focus-ring) 24%, transparent)",
+    "$description": "Nexa component token nexa-focus-ring."
+  },
+  "nexa-focus-preview-ring": {
+    "$type": "shadow",
+    "$value": "inset 0 0 0 3px color-mix(in oklab, var(--nexa-color-focus-ring) 24%, transparent)",
+    "$description": "Documentation-only inset focus specimen ring; preserves the candidate focus geometry without duplicating a derived color."
+  },
+  "nexa-auth-grid-line": {
+    "$type": "color",
+    "$value": "color-mix(in oklab, var(--nexa-color-text-inverse) 13%, transparent)",
+    "$description": "Authentication brand-plane grid line; pattern evidence token, not a general surface color."
+  },
+  "nexa-auth-brand-copy": {
+    "$type": "color",
+    "$value": "color-mix(in oklab, var(--nexa-color-text-inverse) 86%, transparent)",
+    "$description": "Authentication brand-plane supporting copy color."
+  },
+  "nexa-auth-brand-muted": {
+    "$type": "color",
+    "$value": "color-mix(in oklab, var(--nexa-color-text-inverse) 72%, transparent)",
+    "$description": "Authentication brand-plane tertiary copy color."
+  },
+  "nexa-auth-mark-border": {
+    "$type": "color",
+    "$value": "color-mix(in oklab, var(--nexa-color-text-inverse) 45%, transparent)",
+    "$description": "Authentication brand mark supporting border color."
+  },
+  "nexa-shadow-toast": {
+    "$type": "shadow",
+    "$value": "0 12px 28px rgb(15 23 42 / 12%)",
+    "$description": "Nexa component token nexa-shadow-toast."
+  },
+  "nexa-component-sidebar-width": {
+    "$type": "dimension",
+    "$value": "var(--nexa-layout-sidebar-width)",
+    "$description": "Nexa component token nexa-component-sidebar-width."
+  },
+  "nexa-component-drawer-width": {
+    "$type": "dimension",
+    "$value": "min(320px, 88vw)",
+    "$description": "Nexa component token nexa-component-drawer-width."
+  },
+  "nexa-component-table-row-height": {
+    "$type": "dimension",
+    "$value": "56px",
+    "$description": "Nexa component token nexa-component-table-row-height."
+  },
+  "nexa-doc-text-scale": {
+    "$type": "number",
+    "$value": "1",
+    "$description": "Nexa component token nexa-doc-text-scale."
+  }
+}

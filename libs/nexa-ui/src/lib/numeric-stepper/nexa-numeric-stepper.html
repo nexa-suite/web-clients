@@ -1,0 +1,8 @@
+<div class="stepper" [class.disabled]="disabled()">
+  <span class="stepper-label" [id]="id() + '-label'">{{ label() }}</span>
+  <div class="stepper-control" role="group" [attr.aria-labelledby]="id() + '-label'">
+    <button type="button" [disabled]="disabled() || value() <= min()" [attr.aria-label]="'Decrease ' + label()" (click)="decrement()"><i class="pi pi-minus" aria-hidden="true"></i></button>
+    <output [id]="id()" [attr.aria-label]="label()" [attr.aria-valuenow]="value()">{{ value() }}</output>
+    <button type="button" [disabled]="disabled() || value() >= max()" [attr.aria-label]="'Increase ' + label()" (click)="increment()"><i class="pi pi-plus" aria-hidden="true"></i></button>
+  </div>
+</div>

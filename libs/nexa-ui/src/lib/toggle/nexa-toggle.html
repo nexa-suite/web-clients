@@ -1,0 +1,7 @@
+<label class="toggle" [class.disabled]="disabled()" [for]="id()">
+  <span class="toggle-copy"><strong>{{ label() }}</strong><small>{{ checked() ? 'On' : 'Off' }}</small></span>
+  <span class="toggle-control">
+    <input [id]="id()" type="checkbox" role="switch" [checked]="checked()" [disabled]="disabled()" (change)="update($event)" (blur)="touch.emit()" />
+    <span class="track" aria-hidden="true"><span class="thumb"></span></span>
+  </span>
+</label>

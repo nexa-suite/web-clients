@@ -1,0 +1,31 @@
+:host { position: relative; display: inline-flex; min-width: 0; }
+.tooltip-trigger {
+  display: inline-flex;
+  min-height: var(--nexa-control-height-md);
+  align-items: center;
+  gap: var(--nexa-space-2);
+  border: 1px solid var(--nexa-color-border-interactive);
+  border-radius: var(--nexa-radius-control);
+  padding-inline: var(--nexa-space-3);
+  color: var(--nexa-color-primary-700);
+  background: var(--nexa-surface-card);
+  font: 600 var(--nexa-font-size-sm)/1 var(--nexa-font-family-body);
+  cursor: help;
+}
+.tooltip-trigger:hover { border-color: var(--nexa-color-primary-400); background: var(--nexa-surface-info); }
+.tooltip-trigger:focus-visible { outline: none; box-shadow: var(--nexa-focus-ring); }
+.tooltip {
+  position: absolute;
+  z-index: 5;
+  inset-block-start: var(--nexa-tooltip-top, calc(100% + var(--nexa-space-2)));
+  inset-inline-start: var(--nexa-tooltip-left, 0px);
+  width: max-content;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: var(--nexa-space-2) var(--nexa-space-3);
+  border-radius: var(--nexa-radius-control);
+  color: var(--nexa-color-text-inverse);
+  background: var(--nexa-color-neutral-950);
+  box-shadow: var(--nexa-shadow-menu);
+  font-size: var(--nexa-font-size-xs);
+  line-height: 1.4;
+}
