@@ -1,7 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NexaAuthenticationApi } from '@nexa/api';
-import { NexaButton, NexaSurface, NexaTextField } from 'nexa-ui';
+import { NexaButton, NexaLogo, NexaSurface, NexaTextField } from 'nexa-ui';
 import {
   INVALID_RESET_LINK_MESSAGE,
   passwordResetApiErrorMessage,
@@ -16,7 +16,7 @@ const REQUEST_STATUS_MESSAGE = 'Enter your email to request a recovery link.';
 @Component({
   selector: 'web-recovery-page',
   standalone: true,
-  imports: [NexaButton, NexaSurface, NexaTextField],
+  imports: [NexaButton, NexaLogo, NexaSurface, NexaTextField],
   templateUrl: './recovery-page.component.html',
   styleUrl: './recovery-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
