@@ -47,6 +47,9 @@
 
 .recovery-card {
   display: block;
+}
+
+.recovery-card__content {
   padding: clamp(var(--nexa-space-5), 5vw, var(--nexa-space-8));
 }
 
