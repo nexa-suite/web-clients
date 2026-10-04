@@ -4,6 +4,9 @@ import { Observable } from 'rxjs';
 import {
   AuthenticationResponse,
   NEXA_AUTH_API_PATHS,
+  PasswordResetRequest,
+  PasswordResetResponse,
+  PasswordResetSubmission,
   SessionResponse,
   SignInRequest,
   WorkspacePreviewRequest,
@@ -20,6 +23,20 @@ export class NexaAuthenticationApi {
   previewWorkspace(request: WorkspacePreviewRequest): Observable<WorkspacePreviewResponse> {
     return this.http.post<WorkspacePreviewResponse>(
       this.url(NEXA_AUTH_API_PATHS.workspacePreview),
+      request,
+    );
+  }
+
+  requestPasswordReset(request: PasswordResetRequest): Observable<PasswordResetResponse> {
+    return this.http.post<PasswordResetResponse>(
+      this.url(NEXA_AUTH_API_PATHS.passwordResetRequest),
+      request,
+    );
+  }
+
+  resetPassword(request: PasswordResetSubmission): Observable<void> {
+    return this.http.post<void>(
+      this.url(NEXA_AUTH_API_PATHS.passwordReset),
       request,
     );
   }

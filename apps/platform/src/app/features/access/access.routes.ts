@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { requirePlatformAuthentication, requirePlatformAuthenticationForChild } from '../../core/platform-authentication.guard';
 import { PlatformShellSessionWrapperComponent } from '../../core/platform-shell-session-wrapper.component';
 import { PlatformActiveContextComponent } from './platform-active-context.component';
+import { RecoveryPageComponent } from './recovery-page.component';
 import { SignInPageComponent } from './sign-in-page.component';
 
 export const accessRoutes: Routes = [
@@ -9,6 +10,16 @@ export const accessRoutes: Routes = [
     path: 'sign-in',
     component: SignInPageComponent,
     title: 'Sign in | Nexa Platform',
+  },
+  {
+    path: 'reset-password',
+    component: RecoveryPageComponent,
+    title: 'Reset your password | Nexa',
+  },
+  {
+    path: 'forgot-password',
+    component: RecoveryPageComponent,
+    title: 'Forgot your password | Nexa',
   },
   {
     path: '',

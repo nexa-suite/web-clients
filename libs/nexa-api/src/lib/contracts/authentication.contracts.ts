@@ -2,6 +2,8 @@ export type NexaSurface = 'PLATFORM' | 'PORTAL';
 
 export const NEXA_AUTH_API_PATHS = {
   workspacePreview: '/auth/workspace-previews',
+  passwordResetRequest: '/auth/password-reset-requests',
+  passwordReset: '/auth/password-resets',
   signIn: '/authentication/sign-in',
   refresh: '/authentication/refresh',
   signOut: '/authentication/sign-out',
@@ -18,6 +20,20 @@ export interface WorkspacePreviewResponse {
   workspaceUrl?: string;
   logoUrl?: string;
   loginAvailable?: boolean;
+}
+
+export interface PasswordResetRequest {
+  email: string;
+  surface: NexaSurface;
+}
+
+export interface PasswordResetResponse {
+  message: string;
+}
+
+export interface PasswordResetSubmission {
+  token: string;
+  newPassword: string;
 }
 
 export interface RefreshRequestHeaders {
