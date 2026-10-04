@@ -112,6 +112,16 @@ describe('RecoveryPageComponent', () => {
     expect(recoveryLink.getAttribute('aria-label')).toBe('Request a new recovery link');
   });
 
+  it('uses the canonical Nexa SVG brand asset', () => {
+    const fixture = TestBed.createComponent(RecoveryPageComponent);
+    fixture.detectChanges();
+
+    const logo = fixture.nativeElement.querySelector('nexa-logo img') as HTMLImageElement;
+    expect(logo.alt).toBe('Nexa');
+    expect(logo.src).toContain('/brand/canonical/logo-nexa.svg');
+    expect(fixture.nativeElement.querySelector('.wordmark')).toBeNull();
+  });
+
   it('keeps the optional request route separate from token consumption', () => {
     window.history.replaceState(null, '', '/web-clients/forgot-password');
     const fixture = TestBed.createComponent(RecoveryPageComponent);

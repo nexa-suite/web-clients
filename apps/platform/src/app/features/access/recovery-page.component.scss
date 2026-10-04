@@ -16,11 +16,9 @@
 
 .recovery-intro { display: grid; gap: var(--nexa-space-3); }
 
-.wordmark {
-  margin: 0 0 var(--nexa-space-8);
-  color: var(--nexa-color-primary-700);
-  font: 800 clamp(2rem, 5vw, 3.5rem) / 0.9 var(--nexa-font-family-display);
-  letter-spacing: -0.08em;
+.recovery-logo {
+  width: min(150px, 70%);
+  margin-bottom: var(--nexa-space-8);
 }
 
 .eyebrow {
@@ -76,5 +74,5 @@
 
 @media (max-width: 720px) {
   .recovery-layout { grid-template-columns: 1fr; max-width: 560px; }
-  .wordmark { margin-bottom: var(--nexa-space-4); }
+  .recovery-logo { margin-bottom: var(--nexa-space-4); }
 }
