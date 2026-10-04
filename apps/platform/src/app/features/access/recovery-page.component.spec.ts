@@ -103,6 +103,15 @@ describe('RecoveryPageComponent', () => {
     expect(resetPassword).not.toHaveBeenCalled();
   });
 
+  it('keeps the missing-token recovery action visibly and accessibly named', () => {
+    const fixture = TestBed.createComponent(RecoveryPageComponent);
+    fixture.detectChanges();
+
+    const recoveryLink = fixture.nativeElement.querySelector('a[href="/forgot-password"]') as HTMLAnchorElement;
+    expect(recoveryLink.textContent?.trim()).toBe('Request a new link');
+    expect(recoveryLink.getAttribute('aria-label')).toBe('Request a new recovery link');
+  });
+
   it('keeps the optional request route separate from token consumption', () => {
     window.history.replaceState(null, '', '/web-clients/forgot-password');
     const fixture = TestBed.createComponent(RecoveryPageComponent);

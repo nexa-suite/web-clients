@@ -1,6 +1,19 @@
+import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { NexaButton } from './nexa-button';
+
+@Component({
+  standalone: true,
+  imports: [NexaButton],
+  template: `
+    <nexa-button routerLink="/forgot-password" ariaLabel="Request a new recovery link">
+      Request a new link
+    </nexa-button>
+    <nexa-button>Preview workspace</nexa-button>
+  `,
+})
+class ButtonHostComponent {}
 
 describe('NexaButton', () => {
   beforeEach(() => TestBed.configureTestingModule({ imports: [NexaButton], providers: [provideRouter([])] }));
@@ -24,6 +37,17 @@ describe('NexaButton', () => {
 
     const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
     expect(button.getAttribute('aria-label')).toBe('Open request actions');
+  });
+
+  it('preserves visible labels for link and action variants', () => {
+    const fixture = TestBed.createComponent(ButtonHostComponent);
+    fixture.detectChanges();
+
+    const link = fixture.nativeElement.querySelector('a') as HTMLAnchorElement;
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    expect(link.textContent?.trim()).toBe('Request a new link');
+    expect(link.getAttribute('aria-label')).toBe('Request a new recovery link');
+    expect(button.textContent?.trim()).toBe('Preview workspace');
   });
 
   it('does not navigate when a router link is disabled or loading', async () => {

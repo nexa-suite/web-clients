@@ -8,6 +8,7 @@
     </div>
 
     <nexa-surface class="recovery-card">
+      <div class="recovery-card__content">
       @switch (mode()) {
         @case ('request') {
           <form (submit)="submitRequest($event)" novalidate>
@@ -98,6 +99,7 @@
           </div>
         }
       }
+      </div>
     </nexa-surface>
   </section>
 </main>

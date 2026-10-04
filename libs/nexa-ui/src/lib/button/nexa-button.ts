@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
@@ -6,7 +7,7 @@ export type NexaButtonSize = 'compact' | 'standard' | 'large';
 
 @Component({
   selector: 'nexa-button',
-  imports: [RouterLink],
+  imports: [NgTemplateOutlet, RouterLink],
   templateUrl: './nexa-button.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './nexa-button.scss',
