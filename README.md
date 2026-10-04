@@ -19,6 +19,10 @@ This repository owns the shared Angular foundation and the separate Platform and
 
 Platform includes the first API-backed access slice: workspace preview, sign-in, cookie-based session restoration, an authentication-only route guard, active API context display and sign-out. Portal remains a neutral application shell. Platform has no post-login context-switch route because the current API contract does not provide one; see [the Platform access traceability record](docs/traceability/platform-access.md) for the story and contract boundaries.
 
+The consolidated static `web-clients` application provides the public password
+reset route at `/reset-password`. Its API boundary and Pages deployment
+contract are recorded in [Access recovery](docs/access-recovery.md).
+
 The role/capability projection includes all canonical Platform actors as informational data. API role strings remain authoritative inputs from the server, unmapped roles remain unmapped, and UI role labels never grant access.
 
 `npm run test:e2e` exercises the real local API and Chromium browser. It requires the current `api` Docker Compose services and ignored `api/.env.local` credentials. The browser-check helper reads only allowlisted identity variables from the effective `modern-api` Compose configuration, verifies that the running container has the same values, and does not print credentials. GitHub Actions checks out the recorded public API source and creates ephemeral keys and seed credentials for the same real API integration; it stores no API credentials in repository secrets.

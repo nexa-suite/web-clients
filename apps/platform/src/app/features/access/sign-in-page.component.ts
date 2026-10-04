@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NexaButton, NexaLogo, NexaStatusChip, NexaTextField } from 'nexa-ui';
 import type { WorkspacePreviewResponse } from '@nexa/api';
 import { platformApiErrorMessage } from '../../core/platform-api-error-message';
@@ -8,7 +8,7 @@ import { PlatformSessionStore } from '../../core/platform-session.store';
 @Component({
   selector: 'platform-sign-in-page',
   standalone: true,
-  imports: [NexaButton, NexaLogo, NexaStatusChip, NexaTextField],
+  imports: [NexaButton, NexaLogo, NexaStatusChip, NexaTextField, RouterLink],
   templateUrl: './sign-in-page.component.html',
   styleUrl: './sign-in-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

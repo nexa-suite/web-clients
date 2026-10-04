@@ -1,0 +1,103 @@
+<main id="main-content" class="recovery-page" tabindex="-1">
+  <section class="recovery-layout" aria-labelledby="recovery-title">
+    <div class="recovery-intro">
+      <p class="wordmark" aria-label="Nexa">Nexa</p>
+      <p class="eyebrow">SECURE ACCESS</p>
+      <h1 id="recovery-title">Recover access</h1>
+      <p>Use a secure link to choose a new password. The link is single-use and expires automatically.</p>
+    </div>
+
+    <nexa-surface class="recovery-card">
+      @switch (mode()) {
+        @case ('request') {
+          <form (submit)="submitRequest($event)" novalidate>
+            <h2>Request a recovery link</h2>
+            <p class="form-copy">Enter the email associated with your account.</p>
+            <nexa-text-field
+              id="recovery-email"
+              label="Email address"
+              type="email"
+              autoComplete="email"
+              placeholder="name@company.com"
+              [value]="email()"
+              [error]="errorMessage()"
+              [required]="true"
+              [disabled]="busy()"
+              (valueChange)="email.set($event)"
+            />
+            <nexa-button type="submit" [fullWidth]="true" [loading]="busy()" [disabled]="busy()">
+              Send recovery link
+            </nexa-button>
+            <p class="status" role="status" aria-live="polite">{{ statusMessage() }}</p>
+          </form>
+        }
+        @case ('reset') {
+          <form (submit)="submitReset($event)" novalidate>
+            <h2>Choose a new password</h2>
+            <p class="form-copy">Create a password with 12 to 128 characters.</p>
+            <nexa-text-field
+              id="new-password"
+              label="New password"
+              type="password"
+              autoComplete="new-password"
+              [value]="newPassword()"
+              [error]="errorMessage() || passwordHint()"
+              [required]="true"
+              [disabled]="busy()"
+              (valueChange)="newPassword.set($event)"
+            />
+            <nexa-text-field
+              id="confirm-password"
+              label="Confirm password"
+              type="password"
+              autoComplete="new-password"
+              [value]="confirmation()"
+              [required]="true"
+              [disabled]="busy()"
+              (valueChange)="confirmation.set($event)"
+            />
+            <nexa-button type="submit" [fullWidth]="true" [loading]="busy()" [disabled]="busy()">
+              Change password
+            </nexa-button>
+            <p class="status" role="status" aria-live="polite">{{ statusMessage() }}</p>
+          </form>
+        }
+        @case ('complete') {
+          <div class="message-panel">
+            <h2>Password changed</h2>
+            <p role="status">{{ statusMessage() }}</p>
+            <nexa-button
+              variant="primary"
+              [fullWidth]="true"
+              routerLink="/sign-in"
+              ariaLabel="Continue to sign in"
+            >
+              Continue to sign in
+            </nexa-button>
+            <nexa-button
+              variant="secondary"
+              [fullWidth]="true"
+              routerLink="/forgot-password"
+              ariaLabel="Request another recovery link"
+            >
+              Request another link
+            </nexa-button>
+          </div>
+        }
+        @case ('invalid') {
+          <div class="message-panel">
+            <h2>Recovery link unavailable</h2>
+            <p role="alert">{{ statusMessage() }}</p>
+            <nexa-button
+              [fullWidth]="true"
+              routerLink="/forgot-password"
+              ariaLabel="Request a new recovery link"
+            >
+              Request a new link
+            </nexa-button>
+          </div>
+        }
+      }
+    </nexa-surface>
+  </section>
+</main>

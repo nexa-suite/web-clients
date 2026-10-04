@@ -162,6 +162,13 @@
   min-height: 1.4em;
 }
 
+.recovery-link {
+  justify-self: start;
+  color: var(--nexa-color-primary-700);
+  font-size: var(--nexa-font-size-sm);
+  font-weight: 700;
+}
+
 @media (max-width: 720px) {
   .auth-pattern {
     grid-template-columns: 1fr;

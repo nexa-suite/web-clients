@@ -76,6 +76,8 @@ const nexaApiInterceptor: HttpInterceptorFn = (request, next) => {
   const accessToken = accessTokens.read();
   const bearerExcludedPaths: readonly string[] = [
     NEXA_AUTH_API_PATHS.workspacePreview,
+    NEXA_AUTH_API_PATHS.passwordResetRequest,
+    NEXA_AUTH_API_PATHS.passwordReset,
     NEXA_AUTH_API_PATHS.signIn,
     NEXA_AUTH_API_PATHS.refresh,
   ];

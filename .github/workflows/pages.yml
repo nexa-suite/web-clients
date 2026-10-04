@@ -1,0 +1,84 @@
+name: Web clients Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build web clients password reset page
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out web clients
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+          cache: npm
+
+      - name: Select locked npm version
+        run: npm install --global npm@11.17.0
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build shared libraries
+        run: npm run build:shared
+
+      - name: Build static password reset route
+        run: npm run build:platform -- --base-href /web-clients/
+
+      - name: Set public API runtime origin
+        run: |
+          cat > dist/apps/platform/browser/runtime-config.js <<'EOF'
+          window.__NEXA_PLATFORM_CONFIG__ = {
+            apiBaseUrl: 'https://nexa-api-69bj.onrender.com/api/v1',
+          };
+          EOF
+
+      - name: Materialize the password reset route
+        run: |
+          mkdir -p dist/apps/platform/browser/reset-password
+          mkdir -p dist/apps/platform/browser/forgot-password
+          mkdir -p dist/apps/platform/browser/sign-in
+          cp dist/apps/platform/browser/index.html dist/apps/platform/browser/reset-password/index.html
+          cp dist/apps/platform/browser/index.html dist/apps/platform/browser/forgot-password/index.html
+          cp dist/apps/platform/browser/index.html dist/apps/platform/browser/sign-in/index.html
+
+      - name: Require a real password reset page
+        run: |
+          test -f dist/apps/platform/browser/reset-password/index.html
+          test -f dist/apps/platform/browser/forgot-password/index.html
+          test -f dist/apps/platform/browser/sign-in/index.html
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/apps/platform/browser
+
+  deploy:
+    name: Deploy web clients password reset page
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

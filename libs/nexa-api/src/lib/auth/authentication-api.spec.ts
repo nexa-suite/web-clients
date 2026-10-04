@@ -46,6 +46,43 @@ describe('NexaAuthenticationApi', () => {
     });
   });
 
+  it('requests recovery with the internal surface and keeps the response generic', () => {
+    api.requestPasswordReset({
+      email: 'owner@example.test',
+      surface: 'PLATFORM',
+    }).subscribe();
+
+    const request = controller.expectOne(
+      'http://localhost:8080/api/v1/auth/password-reset-requests',
+    );
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({
+      email: 'owner@example.test',
+      surface: 'PLATFORM',
+    });
+    expect(request.request.headers.has('Authorization')).toBe(false);
+    expect(request.request.withCredentials).toBe(false);
+    request.flush({ message: 'If the account can receive a reset, instructions will be delivered.' });
+  });
+
+  it('submits a reset token without adding a bearer or browser session credential', () => {
+    TestBed.inject(NexaAccessTokenStore).set('previous-memory-token');
+
+    api.resetPassword({ token: 'opaque-test-token', newPassword: 'safe-password-value' }).subscribe();
+
+    const request = controller.expectOne(
+      'http://localhost:8080/api/v1/auth/password-resets',
+    );
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({
+      token: 'opaque-test-token',
+      newPassword: 'safe-password-value',
+    });
+    expect(request.request.headers.has('Authorization')).toBe(false);
+    expect(request.request.withCredentials).toBe(false);
+    request.flush(null, { status: 204, statusText: 'No Content' });
+  });
+
   it('sends sign-in with the caller supplied surface and no bearer token', () => {
     TestBed.inject(NexaAccessTokenStore).set('previous-memory-token');
 
