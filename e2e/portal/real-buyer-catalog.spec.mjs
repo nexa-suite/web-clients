@@ -6,7 +6,7 @@ import {
 
 test.afterEach(async ({ page }) => {
   for (const label of ["Password", "Email", "Workspace address"]) {
-    const field = page.getByLabel(label, { exact: true });
+    const field = page.getByLabel(label);
     if (await field.count()) await field.fill("").catch(() => {});
   }
 });
@@ -26,9 +26,20 @@ async function signInBuyer(page) {
     page.getByRole("heading", { name: "Sign in to your workspace" }),
   ).toBeVisible();
   await page.getByLabel("Workspace address").fill(getPlatformWorkspaceSlug());
+  const previewResponse = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/v1/auth/workspace-previews" &&
+      response.request().method() === "POST",
+  );
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await page.getByLabel("Email", { exact: true }).fill(credentials.identifier);
-  await page.getByLabel("Password", { exact: true }).fill(credentials.password);
+  const preview = await previewResponse;
+  expect(preview.status()).toBe(200);
+  expect((await preview.json()).recognized).toBe(true);
+  await expect(
+    page.getByRole("button", { name: "Sign in", exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("Email").fill(credentials.identifier);
+  await page.getByLabel("Password").fill(credentials.password);
   const session = apiResponse(page, "/api/v1/session");
   const account = apiResponse(page, "/api/v1/client-accounts/me");
   const catalog = apiResponse(page, "/api/v1/catalog-items");
