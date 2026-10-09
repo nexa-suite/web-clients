@@ -8,6 +8,8 @@ COPY . .
 RUN npm run build:shared && npm run build:portal
 
 FROM nginx:1.30.5-alpine3.24@sha256:bf3201ab56f23e5954646379c775d511fc466e9f11376d9725361064ad07ed35 AS runtime
+ENV NEXA_WEB_SURFACE=PORTAL
+COPY --chmod=755 ops/docker-entrypoint.d/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
 COPY ops/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /workspace/dist/apps/portal/browser /usr/share/nginx/html
 

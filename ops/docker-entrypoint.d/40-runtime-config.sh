@@ -1,7 +1,11 @@
 #!/bin/sh
 set -eu
 
-api_base_url=${NEXA_PLATFORM_API_BASE_URL:-}
+case "${NEXA_WEB_SURFACE:-}" in
+    PLATFORM) api_base_url=${NEXA_PLATFORM_API_BASE_URL:-}; config_key=__NEXA_PLATFORM_CONFIG__ ;;
+    PORTAL) api_base_url=${NEXA_PORTAL_API_BASE_URL:-}; config_key=__NEXA_PORTAL_CONFIG__ ;;
+    *) printf '%s\n' 'NEXA_WEB_SURFACE must be PLATFORM or PORTAL.' >&2; exit 1 ;;
+esac
 if [ -z "$api_base_url" ]; then
     exit 0
 fi
@@ -12,7 +16,7 @@ done
 
 case "$api_base_url" in
     *[!A-Za-z0-9.:/_\[\]-]*)
-        printf '%s\n' 'NEXA_PLATFORM_API_BASE_URL contains unsupported characters.' >&2
+        printf '%s\n' 'API base URL contains unsupported characters.' >&2
         exit 1
         ;;
 esac
@@ -25,7 +29,7 @@ case "$api_base_url" in
         case "$api_base_url" in
             */api/v1) origin=${api_base_url%/api/v1} ;;
             *)
-                printf '%s\n' 'NEXA_PLATFORM_API_BASE_URL must use the /api/v1 path.' >&2
+                printf '%s\n' 'API base URL must use the /api/v1 path.' >&2
                 exit 1
                 ;;
         esac
@@ -68,18 +72,18 @@ case "$api_base_url" in
                 if (scheme == "http" && !loopback) exit 1
             }
         '; then
-            printf '%s\n' 'Absolute Platform API origins require a valid port and HTTPS, except for loopback development hosts.' >&2
+            printf '%s\n' 'Absolute Nexa API origins require a valid port and HTTPS, except for loopback development hosts.' >&2
             exit 1
         fi
         ;;
     *)
-        printf '%s\n' 'NEXA_PLATFORM_API_BASE_URL must be /api/v1 or an HTTP(S) URL ending in /api/v1.' >&2
+        printf '%s\n' 'API base URL must be /api/v1 or an HTTP(S) URL ending in /api/v1.' >&2
         exit 1
         ;;
 esac
 
 temporary_config=$(mktemp /usr/share/nginx/html/runtime-config.XXXXXX)
 trap 'rm -f "$temporary_config"' EXIT HUP INT TERM
-printf 'window.__NEXA_PLATFORM_CONFIG__ = { apiBaseUrl: "%s" };\n' "$api_base_url" > "$temporary_config"
+printf 'window.%s = { apiBaseUrl: "%s" };\n' "$config_key" "$api_base_url" > "$temporary_config"
 chmod 0644 "$temporary_config"
 mv "$temporary_config" /usr/share/nginx/html/runtime-config.js
