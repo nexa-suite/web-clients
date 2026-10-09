@@ -24,7 +24,9 @@ export class PlatformShellComponent {
     "logistics.analytics.read",
     "logistics:read",
   ]);
-  private readonly salesCommitmentPermissions = new Set(["sales.read"]);
+  private readonly salesCommitmentPermissions = new Set([
+    "sales.purchase_request.read",
+  ]);
   private readonly fulfillmentPermissions = new Set([
     "fulfillment.read",
     "fulfillment:read",
@@ -74,6 +76,12 @@ export class PlatformShellComponent {
 
   protected get canViewDocuments(): boolean {
     return this.hasAnyPermission(new Set(["document.read", "document:read"]));
+  }
+  protected get canViewTenantAccess(): boolean {
+    return this.hasAnyPermission(new Set(["tenant.member.read"]));
+  }
+  protected get canViewTenantRoles(): boolean {
+    return this.hasAnyPermission(new Set(["tenant.role.read"]));
   }
 
   private hasAnyPermission(allowed: ReadonlySet<string>): boolean {

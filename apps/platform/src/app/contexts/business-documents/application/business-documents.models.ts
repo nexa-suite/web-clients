@@ -1,3 +1,9 @@
+import type {
+  PlatformConfirmedSalesOrder,
+  PlatformConfirmedSalesOrderPage,
+} from "../../sales-commitment/application/public-api";
+import type { PlatformOrderSummaryRequest } from "./business-documents-api.adapter";
+
 export interface PlatformBusinessDocument {
   readonly id: string;
   readonly subjectType: string;
@@ -22,6 +28,52 @@ export interface PlatformBusinessDocumentPage {
   readonly total: number;
   readonly totalPages: number;
 }
+
+export type PlatformOrderSummaryCandidatesState =
+  | { readonly kind: "idle"; readonly page: null }
+  | {
+      readonly kind: "loading";
+      readonly page: null;
+      readonly requestedPage: number;
+    }
+  | {
+      readonly kind: "error";
+      readonly page: null;
+      readonly requestedPage: number;
+      readonly errorMessage: string;
+    }
+  | {
+      readonly kind: "empty";
+      readonly page: PlatformConfirmedSalesOrderPage;
+    }
+  | {
+      readonly kind: "results";
+      readonly page: PlatformConfirmedSalesOrderPage;
+    };
+
+export type PlatformOrderSummaryRequestState =
+  | { readonly kind: "idle"; readonly order: null }
+  | { readonly kind: "loading"; readonly order: null; readonly orderId: string }
+  | { readonly kind: "unavailable"; readonly order: null; readonly message: string }
+  | {
+      readonly kind: "error";
+      readonly order: PlatformConfirmedSalesOrder | null;
+      readonly orderId: string;
+      readonly message: string;
+    }
+  | {
+      readonly kind: "ready";
+      readonly order: PlatformConfirmedSalesOrder;
+    }
+  | {
+      readonly kind: "requesting";
+      readonly order: PlatformConfirmedSalesOrder;
+    }
+  | {
+      readonly kind: "submitted";
+      readonly order: PlatformConfirmedSalesOrder;
+      readonly request: PlatformOrderSummaryRequest;
+    };
 
 export type PlatformBusinessDocumentListState =
   | { readonly kind: "idle"; readonly page: null }

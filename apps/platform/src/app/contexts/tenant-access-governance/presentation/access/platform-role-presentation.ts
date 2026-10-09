@@ -84,8 +84,8 @@ export const CANONICAL_PLATFORM_ACTORS: readonly PlatformActorPresentation[] = [
     id: 'business-operations-manager',
     name: 'Business Operations Manager',
     kind: 'workforce',
-    apiRoleCode: null,
-    apiRoleMapping: 'unavailable',
+    apiRoleCode: 'BUSINESS_OPERATIONS_MANAGER',
+    apiRoleMapping: 'label-only',
     capabilities: [
       capability('CAP-02', 'Workforce access and governance', 'QUERY'),
       capability('CAP-03', 'Customer accounts and buyer relationships', 'OVERSIGHT'),
@@ -103,7 +103,7 @@ export const CANONICAL_PLATFORM_ACTORS: readonly PlatformActorPresentation[] = [
       capability('CAP-15', 'Business traceability', 'OVERSIGHT'),
       capability('CAP-16', 'Operational visibility', 'OVERSIGHT'),
     ],
-    note: 'The current API role catalog has no Business Operations Manager role.',
+    note: 'The API role is available, but this Web Platform has no dedicated delivery-exception coordination page.',
   },
   {
     id: 'sales-representative',
@@ -182,6 +182,7 @@ export const CANONICAL_PLATFORM_ACTORS: readonly PlatformActorPresentation[] = [
 const API_ROLE_TO_ACTOR: Readonly<Record<string, PlatformActorId>> = {
   COMPANY_OWNER: 'company-owner',
   TENANT_ADMIN: 'tenant-administrator',
+  BUSINESS_OPERATIONS_MANAGER: 'business-operations-manager',
   SALES: 'sales-representative',
   WAREHOUSE: 'warehouse-operator',
 };

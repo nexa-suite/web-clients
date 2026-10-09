@@ -14,6 +14,22 @@ export const PLATFORM_BUSINESS_DOCUMENT_ROUTES: Routes = [
         title: "Business documents | Nexa Platform",
       },
       {
+        path: "order-summary",
+        loadComponent: () =>
+          import("../presentation/platform-order-summary-candidates-page.component").then(
+            (module) => module.PlatformOrderSummaryCandidatesPageComponent,
+          ),
+        title: "Request order summary | Nexa Platform",
+      },
+      {
+        path: "order-summary/:salesOrderId",
+        loadComponent: () =>
+          import("../presentation/platform-order-summary-generation-page.component").then(
+            (module) => module.PlatformOrderSummaryGenerationPageComponent,
+          ),
+        title: "Request order summary | Nexa Platform",
+      },
+      {
         path: ":documentId",
         loadComponent: () =>
           import("../presentation/platform-business-document-detail-page.component").then(

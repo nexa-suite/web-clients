@@ -18,6 +18,13 @@
   gap: 1rem;
 }
 
+.document-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .page-kicker {
   margin: 0 0 0.35rem;
   color: var(--nexa-text-muted, #596474);
@@ -120,7 +127,8 @@
   .page-heading,
   .document-row,
   .document-heading,
-  .pagination {
+  .pagination,
+  .document-page-actions {
     align-items: flex-start;
     flex-direction: column;
   }

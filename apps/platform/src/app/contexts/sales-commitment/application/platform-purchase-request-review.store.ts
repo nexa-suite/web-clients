@@ -34,6 +34,7 @@ const EMPTY_STATE: PlatformPurchaseRequestReviewState = {
   pendingNote: "",
   message: null,
 };
+const PURCHASE_REQUEST_REVIEW_PERMISSION = "sales.purchase_request.review";
 
 /** Persists a Sales decision command across uncertain responses for safe retry. */
 @Injectable({ providedIn: "root" })
@@ -52,6 +53,17 @@ export class PlatformPurchaseRequestReviewStore {
     return value.lease && this.sessions.isSessionLeaseCurrent(value.lease)
       ? value.state
       : EMPTY_STATE;
+  });
+
+  /** Routine Purchase Request decisions belong to the typed Sales review grant. */
+  readonly canDecidePurchaseRequest = computed(() => {
+    const current = this.sessions.state();
+    return (
+      current.status === "authenticated" &&
+      current.session.membership?.permissions?.includes(
+        PURCHASE_REQUEST_REVIEW_PERMISSION,
+      ) === true
+    );
   });
 
   async load(requestId: string): Promise<void> {
@@ -88,6 +100,7 @@ export class PlatformPurchaseRequestReviewStore {
   }
 
   async convert(): Promise<void> {
+    if (!this.canDecidePurchaseRequest()) return;
     const state = this.state();
     const request = state.request;
     const lease = this.snapshot().lease;
@@ -222,6 +235,7 @@ export class PlatformPurchaseRequestReviewStore {
   }
 
   async reject(reviewNote: string): Promise<void> {
+    if (!this.canDecidePurchaseRequest()) return;
     const state = this.state();
     const request = state.request;
     const lease = this.snapshot().lease;

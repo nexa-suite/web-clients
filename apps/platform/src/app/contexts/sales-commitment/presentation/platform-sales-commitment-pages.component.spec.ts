@@ -170,6 +170,7 @@ describe("Platform Sales commitment pages", () => {
     });
     const store = {
       state,
+      canDecidePurchaseRequest: vi.fn(() => true),
       load: vi.fn().mockResolvedValue(undefined),
       convert: vi.fn().mockResolvedValue(undefined),
       reject: vi.fn().mockResolvedValue(undefined),
@@ -218,6 +219,7 @@ describe("Platform Sales commitment pages", () => {
         pendingNote: "",
         message: null,
       }),
+      canDecidePurchaseRequest: vi.fn(() => true),
       load: vi.fn().mockResolvedValue(undefined),
       convert: vi.fn().mockResolvedValue(undefined),
       reject: vi.fn().mockResolvedValue(undefined),
@@ -238,5 +240,40 @@ describe("Platform Sales commitment pages", () => {
     expect(fixture.nativeElement.textContent).toContain("A Buyer must accept proposed changes before Sales can convert this request.");
     expect(fixture.nativeElement.textContent).not.toContain("Convert to order");
     expect(fixture.nativeElement.textContent).toContain("Reject request");
+  });
+
+  it("keeps routine decision actions read-only without Sales review permission", async () => {
+    const store = {
+      state: signal({
+        status: "ready" as const,
+        request,
+        order: null,
+        pendingAction: null,
+        pendingNote: "",
+        message: null,
+      }),
+      canDecidePurchaseRequest: vi.fn(() => false),
+      load: vi.fn().mockResolvedValue(undefined),
+      convert: vi.fn().mockResolvedValue(undefined),
+      reject: vi.fn().mockResolvedValue(undefined),
+    };
+    TestBed.configureTestingModule({
+      imports: [PlatformPurchaseRequestReviewPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PlatformPurchaseRequestReviewStore, useValue: store },
+        { provide: PlatformSessionStore, useValue: { captureSessionLease: () => null, isSessionLeaseCurrent: () => false } },
+      ],
+    });
+    const fixture = TestBed.createComponent(PlatformPurchaseRequestReviewPageComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain("available for reading");
+    expect(fixture.nativeElement.textContent).not.toContain("Convert to order");
+    expect(fixture.nativeElement.textContent).not.toContain("Reject request");
+    expect(store.convert).not.toHaveBeenCalled();
+    expect(store.reject).not.toHaveBeenCalled();
   });
 });

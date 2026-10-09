@@ -15,7 +15,9 @@
     >
   </header>
 
-  @let page = state();
+  @let page = workbench.state();
+  @let warehouse = warehouseStore.state();
+  @let dispatchState = dispatchStore.state();
   <div class="fulfillment-workbench__boards">
     <section class="fulfillment-panel" aria-labelledby="candidate-title">
       <div class="fulfillment-panel__heading">
@@ -231,19 +233,33 @@
                 A safe current order version is unavailable. Start is disabled
                 until concurrency evidence is available.
               </p>
-            } @else if (!hasFulfillmentManage()) {
+            } @else if (!workbench.hasFulfillmentManage()) {
               <p class="fulfillment-hint">
                 The active membership does not report the fulfillment.manage
                 permission.
               </p>
+            } @else if (
+              page.start.status === "error" && !page.start.retryable
+            ) {
+              <nexa-button
+                type="button"
+                variant="quiet"
+                [disabled]="false"
+                (click)="retryOrder(page.order.id)"
+                >Reload current order</nexa-button
+              >
             } @else {
               <nexa-button
                 type="button"
                 variant="primary"
-                [loading]="page.start.status === 'submitting'"
-                [disabled]="!canStartFulfillment()"
+                [loading]="page.start.status === 'preparing' || page.start.status === 'submitting'"
+                [disabled]="!workbench.canStartFulfillment()"
                 (click)="startFulfillment()"
-                >Start fulfillment</nexa-button
+                >{{
+                  page.start.status === "error"
+                    ? "Retry same start command"
+                    : "Start fulfillment"
+                }}</nexa-button
               >
               <p class="fulfillment-hint">
                 The API checks the active warehouse grant and inventory backing
@@ -315,8 +331,8 @@
                     size="compact"
                     (click)="inspectWork(work)"
                     >{{
-                      page.inspection.status !== "idle" &&
-                      page.inspection.id === work.fulfillmentId
+                      warehouse.status !== "idle" &&
+                      warehouse.id === work.fulfillmentId
                         ? "Close"
                         : "Inspect"
                     }}</nexa-button
@@ -328,24 +344,239 @@
         }
       }
 
-      @if (page.inspection.status === "loading") {
+      @if (warehouse.status === "loading") {
         <p class="fulfillment-state" role="status">
           Loading fulfillment allocation…
         </p>
-      } @else if (page.inspection.status === "error") {
+      } @else if (warehouse.status === "error") {
         <p class="fulfillment-message fulfillment-message--error" role="alert">
-          {{ page.inspection.message }}
+          {{ warehouse.message }}
         </p>
-      } @else if (page.inspection.status === "ready") {
+        @if (warehouse.retryable) {
+          <nexa-button
+            type="button"
+            variant="quiet"
+            size="compact"
+            (click)="reloadWarehouseInspection()"
+            >Reload warehouse work</nexa-button
+          >
+        }
+      } @else if (warehouse.status === "ready") {
+        @let inspection = warehouse;
         <div class="fulfillment-inspection">
-          <h3>Current allocation · {{ page.inspection.fulfillment }}</h3>
-          @for (
-            line of page.inspection.allocation.lines;
-            track line.physicalAllocationLineId
-          ) {
-            <p>
-              {{ line.catalogItemId }} · {{ line.quantity }} {{ line.unit }} ·
-              warehouse {{ line.warehouseId }}
+          <h3>Fulfillment {{ inspection.fulfillment.id }}</h3>
+          <dl class="fulfillment-order-facts">
+            <div>
+              <dt>Current status</dt>
+              <dd>{{ inspection.fulfillment.status }}</dd>
+            </div>
+            <div>
+              <dt>Current version</dt>
+              <dd>v{{ inspection.fulfillment.version }}</dd>
+            </div>
+            <div>
+              <dt>Physical allocation</dt>
+              <dd>{{ inspection.allocation.allocationId }}</dd>
+            </div>
+            <div>
+              <dt>Allocation version</dt>
+              <dd>v{{ inspection.allocation.version }}</dd>
+            </div>
+          </dl>
+
+          @if (!inspection.etag) {
+            <p class="fulfillment-hint" role="alert">
+              The current Fulfillment did not include an ETag. Reload before
+              sending a command.
+            </p>
+          }
+          @if (!workbench.hasFulfillmentManage()) {
+            <p class="fulfillment-hint">
+              This membership can inspect current allocation evidence but does
+              not report fulfillment.manage.
+            </p>
+          }
+
+          @if (inspection.command.status === "preparing") {
+            <p class="fulfillment-hint" role="status">
+              Preparing a scoped retry key for {{ inspection.command.action }}…
+            </p>
+          } @else if (inspection.command.status === "submitting") {
+            <p class="fulfillment-hint" role="status">
+              Sending {{ inspection.command.action }}…
+            </p>
+          } @else if (inspection.command.status === "success") {
+            <p
+              class="fulfillment-message fulfillment-message--success"
+              role="status"
+            >
+              {{ inspection.command.message }}
+            </p>
+          } @else if (inspection.command.status === "error") {
+            <div
+              class="fulfillment-message fulfillment-message--error"
+              role="alert"
+            >
+              <p>{{ inspection.command.message }}</p>
+              @if (inspection.command.key && inspection.command.storageKey) {
+                <nexa-button
+                  type="button"
+                  variant="quiet"
+                  size="compact"
+                  (click)="retryFulfillmentCommand()"
+                  >Retry the same command</nexa-button
+                >
+              } @else {
+                <nexa-button
+                  type="button"
+                  variant="quiet"
+                  size="compact"
+                  (click)="reloadWarehouseInspection()"
+                  >Reload current work</nexa-button
+                >
+              }
+            </div>
+          }
+
+          @if (inspection.fulfillment.status === "ALLOCATED") {
+            <p class="fulfillment-hint">
+              Start picking to open the API-controlled picking state for this
+              allocated fulfillment.
+            </p>
+            <nexa-button
+              type="button"
+              variant="primary"
+              [disabled]="!warehouseStore.canStartPicking(inspection)"
+              [loading]="inspection.command.status === 'submitting'"
+              (click)="startPicking()"
+              >Start picking</nexa-button
+            >
+          } @else if (inspection.fulfillment.status === "PICKING") {
+            <div class="fulfillment-picking">
+              <h4>Confirm picked goods</h4>
+              <p class="fulfillment-hint">
+                Enter actual quantities and scanned lot and warehouse IDs for
+                each physical allocation line. The API validates every line
+                against the current allocation.
+              </p>
+              @for (row of warehouseStore.pickingRows(inspection); track row.key) {
+                <fieldset class="fulfillment-observation">
+                  <legend>{{ row.fulfillmentLine.catalogItemId }}</legend>
+                  @if (row.allocationLine) {
+                    <p class="fulfillment-hint">
+                      Physical line {{ row.allocationLine.physicalAllocationLineId }}
+                      · expected {{ row.allocationLine.remainingQuantity }}
+                      {{ row.allocationLine.unit }} · allocated lot
+                      {{ row.allocationLine.lotId || "not assigned" }} ·
+                      warehouse {{ row.allocationLine.warehouseId || "not assigned" }}
+                    </p>
+                  } @else {
+                    <p class="fulfillment-hint fulfillment-message--error">
+                      No current physical allocation line matches this
+                      fulfillment line.
+                    </p>
+                  }
+                  <label>
+                    Actual picked quantity ({{ row.fulfillmentLine.unit }})
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      [max]="row.allocationLine?.remainingQuantity ?? row.fulfillmentLine.allocatedQuantity"
+                      [value]="warehouseStore.pickingObservation(inspection, row.key).quantity"
+                      [disabled]="!workbench.hasFulfillmentManage() || inspection.command.status === 'preparing' || inspection.command.status === 'submitting' || inspection.command.status === 'error'"
+                      (input)="warehouseStore.setPickingObservation(row.key, 'quantity', $any($event.target).value)"
+                    />
+                  </label>
+                  @if (row.allocationLine) {
+                    <label>
+                      Observed lot ID
+                      <input
+                        type="text"
+                        autocomplete="off"
+                        placeholder="Enter the scanned lot ID"
+                        [value]="warehouseStore.pickingObservation(inspection, row.key).lotId"
+                        [disabled]="!workbench.hasFulfillmentManage() || inspection.command.status === 'preparing' || inspection.command.status === 'submitting' || inspection.command.status === 'error'"
+                        (input)="warehouseStore.setPickingObservation(row.key, 'lotId', $any($event.target).value)"
+                      />
+                    </label>
+                    <label>
+                      Observed warehouse ID
+                      <input
+                        type="text"
+                        autocomplete="off"
+                        placeholder="Enter the scanned warehouse ID"
+                        [value]="warehouseStore.pickingObservation(inspection, row.key).warehouseId"
+                        [disabled]="!workbench.hasFulfillmentManage() || inspection.command.status === 'preparing' || inspection.command.status === 'submitting' || inspection.command.status === 'error'"
+                        (input)="warehouseStore.setPickingObservation(row.key, 'warehouseId', $any($event.target).value)"
+                      />
+                    </label>
+                  }
+                </fieldset>
+              }
+              <nexa-button
+                type="button"
+                variant="primary"
+                [disabled]="!warehouseStore.canConfirmPicking(inspection)"
+                [loading]="inspection.command.status === 'submitting'"
+                (click)="confirmPicking()"
+                >Confirm picking</nexa-button
+              >
+            </div>
+          } @else if (inspection.fulfillment.status === "SHORTAGE") {
+            <p class="fulfillment-hint">
+              The API recorded a picking shortage. Confirm the exact shortfall
+              with a reason before packing can continue.
+            </p>
+            <label>
+              Shortage resolution reason
+              <textarea
+                rows="3"
+                maxlength="2000"
+                [value]="warehouseStore.shortageReason(inspection)"
+                [disabled]="!workbench.hasFulfillmentManage() || inspection.command.status === 'preparing' || inspection.command.status === 'submitting' || inspection.command.status === 'error'"
+                (input)="warehouseStore.setShortageReason($any($event.target).value)"
+              ></textarea>
+            </label>
+            <nexa-button
+              type="button"
+              variant="primary"
+              [disabled]="!warehouseStore.canResolveShortage(inspection)"
+              [loading]="inspection.command.status === 'submitting'"
+              (click)="resolveShortage()"
+              >Resolve recorded shortage</nexa-button
+            >
+          } @else if (inspection.fulfillment.status === "PICKED") {
+            <nexa-button
+              type="button"
+              variant="primary"
+              [disabled]="!warehouseStore.canPack(inspection)"
+              [loading]="inspection.command.status === 'submitting'"
+              (click)="packFulfillment()"
+              >Pack fulfillment</nexa-button
+            >
+          } @else if (inspection.fulfillment.status === "PACKED") {
+            <nexa-button
+              type="button"
+              variant="primary"
+              [disabled]="!warehouseStore.canStage(inspection)"
+              [loading]="inspection.command.status === 'submitting'"
+              (click)="stageFulfillment()"
+              >Stage fulfillment</nexa-button
+            >
+          } @else if (inspection.fulfillment.status === "STAGED") {
+            <nexa-button
+              type="button"
+              variant="primary"
+              [disabled]="!warehouseStore.canMarkReadyForDispatch(inspection)"
+              [loading]="inspection.command.status === 'submitting'"
+              (click)="markReadyForDispatch()"
+              >Mark ready for dispatch</nexa-button
+            >
+          } @else if (inspection.fulfillment.status === "READY_FOR_DISPATCH") {
+            <p class="fulfillment-hint">
+              This fulfillment is ready for dispatch. Continue from the current
+              dispatch-readiness panel.
             </p>
           }
         </div>
@@ -414,11 +645,366 @@
                       <li>{{ reason }}</li>
                     }
                   </ul>
+                  <nexa-button
+                    type="button"
+                    variant="quiet"
+                    size="compact"
+                    (click)="inspectDispatch(readiness)"
+                    >{{
+                      dispatchState.status !== "idle" &&
+                      dispatchState.id === readiness.fulfillmentId
+                        ? "Close"
+                        : "Inspect dispatch"
+                    }}</nexa-button
+                  >
                 </article>
               }
             </div>
           }
         }
+      }
+
+      @if (dispatchState.status === "loading") {
+        <p class="fulfillment-state" role="status">
+          Loading current dispatch details…
+        </p>
+      } @else if (dispatchState.status === "error") {
+        <div class="fulfillment-state fulfillment-state--error" role="alert">
+          <p>{{ dispatchState.message }}</p>
+          @if (dispatchState.retryable) {
+            <nexa-button
+              type="button"
+              variant="quiet"
+              size="compact"
+              (click)="reloadDispatchInspection()"
+              >Reload dispatch state</nexa-button
+            >
+          }
+        </div>
+      } @else if (dispatchState.status === "ready") {
+        @let dispatch = dispatchState;
+        @let dispatchDraft = dispatchStore.dispatchForm(dispatch.id);
+        <section
+          class="fulfillment-detail dispatch-detail"
+          aria-labelledby="dispatch-detail-title"
+        >
+          <h3 id="dispatch-detail-title">
+            Current fulfillment · {{ dispatch.fulfillment.id }}
+          </h3>
+          <dl class="fulfillment-order-facts">
+            <div>
+              <dt>Status</dt>
+              <dd>{{ dispatch.fulfillment.status }}</dd>
+            </div>
+            <div>
+              <dt>Fulfillment version</dt>
+              <dd>v{{ dispatch.fulfillment.version }}</dd>
+            </div>
+            <div>
+              <dt>Physical allocation</dt>
+              <dd>{{ dispatch.allocation.allocationId }}</dd>
+            </div>
+            <div>
+              <dt>Allocation version</dt>
+              <dd>v{{ dispatch.allocation.version }}</dd>
+            </div>
+          </dl>
+          @if (!dispatch.etag) {
+            <p class="fulfillment-hint" role="alert">
+              The API did not return a current Fulfillment ETag. Reload before
+              sending a command.
+            </p>
+          }
+
+          @if (dispatch.command.status === "preparing") {
+            <p class="fulfillment-hint" role="status">
+              Preparing a scoped retry key for {{ dispatch.command.action }}…
+            </p>
+          } @else if (dispatch.command.status === "submitting") {
+            <p class="fulfillment-hint" role="status">
+              Sending {{ dispatch.command.action }}…
+            </p>
+          } @else if (dispatch.command.status === "success") {
+            <p
+              class="fulfillment-message fulfillment-message--success"
+              role="status"
+            >
+              {{ dispatch.command.message }}
+            </p>
+          } @else if (dispatch.command.status === "error") {
+            <div
+              class="fulfillment-message fulfillment-message--error"
+              role="alert"
+            >
+              <p>{{ dispatch.command.message }}</p>
+              @if (dispatch.command.key && dispatch.command.storageKey) {
+                <nexa-button
+                  type="button"
+                  variant="quiet"
+                  size="compact"
+                  (click)="retryDispatchCommand()"
+                  >Retry the same command</nexa-button
+                >
+              } @else {
+                <nexa-button
+                  type="button"
+                  variant="quiet"
+                  size="compact"
+                  (click)="reloadDispatchInspection()"
+                  >Reload current dispatch state</nexa-button
+                >
+              }
+            </div>
+          }
+
+          <section class="dispatch-step" aria-labelledby="dispatch-window-title">
+            <h4 id="dispatch-window-title">Delivery window</h4>
+            @if (dispatch.readiness.windowStart && dispatch.readiness.windowEnd) {
+              <p>
+                {{ dispatch.readiness.windowStart }} –
+                {{ dispatch.readiness.windowEnd }}
+                @if (dispatch.readiness.windowSource) {
+                  · {{ dispatch.readiness.windowSource }}
+                }
+              </p>
+            } @else if (
+              dispatch.readiness.windowStart === null &&
+              dispatch.readiness.windowEnd === null
+            ) {
+              @if (dispatch.assignment) {
+                <p class="fulfillment-hint">
+                  A driver is already assigned. The API records this window as
+                  a one-way plan that advances the fulfillment version, which
+                  would stale that assignment. Plan the window before assigning
+                  a driver.
+                </p>
+              } @else if (dispatchStore.canSchedule() && dispatchStore.canRead()) {
+                <label>
+                  Window starts
+                  <input
+                    type="datetime-local"
+                    [value]="dispatchDraft.windowStart"
+                    [disabled]="dispatchStore.isCommandLocked(dispatch.command)"
+                    (input)="dispatchStore.setDispatchWindow('windowStart', $any($event.target).value)"
+                  />
+                </label>
+                <label>
+                  Window ends
+                  <input
+                    type="datetime-local"
+                    [value]="dispatchDraft.windowEnd"
+                    [disabled]="dispatchStore.isCommandLocked(dispatch.command)"
+                    (input)="dispatchStore.setDispatchWindow('windowEnd', $any($event.target).value)"
+                  />
+                </label>
+                <label>
+                  Planning reason
+                  <textarea
+                    rows="2"
+                    maxlength="2000"
+                    [value]="dispatchDraft.windowReason"
+                    [disabled]="dispatchStore.isCommandLocked(dispatch.command)"
+                    (input)="dispatchStore.setDispatchWindowReason($any($event.target).value)"
+                  ></textarea>
+                </label>
+                <nexa-button
+                  type="button"
+                  variant="secondary"
+                  [disabled]="!dispatchStore.canPlanDispatchWindow(dispatch)"
+                  [loading]="dispatch.command.status === 'submitting'"
+                  (click)="planDispatchWindow()"
+                  >Plan dispatch window</nexa-button
+                >
+              } @else {
+                <p class="fulfillment-hint">
+                  A delivery window is not recorded. Planning requires the
+                  current dispatch.read and dispatch.schedule permissions.
+                </p>
+              }
+            } @else {
+              <p class="fulfillment-hint" role="alert">
+                The current API returned an incomplete delivery window. Reload
+                the dispatch state before planning.
+              </p>
+            }
+          </section>
+
+          <section class="dispatch-step" aria-labelledby="driver-assignment-title">
+            <h4 id="driver-assignment-title">Driver assignment</h4>
+            @if (dispatch.assignment?.current) {
+              <p>
+                Assigned to {{ dispatch.assignment.responsibleDisplayName }}
+                · {{ dispatch.assignment.responsibleMembershipId }}
+              </p>
+            } @else if (dispatch.assignment) {
+              <p class="fulfillment-hint" role="alert">
+                The existing assignment is stale for the current fulfillment
+                version. The current API contract has no renewal command for a
+                stale assignment, so this workbench will not submit another
+                assignment request.
+              </p>
+            } @else {
+              <p class="fulfillment-hint">
+                No current driver assignment is recorded.
+              </p>
+              @if (
+                !dispatch.readiness.windowStart ||
+                !dispatch.readiness.windowEnd
+              ) {
+                <p class="fulfillment-hint">
+                  Plan the delivery window before assigning a driver. The
+                  window plan advances the Fulfillment version.
+                </p>
+              }
+              @if (dispatchStore.canRead() && dispatchStore.canAssign()) {
+                @if (!dispatchStore.canReadAssignees()) {
+                  <p class="fulfillment-hint">
+                    Loading eligible Logistics memberships requires the
+                    current logistics.read permission.
+                  </p>
+                } @else if (dispatch.assignees.length > 0) {
+                  <label>
+                    Eligible Logistics membership
+                    <select
+                      [value]="dispatchDraft.selectedDriverMembershipId"
+                      [disabled]="dispatchStore.isCommandLocked(dispatch.command)"
+                      (change)="dispatchStore.setDispatchAssignee($any($event.target).value)"
+                    >
+                      <option value="">Choose a dispatcher or driver</option>
+                      @for (assignee of dispatch.assignees; track assignee.id) {
+                        <option [value]="assignee.id">
+                          {{ assignee.displayName }} · {{ assignee.id }}
+                        </option>
+                      }
+                    </select>
+                  </label>
+                  <nexa-button
+                    type="button"
+                    variant="secondary"
+                    [disabled]="!dispatchStore.canAssignDriver(dispatch)"
+                    [loading]="dispatch.command.status === 'submitting'"
+                    (click)="assignDriver()"
+                    >Assign driver</nexa-button
+                  >
+                } @else {
+                  <p class="fulfillment-hint">
+                    The API returned no eligible Logistics memberships in this
+                    context.
+                  </p>
+                }
+              } @else {
+                <p class="fulfillment-hint">
+                  Assignment requires the current dispatch.read and
+                  dispatch.assign permissions.
+                </p>
+              }
+            }
+          </section>
+
+          <section class="dispatch-step" aria-labelledby="outgoing-check-title">
+            <h4 id="outgoing-check-title">Outgoing goods check</h4>
+            @if (dispatch.outgoingCheck) {
+              <p
+                class="fulfillment-hint"
+                [class.fulfillment-message--error]="!dispatch.outgoingCheck.current || !dispatch.outgoingCheck.matches || dispatch.outgoingCheck.openDiscrepancy"
+              >
+                Check {{ dispatch.outgoingCheck.id }} ·
+                {{ dispatch.outgoingCheck.current ? "current" : "stale" }} ·
+                {{ dispatch.outgoingCheck.matches ? "matches allocation" : "discrepancy recorded" }}
+                @if (dispatch.outgoingCheck.openDiscrepancy) {
+                  · discrepancy unresolved
+                }
+              </p>
+            } @else {
+              <p class="fulfillment-hint">
+                Record the observed goods after the final assignment or
+                schedule change so the check matches the current version.
+              </p>
+            }
+            @if (workbench.hasFulfillmentManage()) {
+              <p class="fulfillment-hint">
+                Enter actual dock quantities and observed lot IDs. The API
+                compares these observations with the current physical
+                allocation; it does not trust this page to mark a check as
+                matching.
+              </p>
+              @for (
+                line of dispatch.allocation.lines;
+                track line.physicalAllocationLineId
+              ) {
+                <fieldset class="fulfillment-observation">
+                  <legend>{{ line.catalogItemId }}</legend>
+                  <p class="fulfillment-hint">
+                    Physical line {{ line.physicalAllocationLineId }} ·
+                    expected {{ line.remainingQuantity }} {{ line.unit }} ·
+                    lot {{ line.lotId || "not assigned" }}
+                  </p>
+                  <label>
+                    Observed quantity ({{ line.unit }})
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      [value]="dispatchStore.outgoingObservation(dispatch, line.physicalAllocationLineId).quantity"
+                      [disabled]="dispatchStore.isCommandLocked(dispatch.command)"
+                      (input)="dispatchStore.setDispatchObservation(line.physicalAllocationLineId, 'quantity', $any($event.target).value)"
+                    />
+                  </label>
+                  <label>
+                    Observed lot ID
+                    <input
+                      type="text"
+                      autocomplete="off"
+                      placeholder="Enter the observed lot ID"
+                      [value]="dispatchStore.outgoingObservation(dispatch, line.physicalAllocationLineId).lotId"
+                      [disabled]="dispatchStore.isCommandLocked(dispatch.command)"
+                      (input)="dispatchStore.setDispatchObservation(line.physicalAllocationLineId, 'lotId', $any($event.target).value)"
+                    />
+                  </label>
+                </fieldset>
+              }
+              <nexa-button
+                type="button"
+                variant="secondary"
+                [disabled]="!dispatchStore.canRecordOutgoingCheck(dispatch)"
+                [loading]="dispatch.command.status === 'submitting'"
+                (click)="recordOutgoingCheck()"
+                >Record outgoing goods check</nexa-button
+              >
+            } @else {
+              <p class="fulfillment-hint">
+                Recording a physical outgoing-goods check requires
+                fulfillment.manage.
+              </p>
+            }
+          </section>
+
+          <section class="dispatch-step" aria-labelledby="handoff-title">
+            <h4 id="handoff-title">Dispatch handoff</h4>
+            @if (dispatch.fulfillment.status === "HANDED_OVER") {
+              <p class="fulfillment-hint">
+                The API recorded handoff to the assigned driver. Delivery
+                execution is handled through the current Operations workflow.
+              </p>
+            } @else if (dispatchStore.canDispatch(dispatch)) {
+              <nexa-button
+                type="button"
+                variant="primary"
+                [disabled]="!dispatchStore.canDispatch(dispatch)"
+                [loading]="dispatch.command.status === 'submitting'"
+                (click)="dispatchFulfillment()"
+                >Record dispatch handoff</nexa-button
+              >
+            } @else {
+              <p class="fulfillment-hint">
+                Handoff is enabled only when the API reports a current driver
+                assignment and a matching outgoing-goods check for this
+                fulfillment and physical-allocation version. The command uses
+                those exact snapshots.
+              </p>
+            }
+          </section>
+        </section>
       }
     </section>
   </div>

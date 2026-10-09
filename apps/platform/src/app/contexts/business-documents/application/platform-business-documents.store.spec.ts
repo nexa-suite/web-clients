@@ -241,6 +241,26 @@ describe("PlatformBusinessDocumentsStore", () => {
     expect(store.canDownload()).toBe(true);
   });
 
+  it("reacts to the active session membership's document-generation permission", () => {
+    expect(store.canGenerate()).toBe(false);
+    sessionState.set({
+      status: "authenticated",
+      session: {
+        user: { userId: firstLease.scope.userId },
+        tenant: { tenantId: firstLease.scope.tenantId },
+        workspace: { workspaceId: firstLease.scope.workspaceId },
+        membership: {
+          membershipId: firstLease.scope.membershipId,
+          permissions: ["document.generate"],
+        },
+        surface: "PLATFORM",
+      },
+    });
+    expect(store.canGenerate()).toBe(true);
+    sessionState.set({ status: "unauthenticated" });
+    expect(store.canGenerate()).toBe(false);
+  });
+
   it("does not call the API when the active membership lacks download permission", async () => {
     api.list.mockResolvedValueOnce(page());
     await store.load();

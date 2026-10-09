@@ -1,0 +1,87 @@
+<section class="platform-governance-page" aria-labelledby="tenant-roles-title" data-testid="platform-tenant-roles">
+  <header class="platform-governance-page__heading">
+    <div>
+      <p class="platform-governance-page__eyebrow">TENANT ACCESS GOVERNANCE</p>
+      <h1 id="tenant-roles-title">Roles and permissions</h1>
+      <p>Review role definitions and the API permission catalog for this active workspace.</p>
+    </div>
+    <nexa-button variant="secondary" size="compact" (click)="refresh()">Refresh</nexa-button>
+  </header>
+
+  @if (store.isCompanyOwner()) {
+    <nexa-surface tone="inset"><p class="platform-governance-page__notice">Company Owner oversight view. Tenant Administrators manage custom role definitions.</p></nexa-surface>
+  }
+
+  @if (!store.canReadRoles()) {
+    <nexa-surface tone="inset"><p role="alert">The active membership cannot read role definitions.</p></nexa-surface>
+  } @else {
+    @let view = state();
+    @if (view.message) { <p class="platform-governance-page__error" role="alert">{{ view.message }}</p> }
+    @if (view.notice) { <p class="platform-governance-page__notice" role="status" aria-live="polite">{{ view.notice }}</p> }
+    @if (view.status === 'loading') {
+      <p role="status" aria-live="polite">Loading roles and permissions…</p>
+    } @else if (view.status === 'error') {
+      <nexa-surface tone="inset"><nexa-button variant="secondary" (click)="refresh()">Try again</nexa-button></nexa-surface>
+    } @else if (view.status === 'ready') {
+      <nexa-surface tone="default">
+        <div class="platform-governance-page__section-heading">
+          <div><h2>Role definitions</h2><p>New custom roles are scoped to the active Workspace; existing tenant-wide API roles remain read-only.</p></div>
+          @if (store.canManageRoleDefinitions() && !draft()) { <nexa-button (click)="startCreate()">Create custom role</nexa-button> }
+        </div>
+        @if (view.roles.length) {
+          <div class="platform-governance-page__table-wrap">
+            <table><thead><tr><th>Role</th><th>Scope</th><th>Status</th><th>Permissions</th><th>Actions</th></tr></thead><tbody>
+              @for (role of view.roles; track role.id) {
+                <tr>
+                  <td><strong>{{ role.name }}</strong><br><code>{{ role.code }}</code></td>
+                  <td>{{ scopeLabel(role) }}<br><span>{{ role.type.replaceAll('_', ' ') }}</span></td>
+                  <td>{{ role.status }}</td>
+                  <td><details><summary>{{ role.permissions.length }} permission(s)</summary><ul>@for (permission of role.permissions; track permission) { <li><code>{{ permission }}</code></li> }</ul></details></td>
+                  <td>
+                    @if (store.canEditRoleDefinition(role)) {
+                      <nexa-button size="compact" variant="secondary" [disabled]="store.busy() || !!draft()" (click)="startEdit(role)">Edit</nexa-button>
+                      <nexa-button size="compact" variant="danger" [disabled]="store.busy() || !!draft()" (click)="deactivate(role)">Deactivate</nexa-button>
+                    } @else { <span>—</span> }
+                  </td>
+                </tr>
+              }
+            </tbody></table>
+          </div>
+        } @else { <p>No role definitions were returned for this workspace.</p> }
+      </nexa-surface>
+
+      @if (draft(); as editor) {
+        @if (store.canManageRoleDefinitions()) {
+          <nexa-surface tone="default">
+            <section class="platform-governance-page__form" aria-labelledby="role-editor-title">
+              <h2 id="role-editor-title">{{ editor.roleId ? 'Edit custom role' : 'Create custom role' }}</h2>
+              @if (!editor.roleId) {
+                <label>Role code
+                  <input type="text" [value]="editor.code" (input)="setField('code', $event)" maxlength="50" autocomplete="off" placeholder="WAREHOUSE_REVIEW">
+                </label>
+              } @else { <p>Code: <code>{{ editor.code }}</code></p> }
+              <label>Display name
+                <input type="text" [value]="editor.name" (input)="setField('name', $event)" maxlength="120" required>
+              </label>
+              <label>Description
+                <textarea [value]="editor.description" (input)="setField('description', $event)" maxlength="500" rows="3"></textarea>
+              </label>
+              <fieldset>
+                <legend>Permissions from the API catalog</legend>
+                <div class="platform-governance-page__catalog">
+                  @for (entry of view.permissionCatalog; track entry.code) {
+                    <label><input type="checkbox" [checked]="permissionSelected(entry.code)" (change)="togglePermission(entry.code, $event)"> <code>{{ entry.code }}</code><span>{{ entry.group.replaceAll('_', ' ') }}</span></label>
+                  }
+                </div>
+              </fieldset>
+              <div class="platform-governance-page__actions">
+                <nexa-button [disabled]="store.busy() || editor.name.trim().length < 2 || !editor.permissions.length || (!editor.roleId && !editor.code.trim())" (click)="save()">{{ editor.roleId ? 'Save role' : 'Create role' }}</nexa-button>
+                <nexa-button variant="secondary" [disabled]="store.busy()" (click)="cancelEdit()">Cancel</nexa-button>
+              </div>
+            </section>
+          </nexa-surface>
+        }
+      }
+    }
+  }
+</section>

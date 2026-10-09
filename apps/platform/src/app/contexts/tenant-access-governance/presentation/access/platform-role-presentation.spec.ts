@@ -151,14 +151,14 @@ describe('Platform role presentation', () => {
       ]);
   });
 
-  it('does not invent a Business Operations Manager API role', () => {
+  it('maps the API Business Operations Manager role as an informational label only', () => {
     const actor = CANONICAL_PLATFORM_ACTORS.find((candidate) => candidate.id === 'business-operations-manager');
 
-    expect(actor?.apiRoleCode).toBeNull();
-    expect(actor?.apiRoleMapping).toBe('unavailable');
+    expect(actor?.apiRoleCode).toBe('BUSINESS_OPERATIONS_MANAGER');
+    expect(actor?.apiRoleMapping).toBe('label-only');
     expect(presentApiRoles(['BUSINESS_OPERATIONS_MANAGER'])[0]).toEqual({
       apiRole: 'BUSINESS_OPERATIONS_MANAGER',
-      canonicalActorName: null,
+      canonicalActorName: 'Business Operations Manager',
     });
   });
 });

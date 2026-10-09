@@ -29,7 +29,7 @@
     <nexa-surface tone="inset"><h2>Sales order created</h2><p><strong>{{ order.number || order.id }}</strong> · {{ order.status.replaceAll('_', ' ') }}</p><p>A Sales Order has been created from this request.</p></nexa-surface>
   }
   @if (state().status === 'rejected') { <nexa-surface tone="inset"><h2>Request rejected</h2><p>{{ request.reviewNote || 'The request is now rejected.' }}</p></nexa-surface> }
-  @if (state().pendingAction !== null || canReview(request.status)) {
+  @if ((state().pendingAction !== null || canReview(request.status)) && store.canDecidePurchaseRequest()) {
     <nexa-surface tone="default"><section aria-labelledby="sales-decision-title"><h2 id="sales-decision-title">Sales decision</h2>
       @if (canConvert(request.status)) { <p>Converting creates a Sales Order after the request is checked.</p> }
       @else if (request.status === 'CHANGES_PROPOSED') { <p>A Buyer must accept proposed changes before Sales can convert this request.</p> }
@@ -40,5 +40,8 @@
         <nexa-button variant="secondary" (click)="reject()" [disabled]="state().status === 'saving'">@if (state().pendingAction === 'reject') { Retry rejection } @else { Reject request }</nexa-button>
       }
     </div></section></nexa-surface>
+  }
+  @if ((state().pendingAction !== null || canReview(request.status)) && !store.canDecidePurchaseRequest()) {
+    <p class="platform-sales-page__notice" role="note">This request is available for reading. The active membership does not have Sales Purchase Request review permission.</p>
   }
 </ng-template>

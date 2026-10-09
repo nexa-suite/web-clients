@@ -8,12 +8,18 @@
         canViewOperationsOverview ||
         canViewSalesCommitment ||
         canViewFulfillment ||
-        canViewDocuments
+        canViewDocuments || canViewTenantAccess || canViewTenantRoles
       ) {
         <nav
           class="platform-shell__navigation"
           aria-label="Platform navigation"
         >
+          @if (canViewTenantAccess) {
+            <a class="platform-shell__navigation-link" routerLink="/organization/access" routerLinkActive="platform-shell__navigation-link--active" ariaCurrentWhenActive="page">Workforce access</a>
+          }
+          @if (canViewTenantRoles) {
+            <a class="platform-shell__navigation-link" routerLink="/organization/roles" routerLinkActive="platform-shell__navigation-link--active" ariaCurrentWhenActive="page">Roles and permissions</a>
+          }
           @if (canViewOperationsOverview) {
             <a
               class="platform-shell__navigation-link"

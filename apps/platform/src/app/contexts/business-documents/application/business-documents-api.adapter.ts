@@ -3,6 +3,7 @@ import { NexaApiError, NexaBusinessDocumentsApi } from "@nexa/api";
 import type {
   BusinessDocumentResponse,
   BusinessDocumentPageResponse,
+  BusinessDocumentGenerationRequestResponse,
 } from "@nexa/api";
 import { firstValueFrom } from "rxjs";
 import type {
@@ -52,6 +53,24 @@ export class PlatformBusinessDocumentsApiAdapter {
     if (!response.body) throw invalidApiResponse();
     return response.body;
   }
+
+  async requestOrderSummaryPdf(
+    salesOrderId: string,
+    idempotencyKey: string,
+  ): Promise<PlatformOrderSummaryRequest> {
+    const response = await firstValueFrom(
+      this.api.requestOrderSummaryPdf(salesOrderId, idempotencyKey),
+    );
+    return mapOrderSummaryRequest(response, salesOrderId);
+  }
+}
+
+export interface PlatformOrderSummaryRequest {
+  readonly id: string;
+  readonly documentId: string;
+  readonly status: string;
+  readonly requestedAt: string;
+  readonly completedAt: string | null;
 }
 
 function mapDocument(
@@ -94,6 +113,34 @@ function mapDocument(
     downloadable:
       DOWNLOADABLE_STATUSES.has(value.status) &&
       isNonEmptyString(value.storageObjectKey),
+  };
+}
+
+function mapOrderSummaryRequest(
+  value: BusinessDocumentGenerationRequestResponse,
+  salesOrderId: string,
+): PlatformOrderSummaryRequest {
+  if (
+    !isRecord(value) ||
+    !isNonEmptyString(value.id) ||
+    !isNonEmptyString(value.documentId) ||
+    value.subjectType !== "SALES_ORDER" ||
+    value.subjectId !== salesOrderId ||
+    value.documentType !== "ORDER_SUMMARY" ||
+    value.format !== "PDF" ||
+    !isNonEmptyString(value.status) ||
+    !isNonEmptyString(value.requestedAt) ||
+    !isOptionalString(value.completedAt)
+  ) {
+    throw invalidApiResponse();
+  }
+
+  return {
+    id: value.id,
+    documentId: value.documentId,
+    status: value.status,
+    requestedAt: value.requestedAt,
+    completedAt: value.completedAt,
   };
 }
 

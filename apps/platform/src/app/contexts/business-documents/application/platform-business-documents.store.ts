@@ -75,6 +75,15 @@ export class PlatformBusinessDocumentsStore {
     );
   });
 
+  readonly canGenerate = computed(() => {
+    const current = this.session.state();
+    return (
+      current.status === "authenticated" &&
+      current.session.membership?.permissions?.includes("document.generate") ===
+        true
+    );
+  });
+
   async load(page = 0): Promise<void> {
     if (!Number.isSafeInteger(page) || page < 0) return;
     const lease = this.session.captureSessionLease();

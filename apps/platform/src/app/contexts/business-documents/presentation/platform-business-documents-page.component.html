@@ -8,9 +8,16 @@
         context.
       </p>
     </div>
-    <nexa-button variant="secondary" (click)="store.load()"
-      >Refresh</nexa-button
-    >
+    <div class="document-page-actions">
+      @if (store.canGenerate()) {
+        <nexa-button variant="secondary" routerLink="order-summary"
+          >Request an order summary PDF</nexa-button
+        >
+      }
+      <nexa-button variant="secondary" (click)="store.load()"
+        >Refresh</nexa-button
+      >
+    </div>
   </header>
 
   @let state = store.listState();

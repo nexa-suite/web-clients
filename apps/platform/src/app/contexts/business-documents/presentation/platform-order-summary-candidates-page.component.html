@@ -1,0 +1,98 @@
+<section class="platform-documents-page" aria-labelledby="order-summary-heading">
+  <a class="back-link" routerLink="/documents">← All business documents</a>
+  <header class="page-heading">
+    <div>
+      <p class="page-kicker">ORDER SUMMARIES</p>
+      <h1 id="order-summary-heading">Select a confirmed Sales Order</h1>
+      <p class="page-intro">
+        Choose an order that has a recorded confirmation timestamp to request its
+        PDF summary.
+      </p>
+    </div>
+    <nexa-button variant="secondary" (click)="store.loadCandidates()"
+      >Refresh</nexa-button
+    >
+  </header>
+
+  @let state = store.candidatesState();
+  @switch (state.kind) {
+    @case ("loading") {
+      <nexa-surface tone="inset">
+        <p class="state-message" role="status">Loading confirmed Sales Orders…</p>
+      </nexa-surface>
+    }
+    @case ("error") {
+      <nexa-surface tone="inset">
+        <div class="state-message error-state" role="alert">
+          <strong>Sales Orders could not be loaded</strong>
+          <p>{{ state.errorMessage }}</p>
+          <nexa-button variant="secondary" (click)="retry(state)"
+            >Try again</nexa-button
+          >
+        </div>
+      </nexa-surface>
+    }
+    @case ("empty") {
+      <nexa-surface tone="inset">
+        <div class="state-message empty-state">
+          <strong>No Sales Orders are available</strong>
+          <p>Orders will appear here after the API records their confirmation.</p>
+        </div>
+      </nexa-surface>
+    }
+    @case ("results") {
+      @if (state.page.items.length === 0) {
+        <nexa-surface tone="inset">
+          <p class="state-message">
+            There are no confirmed Sales Orders on this page.
+          </p>
+        </nexa-surface>
+      } @else {
+        <ol class="document-list" aria-label="Confirmed Sales Orders">
+          @for (order of state.page.items; track order.id) {
+            <li>
+              <article class="document-row">
+                <div>
+                  <a
+                    class="document-link"
+                    [routerLink]="['/documents/order-summary', order.id]"
+                  >
+                    <strong>{{ order.number }}</strong>
+                    <span>Request order summary PDF</span>
+                  </a>
+                  <p class="document-meta">
+                    <span>Confirmed</span>
+                    <span aria-hidden="true">·</span>
+                    <span>Current status: {{ orderStatusLabel(order.status) }}</span>
+                  </p>
+                </div>
+              </article>
+            </li>
+          }
+        </ol>
+      }
+      @if (state.page.totalPages > 1) {
+        <nav class="pagination" aria-label="Sales Order pages">
+          <nexa-button
+            variant="secondary"
+            [disabled]="state.page.page <= 0"
+            (click)="pageBy(-1, state.page.page)"
+            >Previous</nexa-button
+          >
+          <span>Page {{ state.page.page + 1 }} of {{ state.page.totalPages }}</span>
+          <nexa-button
+            variant="secondary"
+            [disabled]="state.page.page + 1 >= state.page.totalPages"
+            (click)="pageBy(1, state.page.page)"
+            >Next</nexa-button
+          >
+        </nav>
+      }
+    }
+    @default {
+      <nexa-surface tone="inset">
+        <p class="state-message">Confirmed Sales Orders are ready to load.</p>
+      </nexa-surface>
+    }
+  }
+</section>

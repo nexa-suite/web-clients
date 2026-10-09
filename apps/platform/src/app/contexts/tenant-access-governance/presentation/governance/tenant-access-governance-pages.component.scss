@@ -1,0 +1,177 @@
+.platform-governance-page {
+  display: grid;
+  gap: 1rem;
+  max-width: 82rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.platform-governance-page__heading,
+.platform-governance-page__section-heading,
+.platform-governance-page__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.platform-governance-page__heading h1,
+.platform-governance-page__section-heading h2,
+.platform-governance-page__form h2 {
+  margin: 0;
+}
+
+.platform-governance-page__heading p,
+.platform-governance-page__section-heading p {
+  margin: 0.35rem 0 0;
+}
+
+.platform-governance-page__eyebrow {
+  color: var(--nexa-color-text-muted, #53616b);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.platform-governance-page__form,
+.platform-governance-page__fields {
+  display: grid;
+  gap: 1rem;
+}
+
+.platform-governance-page__fields {
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+
+.platform-governance-page label {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.platform-governance-page input:not([type="checkbox"]),
+.platform-governance-page select,
+.platform-governance-page textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid var(--nexa-color-border, #aab5bc);
+  border-radius: 0.35rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--nexa-color-surface, #fff);
+  color: inherit;
+  font: inherit;
+}
+
+.platform-governance-page select[multiple] {
+  min-height: 7rem;
+}
+
+.platform-governance-page fieldset {
+  border: 1px solid var(--nexa-color-border, #aab5bc);
+  border-radius: 0.45rem;
+  padding: 0.75rem 1rem;
+}
+
+.platform-governance-page__role-options,
+.platform-governance-page__tag-list,
+.platform-governance-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+
+.platform-governance-page__catalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 0.6rem 1rem;
+  max-height: 24rem;
+  overflow: auto;
+}
+
+.platform-governance-page__catalog label {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 0.55rem;
+  font-weight: 500;
+}
+
+.platform-governance-page__catalog span {
+  color: var(--nexa-color-text-muted, #53616b);
+  font-size: 0.8rem;
+}
+
+.platform-governance-page__role-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+}
+
+.platform-governance-page__table-wrap {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+}
+
+.platform-governance-page table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.platform-governance-page th,
+.platform-governance-page td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--nexa-color-border, #d1d9de);
+  text-align: left;
+  vertical-align: top;
+}
+
+.platform-governance-page td > span,
+.platform-governance-page td > nexa-button {
+  margin-right: 0.35rem;
+}
+
+.platform-governance-page__tag {
+  display: inline-block;
+  margin: 0.1rem;
+  border-radius: 1rem;
+  padding: 0.2rem 0.6rem;
+  background: var(--nexa-color-surface-subtle, #eef2f4);
+}
+
+.platform-governance-page__notice,
+.platform-governance-page__error {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.4rem;
+}
+
+.platform-governance-page__notice {
+  background: var(--nexa-color-surface-subtle, #eef2f4);
+}
+
+.platform-governance-page__error {
+  color: var(--nexa-color-danger-text, #8a1c1c);
+  background: var(--nexa-color-danger-subtle, #fcebec);
+}
+
+.platform-governance-page__visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 48rem) {
+  .platform-governance-page {
+    padding: 1rem;
+  }
+
+  .platform-governance-page__heading,
+  .platform-governance-page__section-heading {
+    align-items: flex-start;
+  }
+}

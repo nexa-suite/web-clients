@@ -164,6 +164,9 @@ describe("PlatformFulfillmentDeliveryComponent", () => {
     commandRetryRemove = vi.fn((key: string) => retryValues.delete(key));
     vi.stubGlobal("crypto", {
       randomUUID: vi.fn(() => "123e4567-e89b-42d3-a456-426614174000"),
+      subtle: {
+        digest: vi.fn(async () => new Uint8Array(32).buffer),
+      },
     });
     listOrderFulfillmentCandidates = vi.fn(() => of(candidates));
     listFulfillmentWork = vi.fn(() => of(work));
@@ -263,7 +266,7 @@ describe("PlatformFulfillmentDeliveryComponent", () => {
     expect(fixture.nativeElement.textContent).toContain("PICKING_INCOMPLETE");
   });
 
-  it("reuses the same idempotency key after an uncertain start failure", () => {
+  it("reuses the same scoped retry key after an uncertain start failure", async () => {
     startFulfillment
       .mockReturnValueOnce(
         throwError(() => new NexaApiError("network", 0, null)),
@@ -295,8 +298,14 @@ describe("PlatformFulfillmentDeliveryComponent", () => {
       button.textContent?.includes("Start fulfillment"),
     ) as HTMLElement;
     startButton.click();
+    await fixture.whenStable();
     fixture.detectChanges();
-    startButton.click();
+    const retryButton = Array.from(
+      fixture.nativeElement.querySelectorAll("nexa-button") as NodeListOf<HTMLElement>,
+    ).find((button) => button.textContent?.includes("Retry same start command"));
+    expect(retryButton).toBeDefined();
+    retryButton?.click();
+    await fixture.whenStable();
     fixture.detectChanges();
 
     expect(startFulfillment).toHaveBeenCalledTimes(2);
@@ -314,7 +323,7 @@ describe("PlatformFulfillmentDeliveryComponent", () => {
     );
     expect(commandRetryWrite).toHaveBeenCalledOnce();
     expect(commandRetryWrite).toHaveBeenCalledWith(
-      "nexa.platform.fulfillment-start:user-1:tenant-1:workspace-1:membership-1:order-1:%224%22",
+      `nexa:platform:fulfillment-command:user-1:tenant-1:workspace-1:membership-1:order-1:fulfillment-start:${"0".repeat(64)}`,
       "123e4567-e89b-42d3-a456-426614174000",
     );
     expect(commandRetryRemove).toHaveBeenCalledOnce();
@@ -352,7 +361,7 @@ describe("PlatformFulfillmentDeliveryComponent", () => {
     expect(startFulfillment).not.toHaveBeenCalled();
   });
 
-  it("starts confirmed candidates using their safe version when Sales detail is outside the read scope", () => {
+  it("starts confirmed candidates using their safe version when Sales detail is outside the read scope", async () => {
     sessionState.set({
       status: "authenticated",
       session: {
@@ -390,6 +399,7 @@ describe("PlatformFulfillmentDeliveryComponent", () => {
       button.textContent?.includes("Start fulfillment"),
     ) as HTMLElement;
     startButton.click();
+    await fixture.whenStable();
     fixture.detectChanges();
 
     expect(startFulfillment).toHaveBeenCalledOnce();

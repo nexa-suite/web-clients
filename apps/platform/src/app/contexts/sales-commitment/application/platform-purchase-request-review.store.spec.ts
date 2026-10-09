@@ -1,8 +1,12 @@
+import { signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { of, throwError } from "rxjs";
 import { NexaApiError, NexaCommandRetryStore, NexaSalesCommitmentApi } from "@nexa/api";
 import type { PurchaseRequestDetail, SalesOrder } from "@nexa/api";
-import type { PlatformSessionLease } from "../../tenant-access-governance/application/public-api";
+import type {
+  PlatformSessionLease,
+  PlatformSessionState,
+} from "../../tenant-access-governance/application/public-api";
 import { PlatformSessionStore } from "../../tenant-access-governance/application/public-api";
 import { PlatformPurchaseRequestReviewStore } from "./platform-purchase-request-review.store";
 
@@ -84,6 +88,7 @@ describe("PlatformPurchaseRequestReviewStore", () => {
     convertPurchaseRequest: ReturnType<typeof vi.fn>;
   };
   let sessions: {
+    state: ReturnType<typeof signal<PlatformSessionState>>;
     captureSessionLease: ReturnType<typeof vi.fn>;
     isSessionLeaseCurrent: ReturnType<typeof vi.fn>;
   };
@@ -108,6 +113,9 @@ describe("PlatformPurchaseRequestReviewStore", () => {
         .mockReturnValueOnce(of(apiResponse(order, '"1"'))),
     };
     sessions = {
+      state: signal<PlatformSessionState>(authenticatedState([
+        "sales.purchase_request.review",
+      ])),
       captureSessionLease: vi.fn(() => lease),
       isSessionLeaseCurrent: vi.fn(() => true),
     };
@@ -173,6 +181,23 @@ describe("PlatformPurchaseRequestReviewStore", () => {
     expect(api.convertPurchaseRequest).not.toHaveBeenCalled();
     expect(store.state().request).toEqual(changedRequest);
     expect(retryValues.size).toBe(0);
+  });
+
+  it("keeps routine decisions read-only without the typed Sales review permission", async () => {
+    sessions.state.set(authenticatedState([
+      "sales.purchase_request.read",
+      "sales.order.read",
+      "client.manage",
+    ]));
+    await store.load(request.id);
+
+    expect(store.canDecidePurchaseRequest()).toBe(false);
+    await store.reject("Not authorized for Sales review.");
+    await store.convert();
+
+    expect(api.rejectPurchaseRequest).not.toHaveBeenCalled();
+    expect(api.convertPurchaseRequest).not.toHaveBeenCalled();
+    expect(retryCommands.write).not.toHaveBeenCalled();
   });
 
   it("reconciles a stale conversion immediately when the API rejects its If-Match version", async () => {
@@ -245,6 +270,13 @@ describe("PlatformPurchaseRequestReviewStore", () => {
     expect(retryValues.size).toBe(0);
   });
 });
+
+function authenticatedState(permissions: readonly string[]): PlatformSessionState {
+  return {
+    status: "authenticated",
+    session: { membership: { permissions } },
+  };
+}
 
 function apiResponse<T>(body: T, etag: string) {
   return { body, headers: { get: (name: string) => name.toLowerCase() === "etag" ? etag : null } };

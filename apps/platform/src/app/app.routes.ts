@@ -3,6 +3,7 @@ import {
   PlatformActiveContextComponent,
   PlatformShellSessionWrapperComponent,
   PLATFORM_ACCESS_ROUTES,
+  PLATFORM_TENANT_GOVERNANCE_ROUTES,
   requirePlatformAuthentication,
   requirePlatformAuthenticationForChild,
 } from "./contexts/tenant-access-governance/presentation/public-api";
@@ -19,6 +20,7 @@ export const routes: Routes = [
     canActivateChild: [requirePlatformAuthenticationForChild],
     component: PlatformShellSessionWrapperComponent,
     children: [
+      ...PLATFORM_TENANT_GOVERNANCE_ROUTES,
       {
         path: "",
         pathMatch: "full",

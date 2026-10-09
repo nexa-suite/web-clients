@@ -108,7 +108,7 @@ describe("PlatformShellComponent", () => {
 
     fixture.componentRef.setInput("session", {
       membership: {
-        permissions: ["sales.read", "fulfillment.read"],
+        permissions: ["sales.purchase_request.read", "fulfillment.read"],
       },
     } satisfies SessionResponse);
     fixture.detectChanges();
@@ -127,6 +127,46 @@ describe("PlatformShellComponent", () => {
     expect(
       navigation.querySelector('a[routerLink="/operations/overview"]'),
     ).toBeNull();
+  });
+
+  it("does not treat the unsupported sales.read string as Sales authorization", () => {
+    const fixture = TestBed.createComponent(PlatformShellComponent);
+    fixture.componentRef.setInput("session", {
+      membership: { permissions: ["sales.read"] },
+    } satisfies SessionResponse);
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector(
+        'a[routerLink="/sales/purchase-requests"]',
+      ),
+    ).toBeNull();
+  });
+
+  it("gates workforce and role navigation independently by returned permissions", () => {
+    const fixture = TestBed.createComponent(PlatformShellComponent);
+    fixture.componentRef.setInput("session", {
+      membership: { roles: ["TENANT_ADMINISTRATOR", "COMPANY_OWNER"] },
+    } satisfies SessionResponse);
+    fixture.detectChanges();
+    const link = (path: string) =>
+      fixture.nativeElement.querySelector(`a[routerLink="${path}"]`);
+    expect(link("/organization/access")).toBeNull();
+    expect(link("/organization/roles")).toBeNull();
+
+    fixture.componentRef.setInput("session", {
+      membership: { permissions: ["tenant.member.read"] },
+    } satisfies SessionResponse);
+    fixture.detectChanges();
+    expect(link("/organization/access")).not.toBeNull();
+    expect(link("/organization/roles")).toBeNull();
+
+    fixture.componentRef.setInput("session", {
+      membership: { permissions: ["tenant.role.read"] },
+    } satisfies SessionResponse);
+    fixture.detectChanges();
+    expect(link("/organization/access")).toBeNull();
+    expect(link("/organization/roles")).not.toBeNull();
   });
 
   it("uses the returned email when the session has no display name", () => {
