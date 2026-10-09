@@ -29,6 +29,15 @@ export class PortalShellComponent {
   protected readonly session = inject(PortalSessionStore);
   private readonly buyerEligibility = inject(PortalBuyerEligibilityService);
   private readonly router = inject(Router);
+  protected readonly canViewDeliveries = computed(() => {
+    const current = this.session.state();
+    return (
+      current.status === "authenticated" &&
+      (current.session.membership?.permissions ?? []).includes(
+        "buyer.tracking.read",
+      )
+    );
+  });
   private readonly mainContent =
     viewChild.required<ElementRef<HTMLElement>>("mainContent");
   protected readonly accountName = computed(() => {
