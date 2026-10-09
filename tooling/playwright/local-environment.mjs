@@ -11,6 +11,8 @@ const apiEnvironmentPath = resolve(apiRepositoryRoot, '.env.local');
 export const platformApiBaseUrl = 'http://127.0.0.1:8080/api/v1';
 
 const platformEnvironmentKeys = [
+  'NEXA_DEV_BUYER_EMAIL',
+  'NEXA_DEV_BUYER_PASSWORD',
   'NEXA_DEV_WORKSPACE_SLUG',
   'NEXA_DEV_OWNER_EMAIL',
   'NEXA_DEV_OWNER_PASSWORD',
@@ -175,5 +177,14 @@ export function getPlatformAccountCredentials(definition) {
     throw new Error(missingEnvironmentMessage(missing));
   }
 
+  return { identifier, password };
+}
+
+export function getPortalBuyerCredentials() {
+  const identifier = valueFor('NEXA_DEV_BUYER_EMAIL');
+  const password = valueFor('NEXA_DEV_BUYER_PASSWORD');
+  if (!identifier || !password) {
+    throw new Error('Portal browser checks require NEXA_DEV_BUYER_EMAIL and NEXA_DEV_BUYER_PASSWORD.');
+  }
   return { identifier, password };
 }

@@ -186,6 +186,8 @@ jobs:
             printf 'NEXA_DEV_WAREHOUSE_PASSWORD=%s\n' "$demo_password"
             printf 'NEXA_DEV_LOGISTICS_EMAIL=logistics@icisa.test\n'
             printf 'NEXA_DEV_LOGISTICS_PASSWORD=%s\n' "$demo_password"
+            printf 'NEXA_DEV_BUYER_EMAIL=buyer@icisa.test\n'
+            printf 'NEXA_DEV_BUYER_PASSWORD=%s\n' "$demo_password"
             printf 'NEXA_DEV_DEMO_PASSWORD=%s\n' "$demo_password"
           } > api/.env.local
 
@@ -201,6 +203,8 @@ jobs:
             printf 'NEXA_DEV_WAREHOUSE_PASSWORD=%s\n' "$demo_password"
             printf 'NEXA_DEV_LOGISTICS_EMAIL=logistics@icisa.test\n'
             printf 'NEXA_DEV_LOGISTICS_PASSWORD=%s\n' "$demo_password"
+            printf 'NEXA_DEV_BUYER_EMAIL=buyer@icisa.test\n'
+            printf 'NEXA_DEV_BUYER_PASSWORD=%s\n' "$demo_password"
           } >> "$GITHUB_ENV"
 
       - name: Start API dependencies
@@ -248,7 +252,7 @@ jobs:
           curl --fail --silent --show-error --retry 60 --retry-delay 5 --retry-connrefused
           http://127.0.0.1:8080/v3/api-docs -o /dev/null
 
-      - name: Run Platform E2E against the real API
+      - name: Run Platform and Portal E2E against the real API
         run: npm run test:e2e
 
       - name: Stop API services and remove ephemeral volumes

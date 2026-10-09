@@ -92,6 +92,55 @@ function moduleSpecifiers(source, fileName) {
   return specifiers;
 }
 
+function importsNamedExport(source, fileName, specifier, expectedExport) {
+  const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const hasStaticNamedImport = sourceFile.statements.some((statement) => {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteralLike(statement.moduleSpecifier) || statement.moduleSpecifier.text !== specifier) {
+      return false;
+    }
+    const bindings = statement.importClause?.namedBindings;
+    if (!bindings || !ts.isNamedImports(bindings)) return false;
+    return bindings.elements.some((element) => (element.propertyName?.text ?? element.name.text) === expectedExport);
+  });
+  if (hasStaticNamedImport) return true;
+
+  function callbackReturnsNamedExport(callback) {
+    if (!ts.isArrowFunction(callback) && !ts.isFunctionExpression(callback)) return false;
+    const parameter = callback.parameters[0]?.name;
+    if (!parameter || !ts.isIdentifier(parameter)) return false;
+    const expressions = ts.isBlock(callback.body)
+      ? callback.body.statements.filter(ts.isReturnStatement).map((statement) => statement.expression).filter(Boolean)
+      : [callback.body];
+    return expressions.some((expression) =>
+      ts.isPropertyAccessExpression(expression) &&
+      expression.name.text === expectedExport &&
+      ts.isIdentifier(expression.expression) &&
+      expression.expression.text === parameter.text,
+    );
+  }
+
+  let found = false;
+  function visit(node) {
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'then') {
+      const imported = node.expression.expression;
+      const callback = node.arguments[0];
+      if (
+        ts.isCallExpression(imported) &&
+        imported.expression.kind === ts.SyntaxKind.ImportKeyword &&
+        imported.arguments.length > 0 &&
+        ts.isStringLiteralLike(imported.arguments[0]) &&
+        imported.arguments[0].text === specifier &&
+        callback && callbackReturnsNamedExport(callback)
+      ) {
+        found = true;
+      }
+    }
+    if (!found) ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return found;
+}
+
 function hasNonLiteralModuleSpecifier(source, fileName) {
   const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   let found = false;
@@ -205,10 +254,13 @@ export function inspectImportBoundaries(sources) {
 
     if ((isTransport || isApp) && !/\.(spec|test)\.ts$/.test(file)) {
       function inspectRouteLiteral(node) {
-        if (ts.isStringLiteralLike(node) && businessRoute.test(node.text)) {
+        const isBusinessApiRoute = (value) => isTransport
+          ? businessRoute.test(value)
+          : /^\/api\/v[0-9]+\//.test(value) && businessRoute.test(value);
+        if (ts.isStringLiteralLike(node) && isBusinessApiRoute(node.text)) {
           record(violations, isTransport ? 'transport-business-route' : 'application-business-route', file, `source outside an API adapter contains business route ${JSON.stringify(node.text)}`);
         }
-        if (ts.isTemplateExpression(node) && businessRoute.test(node.head.text)) {
+        if (ts.isTemplateExpression(node) && isBusinessApiRoute(node.head.text)) {
           record(violations, isTransport ? 'transport-business-route' : 'application-business-route', file, `source outside an API adapter contains business route template ${JSON.stringify(node.head.text)}`);
         }
         ts.forEachChild(node, inspectRouteLiteral);
@@ -242,10 +294,22 @@ export function inspectImportBoundaries(sources) {
           const sameContext = sourceApplicationContext &&
             sourceApplicationContext.application === targetApplicationContext.application &&
             sourceApplicationContext.context === targetApplicationContext.context;
-          const isPublicApi = targetApplicationContext.implementation === 'application/public-api.ts';
+          const isPortalAppRoutes = file === 'apps/portal/src/app/app.routes.ts';
+          const isPublicApi = targetApplicationContext.implementation === 'application/public-api.ts' && !isPortalAppRoutes;
           const isOwnRouteComposition = file === 'apps/platform/src/app/app.routes.ts' &&
             target === 'apps/platform/src/app/contexts/tenant-access-governance/presentation/access/access.routes.ts';
-          if (!sameContext && !isPublicApi && !isOwnRouteComposition) {
+          const portalRouteEntrypoints = new Map([
+            ['apps/portal/src/app/contexts/tenant-access-governance/presentation/public-api.ts', 'PORTAL_ACCESS_ROUTES'],
+            ['apps/portal/src/app/contexts/customer-buyer-relationships/presentation/public-api.ts', 'requirePortalBuyer'],
+            ['apps/portal/src/app/contexts/catalog-commercial-policy/application/public-api.ts', 'PORTAL_CATALOG_ROUTES'],
+          ]);
+          const expectedPortalExport = portalRouteEntrypoints.get(target);
+          const isPortalRouteComposition = isPortalAppRoutes && targetApplicationContext.application === 'portal' && expectedPortalExport !== undefined;
+          const portalRouteSpecifier = `./${target.slice('apps/portal/src/app/'.length)}`.replace(/\.tsx?$/, '');
+          if (isPortalRouteComposition && !importsNamedExport(source, file, portalRouteSpecifier, expectedPortalExport)) {
+            record(violations, 'application-context-route-entrypoint', file, `Portal route composition must import ${expectedPortalExport} from ${target}`);
+          }
+          if (!sameContext && !isPublicApi && !isOwnRouteComposition && !isPortalRouteComposition) {
             record(
               violations,
               'application-context-private-import',
@@ -293,6 +357,11 @@ export function inspectImportBoundaries(sources) {
 
 function fixture(name, sources, expectedCode) {
   const violations = inspectImportBoundaries(new Map(Object.entries(sources)));
+  if (expectedCode === null) {
+    return violations.length === 0
+      ? null
+      : `${name}: expected no violations, got ${violations.map(({ code }) => code).join(', ')}`;
+  }
   if (!violations.some(({ code }) => code === expectedCode)) {
     return `${name}: expected ${expectedCode}, got ${violations.map(({ code }) => code).join(', ') || 'no violations'}`;
   }
@@ -309,6 +378,10 @@ export function runImportBoundaryProbes() {
     fixture('an app cannot embed a versioned API business route', {
       'apps/platform/src/app/feature.ts': "const endpoint = '/api/v1/me/access-contexts';",
     }, 'application-business-route'),
+    fixture('Portal local UrlTrees may preserve access and catalog routes', {
+      'apps/portal/src/app/contexts/customer-buyer-relationships/presentation/portal-buyer.guard.ts': "return router.createUrlTree(['/access/denied']);",
+      'apps/portal/src/app/contexts/tenant-access-governance/presentation/access/access-page.component.ts': "return router.navigate(['/catalog']);",
+    }, null),
     fixture('transport cannot embed a business route', {
       'libs/nexa-api/src/lib/http/client.ts': "const refreshRoute = '/authentication/refresh';",
     }, 'transport-business-route'),
@@ -358,6 +431,26 @@ export function runImportBoundaryProbes() {
       'apps/platform/src/app/features/operations/overview.ts': "import { store } from '../../contexts/tenant-access-governance/application/platform-session.store';",
       'apps/platform/src/app/contexts/tenant-access-governance/application/platform-session.store.ts': 'export const store = {};',
     }, 'application-context-private-import'),
+    fixture('Portal route composition cannot import a context implementation directly', {
+      'apps/portal/src/app/app.routes.ts': "import { routes } from './contexts/customer-buyer-relationships/presentation/customer-relationships.routes';",
+      'apps/portal/src/app/contexts/customer-buyer-relationships/presentation/customer-relationships.routes.ts': 'export const routes = [];',
+    }, 'application-context-private-import'),
+    fixture('Portal app route composition cannot import the Buyer guard implementation directly', {
+      'apps/portal/src/app/app.routes.ts': "import { requirePortalBuyer } from './contexts/customer-buyer-relationships/presentation/portal-buyer.guard';",
+      'apps/portal/src/app/contexts/customer-buyer-relationships/presentation/portal-buyer.guard.ts': 'export const requirePortalBuyer = () => true;',
+    }, 'application-context-private-import'),
+    fixture('Portal app route composition cannot import the access route implementation directly', {
+      'apps/portal/src/app/app.routes.ts': "import { PORTAL_ACCESS_ROUTES } from './contexts/tenant-access-governance/presentation/access.routes';",
+      'apps/portal/src/app/contexts/tenant-access-governance/presentation/access.routes.ts': 'export const PORTAL_ACCESS_ROUTES = [];',
+    }, 'application-context-private-import'),
+    fixture('Portal app route composition can only use explicit context route entrypoints', {
+      'apps/portal/src/app/app.routes.ts': "import { eligibility } from './contexts/customer-buyer-relationships/application/public-api';",
+      'apps/portal/src/app/contexts/customer-buyer-relationships/application/public-api.ts': 'export const eligibility = {};',
+    }, 'application-context-private-import'),
+    fixture('Portal route entrypoints may only be imported by their public route export', {
+      'apps/portal/src/app/app.routes.ts': "import { CatalogStore } from './contexts/catalog-commercial-policy/application/public-api';",
+      'apps/portal/src/app/contexts/catalog-commercial-policy/application/public-api.ts': 'export const PORTAL_CATALOG_ROUTES = []; export class CatalogStore {}',
+    }, 'application-context-route-entrypoint'),
     fixture('context directories must use the canonical bounded-context vocabulary', {
       'libs/nexa-api/src/lib/contexts/customer-accounts/infrastructure/client.ts': 'export class Client {}',
     }, 'unknown-context-slug'),
@@ -370,6 +463,12 @@ export function runImportBoundaryProbes() {
   const allowedSources = new Map(Object.entries({
     'apps/platform/src/app/feature.ts': "import { NexaAuthenticationApi } from '@nexa/api';",
     'apps/platform/src/app/app.routes.ts': "import { accessRoutes } from './contexts/tenant-access-governance/presentation/access/access.routes';",
+    'apps/portal/src/app/app.routes.ts': "import { PORTAL_ACCESS_ROUTES } from './contexts/tenant-access-governance/presentation/public-api'; import { requirePortalBuyer } from './contexts/customer-buyer-relationships/presentation/public-api'; export const routes = [{ children: PORTAL_ACCESS_ROUTES }, { canActivate: [requirePortalBuyer], loadChildren: () => import('./contexts/catalog-commercial-policy/application/public-api').then((module) => module.PORTAL_CATALOG_ROUTES) }];",
+    'apps/portal/src/app/contexts/customer-buyer-relationships/presentation/public-api.ts': 'export const routes = [];',
+    'apps/portal/src/app/contexts/tenant-access-governance/presentation/public-api.ts': 'export const PORTAL_ACCESS_ROUTES = [];',
+    'apps/portal/src/app/contexts/catalog-commercial-policy/application/public-api.ts': 'export const PORTAL_CATALOG_ROUTES = [];',
+    'apps/portal/src/app/contexts/customer-buyer-relationships/presentation/portal-buyer.guard.ts': "return router.createUrlTree(['/access/denied']);",
+    'apps/portal/src/app/contexts/tenant-access-governance/presentation/access/access-page.component.ts': "return router.navigate(['/catalog']);",
     'libs/nexa-api/src/lib/http/api-error.ts': 'export class NexaApiError {}',
     'libs/nexa-api/src/lib/contexts/tenant-access-governance/contracts/authentication.contracts.ts': 'export interface SessionResponse {}',
     'libs/nexa-api/src/lib/contexts/tenant-access-governance/infrastructure/authentication-api.ts': "import type { SessionResponse } from '../contracts/authentication.contracts'; import { NexaApiError } from '../../../http/api-error';",

@@ -1,10 +1,12 @@
 import {
   platformApiBaseUrl,
+  getPortalBuyerCredentials,
   requirePlatformIntegrationEnvironment,
 } from './local-environment.mjs';
 
 export default async function globalSetup() {
   requirePlatformIntegrationEnvironment();
+  getPortalBuyerCredentials();
 
   const apiBase = new URL(platformApiBaseUrl);
   if (apiBase.protocol !== 'http:' || apiBase.hostname !== '127.0.0.1' || apiBase.port !== '8080') {
@@ -27,6 +29,9 @@ export default async function globalSetup() {
     ['/api/v1/auth/workspace-previews', 'post'],
     ['/api/v1/authentication/sign-in', 'post'],
     ['/api/v1/session', 'get'],
+    ['/api/v1/client-accounts/me', 'get'],
+    ['/api/v1/catalog-items', 'get'],
+    ['/api/v1/catalog-items/{catalogItemId}', 'get'],
     ['/api/v1/me/access-contexts', 'get'],
     ['/api/v1/me/access-context-selections', 'post'],
     ['/api/v1/authentication/refresh', 'post'],
