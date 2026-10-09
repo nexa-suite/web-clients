@@ -40,3 +40,7 @@ export {
   type LogisticsOperationsDashboardResponse,
 } from './lib/queries/operations/contracts/logistics.contracts';
 export type { ApiProblemDetails, NexaProblemDetail, ProblemDetail } from './lib/http/problem-details';
+export { NexaBuyerRelationshipsApi } from './lib/contexts/customer-buyer-relationships/infrastructure/buyer-relationships-api';
+export type { CurrentBuyerAccountResponse } from './lib/contexts/customer-buyer-relationships/contracts/buyer-account.contracts';
+export { NexaBuyerCatalogApi } from './lib/contexts/catalog-commercial-policy/infrastructure/buyer-catalog-api';
+export type { BuyerCatalogQuery, BuyerCatalogPageResponse, BuyerCatalogItemSummaryResponse, BuyerCatalogItemDetailResponse, CatalogMoneyResponse } from './lib/contexts/catalog-commercial-policy/contracts/buyer-catalog.contracts';
