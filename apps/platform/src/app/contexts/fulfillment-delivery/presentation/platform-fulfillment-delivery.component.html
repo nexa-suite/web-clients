@@ -1,0 +1,419 @@
+<section class="fulfillment-workbench" aria-labelledby="fulfillment-title">
+  <header class="fulfillment-workbench__heading">
+    <div>
+      <h1 id="fulfillment-title">Fulfillment</h1>
+      <p>
+        Confirmed Sales Orders, warehouse work, and current dispatch readiness.
+      </p>
+    </div>
+    <nexa-button
+      type="button"
+      variant="secondary"
+      size="compact"
+      (click)="refresh()"
+      >Refresh</nexa-button
+    >
+  </header>
+
+  @let page = state();
+  <div class="fulfillment-workbench__boards">
+    <section class="fulfillment-panel" aria-labelledby="candidate-title">
+      <div class="fulfillment-panel__heading">
+        <div>
+          <h2 id="candidate-title">Orders to fulfill</h2>
+          <p>Confirmed orders returned by the current API context.</p>
+        </div>
+        @if (page.candidates.status === "ready") {
+          <span class="fulfillment-count">{{
+            page.candidates.value.total
+          }}</span>
+        }
+      </div>
+
+      @switch (page.candidates.status) {
+        @case ("loading") {
+          <p class="fulfillment-state" role="status">
+            Loading confirmed orders…
+          </p>
+        }
+        @case ("error") {
+          <div class="fulfillment-state fulfillment-state--error" role="alert">
+            <p>{{ page.candidates.message }}</p>
+            @if (page.candidates.retryable) {
+              <nexa-button
+                type="button"
+                variant="quiet"
+                size="compact"
+                (click)="refresh()"
+              >
+                Try again
+              </nexa-button>
+            }
+          </div>
+        }
+        @case ("ready") {
+          @if (page.candidates.value.items.length === 0) {
+            <p class="fulfillment-state">
+              No confirmed orders are available in this context.
+            </p>
+          } @else {
+            <div class="fulfillment-list" role="list">
+              @for (
+                candidate of page.candidates.value.items;
+                track candidate.id
+              ) {
+                <button
+                  class="fulfillment-list__row"
+                  [class.fulfillment-list__row--selected]="
+                    page.order.status !== 'idle' &&
+                    page.order.id === candidate.id
+                  "
+                  type="button"
+                  role="listitem"
+                  (click)="openOrder(candidate)"
+                >
+                  <span>
+                    <strong>{{ candidate.number }}</strong>
+                    <small
+                      >{{ candidate.lines.length }} lines ·
+                      {{ candidate.status }}</small
+                    >
+                  </span>
+                  <span class="fulfillment-list__arrow" aria-hidden="true"
+                    >›</span
+                  >
+                </button>
+              }
+            </div>
+          }
+        }
+      }
+
+      <section
+        class="fulfillment-detail"
+        aria-labelledby="selected-order-title"
+      >
+        <h3 id="selected-order-title">Selected order</h3>
+        @switch (page.order.status) {
+          @case ("idle") {
+            <p class="fulfillment-state">
+              Choose an order to review its current details.
+            </p>
+          }
+          @case ("error") {
+            <div
+              class="fulfillment-state fulfillment-state--error"
+              role="alert"
+            >
+              <p>{{ page.order.message }}</p>
+              @if (page.order.retryable) {
+                <nexa-button
+                  type="button"
+                  variant="quiet"
+                  size="compact"
+                  (click)="retryOrder(page.order.id)"
+                  >Reload order</nexa-button
+                >
+              }
+            </div>
+          }
+          @case ("ready") {
+            @let candidate = page.order.candidate;
+            @let currentOrder = page.order.currentOrder;
+            <dl class="fulfillment-order-facts">
+              <div>
+                <dt>Order</dt>
+                <dd>{{ currentOrder?.number || candidate.number }}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{{ currentOrder?.status || candidate.status }}</dd>
+              </div>
+              <div>
+                <dt>Client account</dt>
+                <dd>
+                  {{
+                    currentOrder?.clientAccountId || candidate.clientAccountId
+                  }}
+                </dd>
+              </div>
+              <div>
+                <dt>Requested delivery</dt>
+                <dd>
+                  {{
+                    currentOrder?.requestedDeliveryDate ||
+                      "Not returned by candidate projection"
+                  }}
+                </dd>
+              </div>
+              <div>
+                <dt>Total</dt>
+                <dd>
+                  {{
+                    currentOrder
+                      ? currentOrder.total.toFixed(2) +
+                        " " +
+                        currentOrder.currency
+                      : "Not returned by candidate projection"
+                  }}
+                </dd>
+              </div>
+              @if (currentOrder?.originType) {
+                <div>
+                  <dt>Origin</dt>
+                  <dd>{{ currentOrder.originType }}</dd>
+                </div>
+              }
+            </dl>
+
+            <ul class="fulfillment-order-lines">
+              @for (
+                line of currentOrder?.lines ?? candidate.lines;
+                track $index
+              ) {
+                <li>
+                  <span>{{ line.itemName }}</span>
+                  <strong>{{ line.quantity }} {{ line.unit }}</strong>
+                </li>
+              }
+            </ul>
+
+            @if (page.order.detailStatus === "loading") {
+              <p class="fulfillment-hint" role="status">
+                Loading the current Sales Order detail and ETag…
+              </p>
+            } @else if (
+              page.order.detailStatus === "unavailable" ||
+              page.order.detailStatus === "not-requested"
+            ) {
+              <p class="fulfillment-hint">
+                The current membership can use the candidate projection and
+                version; full Sales Order detail is outside its read scope.
+              </p>
+            } @else if (page.order.detailStatus === "error") {
+              <p class="fulfillment-hint">
+                Full Sales Order detail was unavailable. The start command will
+                use the candidate version and the API will reject a stale
+                version.
+              </p>
+            }
+
+            @if (page.start.status === "success") {
+              <p
+                class="fulfillment-message fulfillment-message--success"
+                role="status"
+                aria-live="polite"
+              >
+                {{ page.start.message }}
+              </p>
+            } @else if (page.start.status === "error") {
+              <p
+                class="fulfillment-message fulfillment-message--error"
+                role="alert"
+              >
+                {{ page.start.message }}
+              </p>
+            }
+
+            @if ((currentOrder?.status || candidate.status) !== "CONFIRMED") {
+              <p class="fulfillment-hint">
+                This order is no longer confirmed. Refresh its current state
+                before starting fulfillment.
+              </p>
+            } @else if (!page.order.ifMatch) {
+              <p class="fulfillment-hint">
+                A safe current order version is unavailable. Start is disabled
+                until concurrency evidence is available.
+              </p>
+            } @else if (!hasFulfillmentManage()) {
+              <p class="fulfillment-hint">
+                The active membership does not report the fulfillment.manage
+                permission.
+              </p>
+            } @else {
+              <nexa-button
+                type="button"
+                variant="primary"
+                [loading]="page.start.status === 'submitting'"
+                [disabled]="!canStartFulfillment()"
+                (click)="startFulfillment()"
+                >Start fulfillment</nexa-button
+              >
+              <p class="fulfillment-hint">
+                The API checks the active warehouse grant and inventory backing
+                when this command is submitted. If the candidate changed, its
+                current version is required.
+              </p>
+            }
+          }
+        }
+      </section>
+    </section>
+
+    <section class="fulfillment-panel" aria-labelledby="warehouse-title">
+      <div class="fulfillment-panel__heading">
+        <div>
+          <h2 id="warehouse-title">Warehouse work</h2>
+          <p>
+            Allocated and picking work visible through current warehouse grants.
+          </p>
+        </div>
+        @if (page.warehouseWork.status === "ready") {
+          <span class="fulfillment-count">{{
+            page.warehouseWork.value.totalItems
+          }}</span>
+        }
+      </div>
+
+      @switch (page.warehouseWork.status) {
+        @case ("loading") {
+          <p class="fulfillment-state" role="status">Loading warehouse work…</p>
+        }
+        @case ("error") {
+          <div class="fulfillment-state fulfillment-state--error" role="alert">
+            <p>{{ page.warehouseWork.message }}</p>
+            @if (page.warehouseWork.retryable) {
+              <nexa-button
+                type="button"
+                variant="quiet"
+                size="compact"
+                (click)="refresh()"
+              >
+                Try again
+              </nexa-button>
+            }
+          </div>
+        }
+        @case ("ready") {
+          @if (page.warehouseWork.value.items.length === 0) {
+            <p class="fulfillment-state">
+              No allocated or picking work is visible in this context.
+            </p>
+          } @else {
+            <div class="fulfillment-list" role="list">
+              @for (
+                work of page.warehouseWork.value.items;
+                track work.fulfillmentId
+              ) {
+                <article class="fulfillment-list__item">
+                  <div class="fulfillment-list__row-content">
+                    <strong>Order {{ work.salesOrderId }}</strong>
+                    <small
+                      >{{ work.status }} · {{ work.lineCount }} lines ·
+                      fulfillment v{{ work.version }}</small
+                    >
+                  </div>
+                  <nexa-button
+                    type="button"
+                    variant="quiet"
+                    size="compact"
+                    (click)="inspectWork(work)"
+                    >{{
+                      page.inspection.status !== "idle" &&
+                      page.inspection.id === work.fulfillmentId
+                        ? "Close"
+                        : "Inspect"
+                    }}</nexa-button
+                  >
+                </article>
+              }
+            </div>
+          }
+        }
+      }
+
+      @if (page.inspection.status === "loading") {
+        <p class="fulfillment-state" role="status">
+          Loading fulfillment allocation…
+        </p>
+      } @else if (page.inspection.status === "error") {
+        <p class="fulfillment-message fulfillment-message--error" role="alert">
+          {{ page.inspection.message }}
+        </p>
+      } @else if (page.inspection.status === "ready") {
+        <div class="fulfillment-inspection">
+          <h3>Current allocation · {{ page.inspection.fulfillment }}</h3>
+          @for (
+            line of page.inspection.allocation.lines;
+            track line.physicalAllocationLineId
+          ) {
+            <p>
+              {{ line.catalogItemId }} · {{ line.quantity }} {{ line.unit }} ·
+              warehouse {{ line.warehouseId }}
+            </p>
+          }
+        </div>
+      }
+    </section>
+
+    <section class="fulfillment-panel" aria-labelledby="dispatch-title">
+      <div class="fulfillment-panel__heading">
+        <div>
+          <h2 id="dispatch-title">Dispatch readiness</h2>
+          <p>Current preparation evidence evaluated by the API.</p>
+        </div>
+        @if (page.dispatchReadiness.status === "ready") {
+          <span class="fulfillment-count">{{
+            page.dispatchReadiness.value.totalItems
+          }}</span>
+        }
+      </div>
+
+      @switch (page.dispatchReadiness.status) {
+        @case ("loading") {
+          <p class="fulfillment-state" role="status">
+            Loading dispatch readiness…
+          </p>
+        }
+        @case ("error") {
+          <div class="fulfillment-state fulfillment-state--error" role="alert">
+            <p>{{ page.dispatchReadiness.message }}</p>
+            @if (page.dispatchReadiness.retryable) {
+              <nexa-button
+                type="button"
+                variant="quiet"
+                size="compact"
+                (click)="refresh()"
+              >
+                Try again
+              </nexa-button>
+            }
+          </div>
+        }
+        @case ("ready") {
+          @if (page.dispatchReadiness.value.items.length === 0) {
+            <p class="fulfillment-state">
+              No dispatch readiness records are visible in this context.
+            </p>
+          } @else {
+            <div class="fulfillment-list">
+              @for (
+                readiness of page.dispatchReadiness.value.items;
+                track readiness.fulfillmentId
+              ) {
+                <article
+                  class="dispatch-readiness"
+                  [class.dispatch-readiness--ready]="readiness.ready"
+                >
+                  <div class="dispatch-readiness__heading">
+                    <strong>Fulfillment {{ readiness.fulfillmentId }}</strong>
+                    <span>{{ readiness.ready ? "Ready" : "Not ready" }}</span>
+                  </div>
+                  <small
+                    >{{ readiness.fulfillmentStatus }} · allocation
+                    {{ readiness.physicalAllocationStatus }}</small
+                  >
+                  <ul>
+                    @for (reason of readiness.reasons; track reason) {
+                      <li>{{ reason }}</li>
+                    }
+                  </ul>
+                </article>
+              }
+            </div>
+          }
+        }
+      }
+    </section>
+  </div>
+</section>

@@ -2,7 +2,7 @@ export interface CatalogSearch {
   readonly q: string;
   readonly brand: string;
   readonly category: string;
-  readonly coldChain: 'NONE' | 'REFRIGERATED' | 'FROZEN' | '';
+  readonly coldChain: "NONE" | "REFRIGERATED" | "FROZEN" | "";
   readonly page: number;
 }
 
@@ -12,6 +12,7 @@ export interface BuyerCatalogPrice {
 }
 
 export interface BuyerCatalogItem {
+  readonly sellableSkuId?: string | null;
   readonly catalogItemId: string;
   readonly skuCode: string;
   readonly itemName: string;
@@ -39,13 +40,13 @@ export interface BuyerCatalogPage {
 }
 
 export interface CatalogPageState {
-  readonly kind: 'idle' | 'loading' | 'results' | 'empty' | 'error';
+  readonly kind: "idle" | "loading" | "results" | "empty" | "error";
   readonly page: BuyerCatalogPage | null;
   readonly errorMessage: string | null;
 }
 
 export interface CatalogDetailState {
-  readonly kind: 'idle' | 'loading' | 'loaded' | 'not-found' | 'error';
+  readonly kind: "idle" | "loading" | "loaded" | "not-found" | "error";
   readonly item: BuyerCatalogItem | null;
   readonly errorMessage: string | null;
 }

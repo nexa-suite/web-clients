@@ -296,12 +296,14 @@ export function inspectImportBoundaries(sources) {
             sourceApplicationContext.context === targetApplicationContext.context;
           const isPortalAppRoutes = file === 'apps/portal/src/app/app.routes.ts';
           const isPublicApi = targetApplicationContext.implementation === 'application/public-api.ts' && !isPortalAppRoutes;
-          const isOwnRouteComposition = file === 'apps/platform/src/app/app.routes.ts' &&
-            target === 'apps/platform/src/app/contexts/tenant-access-governance/presentation/access/access.routes.ts';
+          const isOwnRouteComposition = ['apps/platform/src/app/app.routes.ts', 'apps/platform/src/app/app.routes.spec.ts'].includes(file) &&
+            target === 'apps/platform/src/app/contexts/tenant-access-governance/presentation/public-api.ts';
           const portalRouteEntrypoints = new Map([
             ['apps/portal/src/app/contexts/tenant-access-governance/presentation/public-api.ts', 'PORTAL_ACCESS_ROUTES'],
             ['apps/portal/src/app/contexts/customer-buyer-relationships/presentation/public-api.ts', 'requirePortalBuyer'],
             ['apps/portal/src/app/contexts/catalog-commercial-policy/application/public-api.ts', 'PORTAL_CATALOG_ROUTES'],
+            ['apps/portal/src/app/contexts/sales-commitment/application/public-api.ts', 'PORTAL_SALES_COMMITMENT_ROUTES'],
+            ['apps/portal/src/app/contexts/business-documents/application/public-api.ts', 'PORTAL_BUSINESS_DOCUMENT_ROUTES'],
           ]);
           const expectedPortalExport = portalRouteEntrypoints.get(target);
           const isPortalRouteComposition = isPortalAppRoutes && targetApplicationContext.application === 'portal' && expectedPortalExport !== undefined;
@@ -462,7 +464,7 @@ export function runImportBoundaryProbes() {
 
   const allowedSources = new Map(Object.entries({
     'apps/platform/src/app/feature.ts': "import { NexaAuthenticationApi } from '@nexa/api';",
-    'apps/platform/src/app/app.routes.ts': "import { accessRoutes } from './contexts/tenant-access-governance/presentation/access/access.routes';",
+    'apps/platform/src/app/app.routes.ts': "import { PLATFORM_ACCESS_ROUTES } from './contexts/tenant-access-governance/presentation/public-api';",
     'apps/portal/src/app/app.routes.ts': "import { PORTAL_ACCESS_ROUTES } from './contexts/tenant-access-governance/presentation/public-api'; import { requirePortalBuyer } from './contexts/customer-buyer-relationships/presentation/public-api'; export const routes = [{ children: PORTAL_ACCESS_ROUTES }, { canActivate: [requirePortalBuyer], loadChildren: () => import('./contexts/catalog-commercial-policy/application/public-api').then((module) => module.PORTAL_CATALOG_ROUTES) }];",
     'apps/portal/src/app/contexts/customer-buyer-relationships/presentation/public-api.ts': 'export const routes = [];',
     'apps/portal/src/app/contexts/tenant-access-governance/presentation/public-api.ts': 'export const PORTAL_ACCESS_ROUTES = [];',

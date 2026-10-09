@@ -1,0 +1,120 @@
+<section aria-labelledby="wallet-heading" data-testid="buyer-wallet-page">
+  <h1 id="wallet-heading">My wallet</h1>
+  <p>Your receivables and payment history with this supplier.</p>
+  <nexa-button
+    variant="secondary"
+    (click)="payments.clear(); receivables.load(); credit.load()"
+    >Refresh</nexa-button
+  >
+  @if (credit.state(); as state) {
+    @if (state.loading) {
+      <p role="status">Loading credit…</p>
+    }
+    @if (state.error) {
+      <p role="alert">{{ state.error }}</p>
+    }
+    @if (state.data; as value) {
+      <nexa-surface
+        ><h2>Credit with this supplier</h2>
+        <dl>
+          <dt>Credit account</dt>
+          <dd>{{ value.active ? "Active" : "Inactive" }}</dd>
+          <dt>Credit limit</dt>
+          <dd>{{ value.currency }} {{ value.creditLimit }}</dd>
+          <dt>Available credit</dt>
+          <dd>{{ value.currency }} {{ value.availableCredit }}</dd>
+          <dt>Reserved exposure</dt>
+          <dd>{{ value.currency }} {{ value.reservedExposure }}</dd>
+          <dt>Outstanding receivables</dt>
+          <dd>{{ value.currency }} {{ value.outstandingReceivables }}</dd>
+          <dt>As of</dt>
+          <dd>{{ value.asOf | date: "medium" }}</dd>
+        </dl>
+      </nexa-surface>
+    }
+  }
+  @if (receivables.state(); as state) {
+    @if (state.loading) {
+      <p role="status">Loading receivables…</p>
+    }
+    @if (state.error) {
+      <p role="alert">{{ state.error }}</p>
+    }
+    @if (state.data; as page) {
+      @if (!page.items.length) {
+        <p>No receivables for this account.</p>
+      }
+      @for (item of page.items; track item.id) {
+        <nexa-surface
+          ><h2>{{ item.number }}</h2>
+          <dl>
+            <dt>Status</dt>
+            <dd>{{ item.status }}</dd>
+            <dt>Amount</dt>
+            <dd>{{ item.currency }} {{ item.amount }}</dd>
+            <dt>Paid</dt>
+            <dd>{{ item.currency }} {{ item.amountPaid }}</dd>
+            <dt>Remaining</dt>
+            <dd>{{ item.currency }} {{ item.remaining }}</dd>
+            <dt>Due</dt>
+            <dd>
+              {{
+                item.dueAt ? (item.dueAt | date: "mediumDate") : "No due date"
+              }}
+            </dd>
+          </dl>
+          <nexa-button variant="secondary" (click)="payments.load(item.id)"
+            >Payment history for {{ item.number }}</nexa-button
+          ></nexa-surface
+        >
+      }
+      <nav aria-label="Receivables pages">
+        <nexa-button [disabled]="page.page === 0" (click)="pageBy(-1)"
+          >Previous</nexa-button
+        >
+        <span>Page {{ page.page + 1 }}</span
+        ><nexa-button
+          [disabled]="(page.page + 1) * page.size >= page.total"
+          (click)="pageBy(1)"
+          >Next</nexa-button
+        >
+      </nav>
+    }
+  }
+  @if (payments.state(); as state) {
+    <section aria-labelledby="payment-heading">
+      <h2 id="payment-heading">Payment history</h2>
+      @if (state.loading) {
+        <p role="status">Loading payments…</p>
+      }
+      @if (state.error) {
+        <p role="alert">{{ state.error }}</p>
+      }
+      @if (state.data; as page) {
+        @if (!page.items.length) {
+          <p>No payments for this receivable.</p>
+        }
+        @for (payment of page.items; track payment.id) {
+          <nexa-surface
+            ><h3>{{ payment.method }}</h3>
+            <p>
+              {{ payment.status }} · {{ payment.currency }} {{ payment.amount }}
+            </p>
+            <p>{{ payment.createdAt | date: "medium" }}</p></nexa-surface
+          >
+        }
+        <nav aria-label="Payment history pages">
+          <nexa-button [disabled]="page.page === 0" (click)="paymentPageBy(-1)"
+            >Previous payments</nexa-button
+          >
+          <span>Page {{ page.page + 1 }}</span>
+          <nexa-button
+            [disabled]="(page.page + 1) * page.size >= page.total"
+            (click)="paymentPageBy(1)"
+            >Next payments</nexa-button
+          >
+        </nav>
+      }
+    </section>
+  }
+</section>

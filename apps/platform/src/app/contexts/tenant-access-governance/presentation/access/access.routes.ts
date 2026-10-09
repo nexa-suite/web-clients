@@ -1,44 +1,21 @@
-import { Routes } from '@angular/router';
-import { requirePlatformAuthentication, requirePlatformAuthenticationForChild } from '../platform-authentication.guard';
-import { PlatformShellSessionWrapperComponent } from '../platform-shell-session-wrapper.component';
-import { PlatformActiveContextComponent } from './platform-active-context.component';
-import { RecoveryPageComponent } from './recovery-page.component';
-import { SignInPageComponent } from './sign-in-page.component';
+import { Routes } from "@angular/router";
+import { RecoveryPageComponent } from "./recovery-page.component";
+import { SignInPageComponent } from "./sign-in-page.component";
 
-export const accessRoutes: Routes = [
+export const PLATFORM_ACCESS_ROUTES: Routes = [
   {
-    path: 'sign-in',
+    path: "sign-in",
     component: SignInPageComponent,
-    title: 'Sign in | Nexa Platform',
+    title: "Sign in | Nexa Platform",
   },
   {
-    path: 'reset-password',
+    path: "reset-password",
     component: RecoveryPageComponent,
-    title: 'Reset your password | Nexa',
+    title: "Reset your password | Nexa",
   },
   {
-    path: 'forgot-password',
+    path: "forgot-password",
     component: RecoveryPageComponent,
-    title: 'Forgot your password | Nexa',
-  },
-  {
-    path: '',
-    canActivate: [requirePlatformAuthentication],
-    canActivateChild: [requirePlatformAuthenticationForChild],
-    component: PlatformShellSessionWrapperComponent,
-    children: [
-      {
-        path: '',
-        pathMatch: 'full',
-        component: PlatformActiveContextComponent,
-        title: 'Active context | Nexa Platform',
-      },
-      {
-        path: 'operations/overview',
-        loadComponent: () => import('../../../../features/operations/operations-overview.component')
-          .then((module) => module.PlatformOperationsOverviewComponent),
-        title: 'Operations overview | Nexa Platform',
-      },
-    ],
+    title: "Forgot your password | Nexa",
   },
 ];

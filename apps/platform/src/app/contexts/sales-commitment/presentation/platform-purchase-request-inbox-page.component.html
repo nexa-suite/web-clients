@@ -1,0 +1,27 @@
+<section class="platform-sales-page" aria-labelledby="sales-inbox-title" data-testid="platform-purchase-request-inbox">
+  <header class="platform-sales-page__heading"><div><p class="platform-sales-page__eyebrow">SALES</p><h1 id="sales-inbox-title">Purchase request inbox</h1><p>Review submitted requests, then convert a request to an order or reject it.</p></div><nexa-button variant="secondary" size="compact" (click)="refresh()">Refresh</nexa-button></header>
+  @let inbox = state();
+  @switch (inbox.status) {
+    @case ('loading') { <p role="status" aria-live="polite">Loading purchase requests…</p> }
+    @case ('error') { <nexa-surface tone="inset"><div role="alert"><p>{{ inbox.message }}</p><nexa-button variant="secondary" (click)="refresh()">Try again</nexa-button></div></nexa-surface> }
+    @case ('ready') {
+      @let requests = inbox.requests;
+      @if (requests) {
+        <nexa-surface tone="default">
+          @if (requests.length) {
+            <div class="platform-sales-page__table-wrap"><table><thead><tr><th>Request</th><th>Buyer account</th><th>Status</th><th>Lines</th><th>Requested delivery</th><th></th></tr></thead><tbody>
+              @for (request of requests; track request.id) { <tr><td class="platform-sales-page__code">{{ request.code || request.id }}</td><td class="platform-sales-page__code">{{ request.clientAccountId }}</td><td>{{ request.status.replaceAll('_', ' ') }}</td><td>{{ request.lineCount }}</td><td>{{ request.requestedDeliveryDate }}</td><td><a [routerLink]="['/sales/purchase-requests', request.id]">Review request</a></td></tr> }
+            </tbody></table></div>
+          } @else { <p>No submitted purchase requests are awaiting a Sales decision.</p> }
+          @if (inbox.totalPages > 1) {
+            <nav class="platform-sales-page__actions" aria-label="Purchase request pages">
+              <nexa-button variant="secondary" size="compact" [disabled]="inbox.page === 0" (click)="changePage(-1)">Previous requests</nexa-button>
+              <span>Page {{ inbox.page + 1 }} of {{ inbox.totalPages }}</span>
+              <nexa-button variant="secondary" size="compact" [disabled]="inbox.page + 1 >= inbox.totalPages" (click)="changePage(1)">Next requests</nexa-button>
+            </nav>
+          }
+        </nexa-surface>
+      }
+    }
+  }
+</section>

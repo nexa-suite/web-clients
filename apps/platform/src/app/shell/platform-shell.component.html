@@ -4,24 +4,66 @@
       <nexa-logo class="platform-shell__logo" alt="Nexa" />
       <span class="platform-shell__brand-divider" aria-hidden="true"></span>
       <span class="platform-shell__product-name">Nexa Platform</span>
-      @if (canViewOperationsOverview) {
-        <nav class="platform-shell__navigation" aria-label="Platform navigation">
-          <a
-            class="platform-shell__navigation-link"
-            routerLink="/operations/overview"
-            routerLinkActive="platform-shell__navigation-link--active"
-            [routerLinkActiveOptions]="{ exact: true }"
-            ariaCurrentWhenActive="page"
-          >
-            Operations overview
-          </a>
+      @if (
+        canViewOperationsOverview ||
+        canViewSalesCommitment ||
+        canViewFulfillment ||
+        canViewDocuments
+      ) {
+        <nav
+          class="platform-shell__navigation"
+          aria-label="Platform navigation"
+        >
+          @if (canViewOperationsOverview) {
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/operations/overview"
+              routerLinkActive="platform-shell__navigation-link--active"
+              [routerLinkActiveOptions]="{ exact: true }"
+              ariaCurrentWhenActive="page"
+            >
+              Operations overview
+            </a>
+          }
+          @if (canViewSalesCommitment) {
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/sales/purchase-requests"
+              routerLinkActive="platform-shell__navigation-link--active"
+              ariaCurrentWhenActive="page"
+            >
+              Purchase requests
+            </a>
+          }
+          @if (canViewFulfillment) {
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/fulfillment-delivery"
+              routerLinkActive="platform-shell__navigation-link--active"
+              [routerLinkActiveOptions]="{ exact: true }"
+              ariaCurrentWhenActive="page"
+            >
+              Fulfillment
+            </a>
+          }
+          @if (canViewDocuments) {
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/documents"
+              routerLinkActive="platform-shell__navigation-link--active"
+              ariaCurrentWhenActive="page"
+              >Documents</a
+            >
+          }
         </nav>
       }
     </div>
 
     @if (contextLabel; as activeContext) {
       <div class="platform-shell__context">
-        <span class="platform-shell__context-label">Active business context</span>
+        <span class="platform-shell__context-label"
+          >Active business context</span
+        >
         <span class="platform-shell__context-value">{{ activeContext }}</span>
       </div>
     }

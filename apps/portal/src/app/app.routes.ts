@@ -19,6 +19,27 @@ export const routes: Routes = [
         (module) => module.PortalShellComponent,
       ),
     children: [
+      {
+        path: "documents",
+        loadChildren: () =>
+          import("./contexts/business-documents/application/public-api").then(
+            (module) => module.PORTAL_BUSINESS_DOCUMENT_ROUTES,
+          ),
+      },
+      {
+        path: "",
+        loadChildren: () =>
+          import("./contexts/sales-commitment/application/public-api").then(
+            (module) => module.PORTAL_SALES_COMMITMENT_ROUTES,
+          ),
+      },
+      {
+        path: "wallet",
+        loadComponent: () =>
+          import("./compositions/wallet/buyer-wallet-page.component").then(
+            (module) => module.BuyerWalletPageComponent,
+          ),
+      },
       { path: "", pathMatch: "full", redirectTo: "catalog" },
       {
         path: "catalog",

@@ -1,0 +1,19 @@
+.sales-commitment-page { display: grid; gap: 1.15rem; max-width: 76rem; margin: 0 auto; padding: 1.5rem; }
+.sales-commitment-page__heading, .sales-commitment-page__section-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.sales-commitment-page__heading h1 { margin: .25rem 0; }
+.sales-commitment-page__heading p, .sales-commitment-page__section-heading p { color: var(--nexa-color-text-secondary, #5b6472); }
+.sales-commitment-page__eyebrow { margin: 0; font-size: .75rem; font-weight: 700; letter-spacing: .08em; }
+.sales-commitment-page__actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.sales-commitment-page__section-heading h2 { margin: 0; }
+.sales-commitment-page__table-wrap { overflow-x: auto; }
+.sales-commitment-page table { width: 100%; border-collapse: collapse; text-align: left; }
+.sales-commitment-page th, .sales-commitment-page td { padding: .75rem .65rem; border-bottom: 1px solid var(--nexa-color-border-subtle, #d8dde5); vertical-align: top; }
+.sales-commitment-page th { color: var(--nexa-color-text-secondary, #5b6472); font-size: .8rem; }
+.sales-commitment-page__code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.sales-commitment-page__facts { display: grid; grid-template-columns: repeat(2, minmax(12rem, 1fr)); gap: 1rem 2rem; margin: 0; }
+.sales-commitment-page__facts dt { color: var(--nexa-color-text-secondary, #5b6472); font-size: .82rem; }
+.sales-commitment-page__facts dd { margin: .25rem 0 0; font-weight: 600; }
+.sales-commitment-page__back { color: var(--nexa-color-link, #215ec9); }
+.sales-commitment-page__notice { padding: .9rem 1rem; border-radius: .5rem; background: var(--nexa-color-surface-subtle, #f4f6f9); }
+.sales-commitment-page__button-link { justify-self: start; padding: .7rem 1rem; border-radius: .5rem; background: var(--nexa-color-action-primary, #215ec9); color: #fff; text-decoration: none; }
+@media (max-width: 620px) { .sales-commitment-page { padding: 1rem; } .sales-commitment-page__heading, .sales-commitment-page__section-heading { flex-direction: column; } .sales-commitment-page__facts { grid-template-columns: 1fr; } }

@@ -1,7 +1,42 @@
-import { Routes } from '@angular/router';
-import { accessRoutes } from './contexts/tenant-access-governance/presentation/access/access.routes';
+import { Routes } from "@angular/router";
+import {
+  PlatformActiveContextComponent,
+  PlatformShellSessionWrapperComponent,
+  PLATFORM_ACCESS_ROUTES,
+  requirePlatformAuthentication,
+  requirePlatformAuthenticationForChild,
+} from "./contexts/tenant-access-governance/presentation/public-api";
+import { PLATFORM_FULFILLMENT_ROUTES } from "./contexts/fulfillment-delivery/application/public-api";
+import { PLATFORM_SALES_COMMITMENT_ROUTES } from "./contexts/sales-commitment/application/public-api";
+
+import { PLATFORM_BUSINESS_DOCUMENT_ROUTES } from "./contexts/business-documents/application/public-api";
 
 export const routes: Routes = [
-  ...accessRoutes,
-  { path: '**', redirectTo: '' },
+  ...PLATFORM_ACCESS_ROUTES,
+  {
+    path: "",
+    canActivate: [requirePlatformAuthentication],
+    canActivateChild: [requirePlatformAuthenticationForChild],
+    component: PlatformShellSessionWrapperComponent,
+    children: [
+      {
+        path: "",
+        pathMatch: "full",
+        component: PlatformActiveContextComponent,
+        title: "Active context | Nexa Platform",
+      },
+      {
+        path: "operations/overview",
+        loadComponent: () =>
+          import("./features/operations/operations-overview.component").then(
+            (module) => module.PlatformOperationsOverviewComponent,
+          ),
+        title: "Operations overview | Nexa Platform",
+      },
+      ...PLATFORM_SALES_COMMITMENT_ROUTES,
+      ...PLATFORM_FULFILLMENT_ROUTES,
+      ...PLATFORM_BUSINESS_DOCUMENT_ROUTES,
+    ],
+  },
+  { path: "**", redirectTo: "" },
 ];

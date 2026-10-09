@@ -87,6 +87,7 @@ describe('CatalogApiAdapter', () => {
     expect(page.items[0]).toMatchObject({
       catalogItemId: 'CAT-1001',
       skuCode: 'SKU-1001',
+      sellableSkuId: 'SKU-ID-1001',
       itemName: 'Ambient item',
       brandName: 'Nexa brand',
       categoryName: 'Grocery',
@@ -136,6 +137,7 @@ describe('CatalogApiAdapter', () => {
     await expect(adapter.detail('CAT-1001')).resolves.toMatchObject({
       catalogItemId: 'CAT-1001',
       skuCode: 'SKU-1001',
+      sellableSkuId: 'SKU-ID-1001',
       itemName: 'Ambient item',
     });
 

@@ -1,0 +1,124 @@
+<section class="platform-documents-page" aria-labelledby="documents-heading">
+  <header class="page-heading">
+    <div>
+      <p class="page-kicker">DOCUMENTS</p>
+      <h1 id="documents-heading">Business documents</h1>
+      <p class="page-intro">
+        View issued business documents available in this active Platform
+        context.
+      </p>
+    </div>
+    <nexa-button variant="secondary" (click)="store.load()"
+      >Refresh</nexa-button
+    >
+  </header>
+
+  @let state = store.listState();
+  @let downloadState = store.downloadState();
+  @if (downloadState.kind === "error") {
+    <div class="download-error" role="alert">
+      <p>{{ downloadState.errorMessage }}</p>
+    </div>
+  }
+
+  @switch (state.kind) {
+    @case ("loading") {
+      <nexa-surface tone="inset"
+        ><p class="state-message" role="status">
+          Loading business documents…
+        </p></nexa-surface
+      >
+    }
+    @case ("error") {
+      <nexa-surface tone="inset">
+        <div class="state-message error-state" role="alert">
+          <strong>Documents could not be loaded</strong>
+          <p>{{ state.errorMessage }}</p>
+          <nexa-button variant="secondary" (click)="retry(state)"
+            >Try again</nexa-button
+          >
+        </div>
+      </nexa-surface>
+    }
+    @case ("empty") {
+      <nexa-surface tone="inset">
+        <div class="state-message empty-state">
+          <i class="pi pi-file" aria-hidden="true"></i>
+          <strong>No business documents are available</strong>
+          <p>Documents issued for this context will appear here.</p>
+        </div>
+      </nexa-surface>
+    }
+    @case ("results") {
+      <div class="results-heading">
+        <h2>Available documents</h2>
+        <span>{{ state.page.total }} total</span>
+      </div>
+      <ol class="document-list" aria-label="Business documents">
+        @for (document of state.page.items; track document.id) {
+          <li>
+            <article class="document-row">
+              <div class="document-main">
+                <a class="document-link" [routerLink]="[document.id]">
+                  <strong>{{ typeLabel(document.documentType) }}</strong>
+                  <span class="document-number">{{
+                    document.documentNumber || "Document details"
+                  }}</span>
+                </a>
+                <p class="document-meta">
+                  <span>{{ statusLabel(document.status) }}</span>
+                  @if (document.generatedAt) {
+                    <span aria-hidden="true">·</span>
+                    <span
+                      >Issued
+                      {{ document.generatedAt | date: "mediumDate" }}</span
+                    >
+                  }
+                </p>
+              </div>
+              @if (document.downloadable && store.canDownload()) {
+                <nexa-button
+                  variant="secondary"
+                  [disabled]="anyDownloadBusy()"
+                  [loading]="downloadBusy(document.id)"
+                  (click)="store.download(document)"
+                  >Download</nexa-button
+                >
+              } @else if (document.downloadable) {
+                <span class="availability-note"
+                  >Download permission is required.</span
+                >
+              }
+            </article>
+          </li>
+        }
+      </ol>
+      @if (state.page.totalPages > 1) {
+        <nav class="pagination" aria-label="Business document pages">
+          <nexa-button
+            variant="secondary"
+            [disabled]="state.page.page <= 0"
+            (click)="pageBy(-1, state.page.page)"
+            >Previous</nexa-button
+          >
+          <span
+            >Page {{ state.page.page + 1 }} of {{ state.page.totalPages }}</span
+          >
+          <nexa-button
+            variant="secondary"
+            [disabled]="state.page.page + 1 >= state.page.totalPages"
+            (click)="pageBy(1, state.page.page)"
+            >Next</nexa-button
+          >
+        </nav>
+      }
+    }
+    @default {
+      <nexa-surface tone="inset"
+        ><p class="state-message">
+          Business documents are ready to load.
+        </p></nexa-surface
+      >
+    }
+  }
+</section>

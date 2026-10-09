@@ -1,0 +1,127 @@
+.platform-documents-page,
+.platform-document-detail-page {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 70rem;
+  margin-inline: auto;
+  padding: clamp(1rem, 3vw, 2rem);
+}
+
+.page-heading,
+.results-heading,
+.document-row,
+.document-heading,
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.page-kicker {
+  margin: 0 0 0.35rem;
+  color: var(--nexa-text-muted, #596474);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.page-heading h1,
+.document-heading h1 {
+  margin: 0;
+}
+
+.page-intro,
+.document-meta,
+.state-message,
+.replacement-note,
+.availability-note,
+.download-error {
+  color: var(--nexa-text-muted, #596474);
+}
+
+.document-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.document-row,
+.document-panel {
+  border: 1px solid var(--nexa-border-subtle, #d7dde5);
+  border-radius: 0.75rem;
+  background: var(--nexa-surface, #fff);
+  padding: 1rem;
+}
+
+.document-link {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.75rem;
+  color: inherit;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
+}
+
+.document-number,
+.document-status {
+  font-variant-numeric: tabular-nums;
+}
+
+.document-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.45rem 0 0;
+}
+
+.document-heading {
+  margin-bottom: 1.25rem;
+}
+
+.document-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+
+.document-facts dt {
+  color: var(--nexa-text-muted, #596474);
+  font-size: 0.8rem;
+}
+
+.document-facts dd {
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+}
+
+.replacement-note,
+.availability-note {
+  margin: 1rem 0;
+}
+
+.error-state p {
+  max-width: 42rem;
+}
+
+.download-error {
+  border-inline-start: 0.25rem solid var(--nexa-danger, #a1272d);
+  padding: 0.5rem 0.85rem;
+}
+
+.download-error p {
+  margin: 0;
+}
+
+@media (max-width: 42rem) {
+  .page-heading,
+  .document-row,
+  .document-heading,
+  .pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

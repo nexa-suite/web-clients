@@ -1,0 +1,174 @@
+<section class="request-builder" aria-labelledby="request-builder-title" data-testid="buyer-request-builder">
+  <header class="request-builder__header">
+    <div>
+      <p class="request-builder__eyebrow">PURCHASE REQUEST</p>
+      <h1 id="request-builder-title">Build your request</h1>
+      <p>Choose the items, where and when to receive them, and how you prefer to pay.</p>
+    </div>
+    <a routerLink="/requests">My requests</a>
+  </header>
+
+  @if (!contextIsCurrent()) {
+    <nexa-surface tone="inset">
+      <p class="request-builder__notice" role="alert">Your Buyer context changed. Refresh after signing in to continue.</p>
+    </nexa-surface>
+  } @else {
+  @if (localError) {
+    <p class="request-builder__notice request-builder__notice--error" role="alert">{{ localError }}</p>
+  }
+  @if (workflow().errorMessage; as message) {
+    <p class="request-builder__notice request-builder__notice--error" role="alert">{{ message }}</p>
+  }
+  @if (workflow().status === 'loading' || workflow().status === 'saving' || workflow().status === 'submitting') {
+    <p class="request-builder__notice" role="status" aria-live="polite">
+      @if (workflow().status === 'submitting') { Sending your request… }
+      @else if (workflow().status === 'saving') { Saving changes… }
+      @else { Loading request details… }
+    </p>
+  }
+
+  <nexa-surface tone="default">
+    <section aria-labelledby="request-lines-title">
+      <div class="request-builder__section-heading">
+        <div>
+          <h2 id="request-lines-title">Items</h2>
+          <p>Choose from the SKUs listed in your catalog.</p>
+        </div>
+        @if (workflow().draft && workflow().draft?.status !== 'SUBMITTED' && !workflow().submissionKeyPending) {
+          <nexa-button variant="secondary" size="compact" (click)="addLine()">Add item</nexa-button>
+        }
+      </div>
+      <div class="request-builder__lines">
+        @for (line of lines; track $index; let row = $index) {
+          <div class="request-builder__line">
+            <label>
+              Catalog SKU
+              <select [value]="line.skuId" (change)="updateLine(row, 'skuId', $any($event.target).value)">
+                <option value="">Choose a sellable SKU</option>
+                @if (line.skuId && !hasCatalogSku(line.skuId) && isSavedDraftSku(line.skuId)) {
+                  <option [value]="line.skuId" disabled>{{ skuLabel(line.skuId) }}</option>
+                }
+                @for (item of catalogSkuOptions(); track item.catalogItemId) {
+                  <option [value]="item.sellableSkuId">{{ item.skuCode }} · {{ item.itemName }}</option>
+                }
+              </select>
+              @if (line.skuId) { <span class="request-builder__sku-hint">{{ skuLabel(line.skuId) }}</span> }
+            </label>
+            <label>
+              Quantity
+              <input type="number" min="0.001" step="any" [value]="line.quantity" (input)="updateLine(row, 'quantity', $any($event.target).value)" />
+            </label>
+            <label>
+              Unit (optional)
+              <input [value]="line.unit" (input)="updateLine(row, 'unit', $any($event.target).value)" maxlength="32" />
+            </label>
+            <label class="request-builder__notes">
+              Notes (optional)
+              <input [value]="line.notes" (input)="updateLine(row, 'notes', $any($event.target).value)" maxlength="2000" />
+            </label>
+            @if (lines.length > 1 && !workflow().submissionKeyPending) {
+              <button class="request-builder__remove" type="button" (click)="removeLine(row)" aria-label="Remove item">Remove</button>
+            }
+          </div>
+        }
+      </div>
+      @if (!catalogSkuOptions().length) {
+        <p class="request-builder__notice">Choose a sellable SKU from the <a routerLink="/catalog">current catalog</a>. Catalog pages show the available choices.</p>
+      }
+      @if (!workflow().draft) {
+        <label class="request-builder__date">
+          Requested delivery date
+          <input type="date" [value]="requestedDeliveryDate" (input)="requestedDeliveryDate = $any($event.target).value" />
+        </label>
+        <nexa-button (click)="beginDraft()" [disabled]="workflow().status === 'loading'">Start draft</nexa-button>
+      } @else if (workflow().draft?.status !== 'SUBMITTED' && !workflow().submissionKeyPending) {
+        <nexa-button variant="secondary" (click)="saveLines()">Save items</nexa-button>
+      }
+    </section>
+  </nexa-surface>
+
+  @if (workflow().draft; as draft) {
+    @if (draft.status === 'SUBMITTED') {
+      <nexa-surface tone="inset">
+        <h2>Request submitted</h2>
+        <p>Sales will review your request. Follow its status in My requests.</p>
+        <a [routerLink]="['/requests', draft.id]">View request {{ draft.id }}</a>
+      </nexa-surface>
+    } @else {
+      <nexa-surface tone="default">
+        <section aria-labelledby="request-delivery-title">
+          <div class="request-builder__section-heading">
+            <div>
+              <h2 id="request-delivery-title">Delivery and payment preference</h2>
+              <p>Choose where and when to receive your items and how you prefer to pay.</p>
+            </div>
+          </div>
+          <div class="request-builder__delivery-grid">
+            <label>
+              Requested delivery date
+              <input type="date" [value]="requestedDeliveryDate" (input)="requestedDeliveryDate = $any($event.target).value" />
+            </label>
+            <label>
+              Payment preference
+              <select [value]="paymentPreference" (change)="paymentPreference = $any($event.target).value">
+                <option value="">Choose a preference</option>
+                @for (preference of paymentPreferences; track preference) {
+                  <option [value]="preference">{{ preference.replaceAll('_', ' ') }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              Delivery destination
+              <select [value]="selectedAddressId" (change)="chooseAddress($any($event.target).value)">
+                <option value="">Choose a saved address</option>
+                @for (address of workflow().addresses; track address.id) {
+                  <option [value]="address.id">{{ address.label }} · {{ address.line }}{{ address.defaultAddress ? ' · Default' : '' }}</option>
+                }
+              </select>
+            </label>
+          </div>
+          <div class="request-builder__actions">
+            <nexa-button variant="secondary" size="compact" (click)="savePreferences()" [disabled]="workflow().submissionKeyPending">Save details</nexa-button>
+            <nexa-button variant="secondary" size="compact" (click)="refreshAddresses()">Refresh saved addresses</nexa-button>
+            <nexa-button variant="secondary" size="compact" (click)="previewRoute()" [disabled]="!draft.destination || workflow().submissionKeyPending">Preview route</nexa-button>
+          </div>
+          @if (!workflow().addresses.length) {
+            <p class="request-builder__notice">No active saved addresses are available for this Buyer account. Add a delivery address to the account, then refresh addresses here.</p>
+          }
+        </section>
+      </nexa-surface>
+
+      <nexa-surface tone="inset">
+        <section aria-labelledby="request-review-title">
+          <div class="request-builder__section-heading">
+            <div>
+              <h2 id="request-review-title">Review before submission</h2>
+              <p>Check the delivery and payment details before sending.</p>
+            </div>
+            <nexa-button variant="secondary" size="compact" (click)="refreshReview()">Refresh checks</nexa-button>
+          </div>
+          @if (workflow().review; as review) {
+            <ul class="request-builder__checks">
+              <li [class.request-builder__check--complete]="review.productsComplete">Items complete</li>
+              <li [class.request-builder__check--complete]="review.destinationComplete">Destination selected</li>
+              <li [class.request-builder__check--complete]="review.routeValidated">Route validated</li>
+              <li [class.request-builder__check--complete]="review.commercialReviewComplete">Commercial checks complete</li>
+            </ul>
+            @if (review.missing.length) {
+              <p class="request-builder__notice">Still needed: {{ review.missing.join(', ') }}</p>
+            }
+            @if (workflow().submissionKeyPending) {
+              <p class="request-builder__notice request-builder__notice--warning" role="status">We couldn’t confirm the result. Retry without changing this request.</p>
+            }
+            <nexa-button (click)="submit()" [disabled]="!review.readyToSubmit || workflow().status === 'submitting' || workflow().submissionKeyPending && workflow().status === 'submitting'">
+              @if (workflow().submissionKeyPending) { Retry submission safely } @else { Submit purchase request }
+            </nexa-button>
+          } @else {
+            <p class="request-builder__notice">Review checks are loading. Refresh them before submitting.</p>
+          }
+        </section>
+      </nexa-surface>
+    }
+  }
+  }
+</section>

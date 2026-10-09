@@ -1,0 +1,129 @@
+<section
+  class="platform-document-detail-page"
+  aria-labelledby="document-heading"
+>
+  <a class="back-link" routerLink="/documents">← All business documents</a>
+  @let state = store.detailState();
+  @let downloadState = store.downloadState();
+  @if (downloadState.kind === "error") {
+    <div class="download-error" role="alert">
+      <p>{{ downloadState.errorMessage }}</p>
+    </div>
+  }
+
+  @switch (state.kind) {
+    @case ("loading") {
+      <nexa-surface tone="inset"
+        ><p class="state-message" role="status">
+          Loading document details…
+        </p></nexa-surface
+      >
+    }
+    @case ("error") {
+      <nexa-surface tone="inset">
+        <div class="state-message error-state" role="alert">
+          <strong>Document details could not be loaded</strong>
+          <p>{{ state.errorMessage }}</p>
+          <nexa-button variant="secondary" (click)="retry()"
+            >Try again</nexa-button
+          >
+        </div>
+      </nexa-surface>
+    }
+    @case ("not-found") {
+      <nexa-surface tone="inset">
+        <div class="state-message">
+          <strong>Document not found</strong>
+          <p>This document is not available in the active Platform context.</p>
+        </div>
+      </nexa-surface>
+    }
+    @case ("loaded") {
+      <article class="document-panel">
+        <header class="document-heading">
+          <div>
+            <p class="page-kicker">BUSINESS DOCUMENT</p>
+            <h1 id="document-heading">
+              {{ typeLabel(state.document.documentType) }}
+            </h1>
+            @if (state.document.documentNumber) {
+              <p class="document-number">{{ state.document.documentNumber }}</p>
+            }
+          </div>
+          <span class="document-status">{{
+            statusLabel(state.document.status)
+          }}</span>
+        </header>
+
+        <nexa-surface tone="soft">
+          <dl class="document-facts">
+            <div>
+              <dt>Related to</dt>
+              <dd>{{ subjectLabel(state.document.subjectType) }}</dd>
+            </div>
+            <div>
+              <dt>Version</dt>
+              <dd>{{ state.document.version }}</dd>
+            </div>
+            <div>
+              <dt>File format</dt>
+              <dd>{{ state.document.format }}</dd>
+            </div>
+            <div>
+              <dt>File size</dt>
+              <dd>{{ formatBytes(state.document.byteSize) }}</dd>
+            </div>
+            <div>
+              <dt>Issued</dt>
+              <dd>
+                @if (state.document.generatedAt) {
+                  {{ state.document.generatedAt | date: "medium" }}
+                } @else {
+                  Not issued
+                }
+              </dd>
+            </div>
+          </dl>
+        </nexa-surface>
+
+        @if (state.document.replacementOfDocumentId) {
+          <p class="replacement-note">
+            This document replaces an earlier version.
+            <a
+              [routerLink]="[
+                '/documents',
+                state.document.replacementOfDocumentId,
+              ]"
+              >View the earlier document</a
+            >
+          </p>
+        }
+
+        @if (state.document.downloadable && store.canDownload()) {
+          <nexa-button
+            variant="primary"
+            [disabled]="downloadState.kind === 'loading'"
+            [loading]="downloadBusy(state.document.id)"
+            (click)="download(state.document)"
+            >Download document</nexa-button
+          >
+        } @else if (state.document.downloadable) {
+          <p class="availability-note">
+            Download permission is required for this document.
+          </p>
+        } @else {
+          <p class="availability-note">
+            This document is not ready to download.
+          </p>
+        }
+      </article>
+    }
+    @default {
+      <nexa-surface tone="inset"
+        ><p class="state-message">
+          Document details are ready to load.
+        </p></nexa-surface
+      >
+    }
+  }
+</section>
