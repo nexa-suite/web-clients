@@ -11,12 +11,13 @@ test.afterEach(async ({ page }) => {
   }
 });
 
-function apiResponse(page, path) {
-  return page.waitForResponse(
+async function apiResponse(page, path) {
+  const response = await page.waitForResponse(
     (response) =>
       new URL(response.url()).pathname === path &&
       response.request().method() === "GET",
   );
+  return { status: response.status(), body: await response.json() };
 }
 
 async function signInBuyer(page) {
@@ -48,19 +49,19 @@ async function signInBuyer(page) {
     [session, account, catalog],
   );
   expect([
-    sessionResponse.status(),
-    accountResponse.status(),
-    catalogResponse.status(),
+    sessionResponse.status,
+    accountResponse.status,
+    catalogResponse.status,
   ]).toEqual([200, 200, 200]);
-  const currentSession = await sessionResponse.json();
-  const currentAccount = await accountResponse.json();
+  const currentSession = sessionResponse.body;
+  const currentAccount = accountResponse.body;
   expect(currentSession.surface).toBe("PORTAL");
   expect(
     Boolean(currentAccount.buyerMembershipId) &&
       currentAccount.buyerMembershipId ===
         currentSession.membership?.membershipId,
   ).toBe(true);
-  return catalogResponse.json();
+  return catalogResponse.body;
 }
 
 test("uses server Buyer eligibility, commercial catalog facts, and cookie-backed restoration", async ({
@@ -78,8 +79,8 @@ test("uses server Buyer eligibility, commercial catalog facts, and cookie-backed
   );
   await page.getByTestId("catalog-item-link").first().click();
   const response = await detailResponse;
-  expect(response.status()).toBe(200);
-  const item = await response.json();
+  expect(response.status).toBe(200);
+  const item = response.body;
   await expect(page.getByTestId("portal-catalog-detail-heading")).toHaveText(
     item.itemName,
   );
@@ -105,7 +106,7 @@ test("uses server Buyer eligibility, commercial catalog facts, and cookie-backed
 
   const restoredAccount = apiResponse(page, "/api/v1/client-accounts/me");
   await page.reload();
-  expect((await restoredAccount).status()).toBe(200);
+  expect((await restoredAccount).status).toBe(200);
   await expect(page.getByTestId("portal-catalog-detail-heading")).toHaveText(
     item.itemName,
   );
