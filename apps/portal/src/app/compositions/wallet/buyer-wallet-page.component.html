@@ -65,7 +65,11 @@
           </dl>
           <nexa-button variant="secondary" (click)="payments.load(item.id)"
             >Payment history for {{ item.number }}</nexa-button
-          ></nexa-surface
+          >
+          @if (transfer.canReport() && item.remaining > 0 && ["OPEN", "PARTIALLY_PAID", "OVERDUE"].includes(item.status)) {
+            <nexa-button variant="secondary" [disabled]="transfer.state()?.busy ?? false" (click)="transfer.select(item.id)">Report bank transfer for {{ item.number }}</nexa-button>
+          }
+          </nexa-surface
         >
       }
       <nav aria-label="Receivables pages">
@@ -80,6 +84,22 @@
         >
       </nav>
     }
+  }
+  @if (transfer.state(); as report) {
+    <section aria-labelledby="transfer-heading">
+      <h2 id="transfer-heading">Report a bank transfer</h2>
+      <p>Report a transfer you have already made for this receivable. The supplier must verify it before your debt changes.</p>
+      @if (report.payment; as payment) {
+        <p role="status">Transfer reported. Status: {{ payment.status }} · {{ payment.currency }} {{ payment.amount }}.</p>
+        <nexa-button variant="secondary" (click)="payments.load(payment.receivableId)">Check payment history</nexa-button>
+      } @else {
+        <label for="transfer-reference">Transfer reference</label>
+        <input id="transfer-reference" maxlength="160" autocomplete="off" [value]="report.reference" [disabled]="report.busy" (input)="transfer.editReference($any($event.target).value)" />
+        <nexa-button [disabled]="report.busy || !report.reference.trim()" (click)="transfer.submit()">{{ report.busy ? "Reporting…" : "Report transfer" }}</nexa-button>
+      }
+      @if (report.error) { <p role="alert">{{ report.error }}</p> }
+      <nexa-button variant="secondary" [disabled]="report.busy" (click)="transfer.clear()">Close transfer report</nexa-button>
+    </section>
   }
   @if (payments.state(); as state) {
     <section aria-labelledby="payment-heading">

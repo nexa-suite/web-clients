@@ -20,6 +20,10 @@ export const routes: Routes = [
       ),
     children: [
       {
+        path: "deliveries",
+        loadChildren: () => import("./contexts/fulfillment-delivery/application/public-api").then(module => module.PORTAL_DELIVERY_ROUTES),
+      },
+      {
         path: "documents",
         loadChildren: () =>
           import("./contexts/business-documents/application/public-api").then(

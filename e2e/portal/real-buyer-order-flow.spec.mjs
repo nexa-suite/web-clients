@@ -8,6 +8,12 @@ import {
 
 const apiPrefix = '/api/v1';
 const platformOrigin = 'http://localhost:4200';
+const apiOriginPattern = /^http:\/\/(?:localhost|127\.0\.0\.1):(?:4200|4300)\/api\/v1\//;
+const apiResponseCaptures = new WeakMap();
+
+test.beforeEach(async ({ page }) => {
+  await installApiResponseCapture(page);
+});
 
 test.afterEach(async ({ page }) => {
   for (const label of [
@@ -22,27 +28,59 @@ test.afterEach(async ({ page }) => {
   }
 });
 
-function waitForApiResponse(page, method, path) {
-  return page.waitForResponse((response) =>
-    new URL(response.url()).pathname === `${apiPrefix}${path}`
-      && response.request().method() === method).then(parseApiResponse);
+async function installApiResponseCapture(page) {
+  if (apiResponseCaptures.has(page)) return;
+
+  const waiters = new Set();
+  apiResponseCaptures.set(page, waiters);
+  await page.route(apiOriginPattern, async (route) => {
+    const request = route.request();
+    const waiter = [...waiters].find((candidate) => candidate.predicate(request));
+    if (!waiter) {
+      await route.continue();
+      return;
+    }
+    waiters.delete(waiter);
+
+    try {
+      const upstream = await route.fetch();
+      let body = null;
+      let parseError;
+      if (waiter.parseJson && upstream.status() !== 204) {
+        try {
+          body = await upstream.json();
+        } catch (error) {
+          parseError = error;
+        }
+      }
+      const headers = {};
+      const requestHeaders = request.headers();
+      for (const name of ['if-match', 'idempotency-key']) {
+        if (requestHeaders[name] !== undefined) headers[name] = requestHeaders[name];
+      }
+
+      await route.fulfill({ response: upstream });
+      if (parseError) waiter.reject(parseError);
+      else waiter.resolve({ status: upstream.status(), body, headers });
+    } catch (error) {
+      await route.abort('failed').catch(() => {});
+      waiter.reject(error);
+    }
+  });
 }
 
-function waitForMatchingApiResponse(page, predicate) {
-  return page.waitForResponse(predicate).then(parseApiResponse);
+function waitForApiResponse(page, method, path, { parseJson = true } = {}) {
+  return waitForMatchingApiResponse(page, (request) =>
+    new URL(request.url()).pathname === `${apiPrefix}${path}`
+      && request.method() === method, { parseJson });
 }
 
-async function parseApiResponse(response) {
-  let body = null;
-  if (response.status() !== 204) {
-    try { body = await response.json(); } catch { body = null; }
-  }
-  return {
-    response,
-    status: response.status(),
-    body,
-    headers: response.request().headers(),
-  };
+function waitForMatchingApiResponse(page, predicate, { parseJson = true } = {}) {
+  const waiters = apiResponseCaptures.get(page);
+  if (!waiters) throw new Error('The real API response capture must be installed before waiting.');
+  return new Promise((resolve, reject) => {
+    waiters.add({ predicate, parseJson, resolve, reject });
+  });
 }
 
 async function signInBuyer(page) {
@@ -105,16 +143,20 @@ function futureDeliveryDate(daysAhead = 14) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-test('submits a real Buyer request, converts it through Sales, and starts Warehouse fulfillment', async ({ page }) => {
+test('completes a real Buyer order through Sales and Warehouse, then issues its order summary', async ({ page }) => {
   test.setTimeout(180_000);
+  const companyOwnerDefinition = platformAccountDefinitions.find((account) => account.key === 'companyOwner');
   const salesDefinition = platformAccountDefinitions.find((account) => account.key === 'salesRepresentative');
   const warehouseDefinition = platformAccountDefinitions.find((account) => account.key === 'warehouseOperator');
-  if (!salesDefinition || !warehouseDefinition) throw new Error('Sales and Warehouse account definitions are required.');
+  if (!companyOwnerDefinition || !salesDefinition || !warehouseDefinition) {
+    throw new Error('Company Owner, Sales, and Warehouse account definitions are required.');
+  }
   getPortalBuyerCredentials();
+  const companyOwnerCredentials = getPlatformAccountCredentials(companyOwnerDefinition);
   const salesCredentials = getPlatformAccountCredentials(salesDefinition);
   const warehouseCredentials = getPlatformAccountCredentials(warehouseDefinition);
-  if (!salesCredentials || !warehouseCredentials) {
-    throw new Error('The live Buyer order flow requires configured Sales Representative and Warehouse Operator credentials.');
+  if (!companyOwnerCredentials || !salesCredentials || !warehouseCredentials) {
+    throw new Error('The live Buyer order flow requires configured Company Owner, Sales Representative, and Warehouse Operator credentials.');
   }
 
   const { account, catalog } = await signInBuyer(page);
@@ -131,10 +173,15 @@ test('submits a real Buyer request, converts it through Sales, and starts Wareho
   const sellableItem = catalogDetail.body;
   expect(sellableItem.sellableSkuId).toBe(catalogItem.sellableSkuId);
   expect(Number(sellableItem.sellableAvailability)).toBeGreaterThanOrEqual(1);
-  await expect(page.getByRole('button', { name: 'Request this SKU' })).toBeVisible();
+  const requestSkuLink = page.getByRole('link', { name: 'Request this SKU', exact: true });
+  await expect(requestSkuLink).toBeVisible();
+  await expect(requestSkuLink).toHaveAttribute(
+    'href',
+    `/requests/new?skuId=${encodeURIComponent(sellableItem.sellableSkuId)}`,
+  );
 
   const addressesResponse = waitForApiResponse(page, 'GET', `/client-accounts/${account.id}/addresses`);
-  await page.getByRole('button', { name: 'Request this SKU' }).click();
+  await requestSkuLink.click();
   await expect(page.getByRole('heading', { name: 'Build your request' })).toBeVisible();
   const addressesResult = await addressesResponse;
   expect(addressesResult.status).toBe(200);
@@ -145,9 +192,9 @@ test('submits a real Buyer request, converts it through Sales, and starts Wareho
   const deliveryDate = futureDeliveryDate();
   await page.getByLabel('Requested delivery date').first().fill(deliveryDate);
   const draftCreated = waitForApiResponse(page, 'POST', '/buyer/purchase-request-drafts');
-  const draftLinesSaved = waitForMatchingApiResponse(page, (response) =>
-    new URL(response.url()).pathname.match(/^\/api\/v1\/buyer\/purchase-request-drafts\/[^/]+\/lines$/) !== null
-      && response.request().method() === 'PUT');
+  const draftLinesSaved = waitForMatchingApiResponse(page, (request) =>
+    new URL(request.url()).pathname.match(/^\/api\/v1\/buyer\/purchase-request-drafts\/[^/]+\/lines$/) !== null
+      && request.method() === 'PUT');
   await page.getByRole('button', { name: 'Start draft' }).click();
   const [createdResponse, linesResponse] = await Promise.all([draftCreated, draftLinesSaved]);
   expect(createdResponse.status).toBe(201);
@@ -159,7 +206,7 @@ test('submits a real Buyer request, converts it through Sales, and starts Wareho
   const destinationResponse = waitForApiResponse(page, 'PUT', `/buyer/purchase-request-drafts/${draft.id}/destination`);
   await page.getByLabel('Delivery destination').selectOption(address.id);
   expect((await destinationResponse).status).toBe(200);
-  await page.getByLabel('Payment preference').selectOption('BANK_TRANSFER');
+  await page.getByRole('combobox', { name: 'Payment preference', exact: true }).selectOption('BANK_TRANSFER');
   const preferencesResponse = waitForApiResponse(page, 'PUT', `/buyer/purchase-request-drafts/${draft.id}/preferences`);
   await page.getByRole('button', { name: 'Save details' }).click();
   expect((await preferencesResponse).status).toBe(200);
@@ -192,10 +239,10 @@ test('submits a real Buyer request, converts it through Sales, and starts Wareho
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sign in to your workspace' })).toBeVisible();
   await signInPlatformAccount(page, salesCredentials);
-  const submittedQueueResponse = waitForMatchingApiResponse(page, (response) =>
-    new URL(response.url()).pathname === `${apiPrefix}/purchase-requests`
-      && new URL(response.url()).searchParams.get('status') === 'SUBMITTED'
-      && response.request().method() === 'GET');
+  const submittedQueueResponse = waitForMatchingApiResponse(page, (request) =>
+    new URL(request.url()).pathname === `${apiPrefix}/purchase-requests`
+      && new URL(request.url()).searchParams.get('status') === 'SUBMITTED'
+      && request.method() === 'GET');
   await page.goto(`${platformOrigin}/sales/purchase-requests`);
   await expect(page.getByRole('heading', { name: 'Purchase request inbox' })).toBeVisible();
   expect((await submittedQueueResponse).status).toBe(200);
@@ -244,6 +291,57 @@ test('submits a real Buyer request, converts it through Sales, and starts Wareho
 
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sign in to your workspace' })).toBeVisible();
+
+  await signInPlatformAccount(page, companyOwnerCredentials);
+  const confirmedOrdersResponse = waitForApiResponse(page, 'GET', '/sales-orders');
+  await page.goto(`${platformOrigin}/documents/order-summary`);
+  await expect(page.getByRole('heading', { name: 'Select a confirmed Sales Order' })).toBeVisible();
+  const confirmedOrders = await confirmedOrdersResponse;
+  expect(confirmedOrders.status).toBe(200);
+  expect(confirmedOrders.body.items.some((order) => order.id === salesOrder.id)).toBe(true);
+  const generationLink = page.getByRole('listitem')
+    .filter({ hasText: salesOrder.number })
+    .getByRole('link', { name: /Request order summary PDF/ });
+  await expect(generationLink).toBeVisible();
+  const selectedOrderResponse = waitForApiResponse(page, 'GET', `/sales-orders/${salesOrder.id}`);
+  await generationLink.click();
+  const selectedOrderResponseBody = await selectedOrderResponse;
+  expect(selectedOrderResponseBody.status).toBe(200);
+  expect(selectedOrderResponseBody.body.confirmedAt).toBeTruthy();
+  await expect(page.getByRole('button', { name: 'Request order summary PDF', exact: true })).toBeVisible();
+  const generationRequestResponse = waitForApiResponse(page, 'POST', '/business-document-generation-requests');
+  await page.getByRole('button', { name: 'Request order summary PDF', exact: true }).click();
+  const generationRequest = await generationRequestResponse;
+  expect(generationRequest.status).toBe(202);
+  expect(generationRequest.body.id).toBeTruthy();
+  expect(generationRequest.body.documentId).toBeTruthy();
+  expect(generationRequest.body.subjectType).toBe('SALES_ORDER');
+  expect(generationRequest.body.subjectId).toBe(salesOrder.id);
+  expect(generationRequest.body.documentType).toBe('ORDER_SUMMARY');
+  expect(generationRequest.body.format).toBe('PDF');
+  expect(generationRequest.body.status).toBe('PENDING');
+  expect(generationRequest.headers['idempotency-key']).toBeTruthy();
+  const ownerDocumentDetailResponse = waitForApiResponse(page, 'GET', `/business-documents/${generationRequest.body.documentId}`);
+  await page.getByRole('link', { name: 'View order summary document' }).click();
+  const ownerDocumentDetail = await ownerDocumentDetailResponse;
+  expect(ownerDocumentDetail.status).toBe(200);
+  expect(ownerDocumentDetail.body.subjectType).toBe('SALES_ORDER');
+  expect(ownerDocumentDetail.body.subjectId).toBe(salesOrder.id);
+
+  let orderSummaryPdf;
+  await expect.poll(async () => {
+    const documentResponse = waitForApiResponse(page, 'GET', `/business-documents/${generationRequest.body.documentId}`);
+    await page.reload();
+    const result = await documentResponse;
+    if (result.status !== 200) return false;
+    orderSummaryPdf = result.body;
+    return orderSummaryPdf.status === 'GENERATED' && Boolean(orderSummaryPdf.storageObjectKey);
+  }, { timeout: 60_000, intervals: [1_000, 2_000, 3_000] })
+    .toBe(true, 'The explicitly requested order summary must be generated by the running document worker.');
+  expect(orderSummaryPdf.storageObjectKey).toBeTruthy();
+
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Sign in to your workspace' })).toBeVisible();
   const { account: buyerAccount } = await signInBuyer(page);
   expect(buyerAccount.id).toBe(salesOrder.clientAccountId);
 
@@ -256,25 +354,10 @@ test('submits a real Buyer request, converts it through Sales, and starts Wareho
 
   const firstDocumentsResponse = waitForApiResponse(page, 'GET', '/business-documents');
   await page.goto('/documents');
-  expect((await firstDocumentsResponse).status).toBe(200);
+  const firstDocuments = await firstDocumentsResponse;
+  expect(firstDocuments.status).toBe(200);
+  expect(firstDocuments.body.items.some((document) => document.id === orderSummaryPdf.id)).toBe(true);
   await expect(page.getByTestId('portal-business-documents-page')).toBeVisible();
-
-  let orderSummaryPdf;
-  await expect.poll(async () => {
-    const documentsResponse = waitForApiResponse(page, 'GET', '/business-documents');
-    await page.reload();
-    const result = await documentsResponse;
-    if (result.status !== 200) return false;
-    orderSummaryPdf = result.body.items.find((document) =>
-      document.subjectType === 'SALES_ORDER'
-        && document.subjectId === salesOrder.id
-        && document.documentType === 'ORDER_SUMMARY'
-        && document.format === 'PDF'
-        && document.status === 'GENERATED');
-    return Boolean(orderSummaryPdf);
-  }, { timeout: 60_000, intervals: [1_000, 2_000, 3_000] })
-    .toBe(true, 'A running canonical outbox/document worker and active private object storage must produce a downloadable order summary for a confirmed order.');
-  expect(orderSummaryPdf.storageObjectKey).toBeTruthy();
 
   const documentLink = page.locator(`a.document-link[href="/documents/${orderSummaryPdf.id}"]`);
   await expect(documentLink).toBeVisible();
@@ -288,7 +371,12 @@ test('submits a real Buyer request, converts it through Sales, and starts Wareho
   await expect(page.getByRole('heading', { name: 'Sales order document' })).toBeVisible();
 
   const documentDownloadEvent = page.waitForEvent('download');
-  const documentDownloadResponse = waitForApiResponse(page, 'GET', `/business-documents/${orderSummaryPdf.id}/downloads`);
+  const documentDownloadResponse = waitForApiResponse(
+    page,
+    'GET',
+    `/business-documents/${orderSummaryPdf.id}/downloads`,
+    { parseJson: false },
+  );
   await page.getByRole('button', { name: 'Download document' }).click();
   const [download, downloadedResponse] = await Promise.all([documentDownloadEvent, documentDownloadResponse]);
   expect(downloadedResponse.status).toBe(200);

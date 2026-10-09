@@ -5,7 +5,7 @@ import {
   BuyerReceivablesStore,
   BuyerCreditStore,
 } from "../../contexts/credit-receivables/application/public-api";
-import { BuyerPaymentHistoryStore } from "../../contexts/payments/application/public-api";
+import { BuyerPaymentHistoryStore, BuyerBankTransferStore } from "../../contexts/payments/application/public-api";
 @Component({
   selector: "portal-buyer-wallet",
   imports: [DatePipe, NexaButton, NexaSurface],
@@ -16,9 +16,11 @@ export class BuyerWalletPageComponent {
   protected readonly credit = inject(BuyerCreditStore);
   protected readonly receivables = inject(BuyerReceivablesStore);
   protected readonly payments = inject(BuyerPaymentHistoryStore);
+  protected readonly transfer = inject(BuyerBankTransferStore);
   constructor() {
     void this.credit.load();
     this.payments.clear();
+    this.transfer.clear();
     void this.receivables.load();
   }
   protected paymentPageBy(delta: number): void {

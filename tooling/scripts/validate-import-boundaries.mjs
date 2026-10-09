@@ -304,6 +304,7 @@ export function inspectImportBoundaries(sources) {
             ['apps/portal/src/app/contexts/catalog-commercial-policy/application/public-api.ts', 'PORTAL_CATALOG_ROUTES'],
             ['apps/portal/src/app/contexts/sales-commitment/application/public-api.ts', 'PORTAL_SALES_COMMITMENT_ROUTES'],
             ['apps/portal/src/app/contexts/business-documents/application/public-api.ts', 'PORTAL_BUSINESS_DOCUMENT_ROUTES'],
+            ['apps/portal/src/app/contexts/fulfillment-delivery/application/public-api.ts', 'PORTAL_DELIVERY_ROUTES'],
           ]);
           const expectedPortalExport = portalRouteEntrypoints.get(target);
           const isPortalRouteComposition = isPortalAppRoutes && targetApplicationContext.application === 'portal' && expectedPortalExport !== undefined;

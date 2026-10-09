@@ -4,6 +4,13 @@ import {
   getPlatformWorkspaceSlug,
 } from "../../tooling/playwright/local-environment.mjs";
 
+const apiOriginPattern = /^http:\/\/(?:localhost|127\.0\.0\.1):(?:4200|4300)\/api\/v1\//;
+const apiResponseCaptures = new WeakMap();
+
+test.beforeEach(async ({ page }) => {
+  await installApiResponseCapture(page);
+});
+
 test.afterEach(async ({ page }) => {
   for (const label of ["Password", "Email", "Workspace address"]) {
     const field = page.getByLabel(label);
@@ -11,13 +18,54 @@ test.afterEach(async ({ page }) => {
   }
 });
 
-async function apiResponse(page, path) {
-  const response = await page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === path &&
-      response.request().method() === "GET",
-  );
-  return { status: response.status(), body: await response.json() };
+async function installApiResponseCapture(page) {
+  if (apiResponseCaptures.has(page)) return;
+
+  const waiters = new Set();
+  apiResponseCaptures.set(page, waiters);
+  await page.route(apiOriginPattern, async (route) => {
+    const request = route.request();
+    const waiter = [...waiters].find((candidate) => candidate.predicate(request));
+    if (!waiter) {
+      await route.continue();
+      return;
+    }
+    waiters.delete(waiter);
+
+    try {
+      const upstream = await route.fetch();
+      let body = null;
+      let parseError;
+      if (waiter.parseJson && upstream.status() !== 204) {
+        try {
+          body = await upstream.json();
+        } catch (error) {
+          parseError = error;
+        }
+      }
+
+      await route.fulfill({ response: upstream });
+      if (parseError) waiter.reject(parseError);
+      else waiter.resolve({ status: upstream.status(), body });
+    } catch (error) {
+      await route.abort("failed").catch(() => {});
+      waiter.reject(error);
+    }
+  });
+}
+
+function apiResponse(page, path, method = "GET", { parseJson = true } = {}) {
+  const waiters = apiResponseCaptures.get(page);
+  if (!waiters) throw new Error("The real API response capture must be installed before waiting.");
+  return new Promise((resolve, reject) => {
+    waiters.add({
+      predicate: (request) =>
+        new URL(request.url()).pathname === path && request.method() === method,
+      parseJson,
+      resolve,
+      reject,
+    });
+  });
 }
 
 async function signInBuyer(page) {
@@ -27,15 +75,15 @@ async function signInBuyer(page) {
     page.getByRole("heading", { name: "Sign in to your workspace" }),
   ).toBeVisible();
   await page.getByLabel("Workspace address").fill(getPlatformWorkspaceSlug());
-  const previewResponse = page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === "/api/v1/auth/workspace-previews" &&
-      response.request().method() === "POST",
+  const previewResponse = apiResponse(
+    page,
+    "/api/v1/auth/workspace-previews",
+    "POST",
   );
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   const preview = await previewResponse;
-  expect(preview.status()).toBe(200);
-  expect((await preview.json()).recognized).toBe(true);
+  expect(preview.status).toBe(200);
+  expect(preview.body.recognized).toBe(true);
   await expect(
     page.getByRole("button", { name: "Sign in", exact: true }),
   ).toBeVisible();

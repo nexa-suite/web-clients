@@ -3,7 +3,7 @@
 </ng-template>
 
 @if (routerLink(); as link) {
-  <a class="nexa-button" [class]="classes()" [routerLink]="linkDisabled() ? null : link" [attr.aria-label]="ariaLabel()" [attr.aria-busy]="loading()" [attr.aria-disabled]="linkDisabled() ? 'true' : null" [attr.tabindex]="linkDisabled() ? -1 : null" (click)="guardLink($event)" (keydown.enter)="guardLink($event)" (keydown.space)="guardLink($event)">
+  <a class="nexa-button" [class]="classes()" [routerLink]="linkDisabled() ? null : link" [queryParams]="queryParams()" [attr.aria-label]="ariaLabel()" [attr.aria-busy]="loading()" [attr.aria-disabled]="linkDisabled() ? 'true' : null" [attr.tabindex]="linkDisabled() ? -1 : null" (click)="guardLink($event)" (keydown.enter)="guardLink($event)" (keydown.space)="guardLink($event)">
     @if (loading()) { <span class="spinner" aria-hidden="true"></span> }
     <ng-container [ngTemplateOutlet]="content" />
   </a>
