@@ -45,7 +45,10 @@ export type {
   ProblemDetail,
 } from "./lib/http/problem-details";
 export { NexaBuyerRelationshipsApi } from "./lib/contexts/customer-buyer-relationships/infrastructure/buyer-relationships-api";
-export type { CurrentBuyerAccountResponse } from "./lib/contexts/customer-buyer-relationships/contracts/buyer-account.contracts";
+export type {
+  CurrentBuyerAccountResponse,
+  BuyerAddressResponse,
+} from "./lib/contexts/customer-buyer-relationships/contracts/buyer-account.contracts";
 export { NexaBuyerCatalogApi } from "./lib/contexts/catalog-commercial-policy/infrastructure/buyer-catalog-api";
 export type {
   BuyerCatalogQuery,
@@ -56,3 +59,22 @@ export type {
 } from "./lib/contexts/catalog-commercial-policy/contracts/buyer-catalog.contracts";
 
 export { normalizeNexaApiBaseUrl } from "./lib/http/api-base-url";
+
+export { NexaReceivablesApi } from "./lib/contexts/credit-receivables/infrastructure/receivables-api";
+export type {
+  BuyerCreditExposureResponse,
+  ReceivableResponse,
+  ReceivablesPageResponse,
+} from "./lib/contexts/credit-receivables/contracts/receivables.contracts";
+export { NexaPaymentHistoryApi } from "./lib/contexts/payments/infrastructure/payment-history-api";
+export type {
+  PaymentHistoryResponse,
+  PaymentHistoryPageResponse,
+} from "./lib/contexts/payments/contracts/payment-history.contracts";
+
+export * from "./lib/contexts/business-documents/public-api";
+export * from "./lib/contexts/sales-commitment/public-api";
+
+export * from "./lib/queries/fulfillment-readiness/public-api";
+export * from "./lib/contexts/fulfillment-delivery/public-api";
+export { NexaCommandRetryStore } from "./lib/http/command-retry-store";

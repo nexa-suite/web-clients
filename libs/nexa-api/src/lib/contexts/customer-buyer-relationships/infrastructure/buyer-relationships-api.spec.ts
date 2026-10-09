@@ -31,4 +31,25 @@ describe("NexaBuyerRelationshipsApi", () => {
     expect(membership).toBe("membership-1");
     http.verify();
   });
+  it("encodes the server-resolved account address path and retains bearer authority", () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideNexaHttp({ apiBaseUrl: "/api/v1", surface: "PORTAL" }),
+        provideHttpClientTesting(),
+      ],
+    });
+    const http = TestBed.inject(HttpTestingController);
+    TestBed.inject(NexaAccessTokenStore).set("current-buyer-token");
+    TestBed.inject(NexaBuyerRelationshipsApi)
+      .listAccountAddresses("account/a")
+      .subscribe();
+    const request = http.expectOne(
+      "/api/v1/client-accounts/account%2Fa/addresses",
+    );
+    expect(request.request.headers.get("Authorization")).toBe(
+      "Bearer current-buyer-token",
+    );
+    request.flush([]);
+    http.verify();
+  });
 });
