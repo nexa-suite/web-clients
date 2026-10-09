@@ -126,7 +126,13 @@
                 <dd>{{ currentOrder?.number || candidate.number }}</dd>
               </div>
               <div>
-                <dt>Status</dt>
+                <dt>
+                  {{
+                    currentOrder
+                      ? "Sales Order status"
+                      : "Fulfillment readiness"
+                  }}
+                </dt>
                 <dd>{{ currentOrder?.status || candidate.status }}</dd>
               </div>
               <div>
@@ -215,7 +221,7 @@
               </p>
             }
 
-            @if ((currentOrder?.status || candidate.status) !== "CONFIRMED") {
+            @if (currentOrder && currentOrder.status !== "CONFIRMED") {
               <p class="fulfillment-hint">
                 This order is no longer confirmed. Refresh its current state
                 before starting fulfillment.

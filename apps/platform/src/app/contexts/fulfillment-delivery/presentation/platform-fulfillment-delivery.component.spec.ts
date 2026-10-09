@@ -35,7 +35,7 @@ describe("PlatformFulfillmentDeliveryComponent", () => {
         id: "order-1",
         number: "SO-1001",
         clientAccountId: "client-1",
-        status: "CONFIRMED",
+        status: "AWAITING_INVENTORY_RESERVATION",
         version: 4,
         lines: [
           {
@@ -248,7 +248,7 @@ describe("PlatformFulfillmentDeliveryComponent", () => {
     vi.unstubAllGlobals();
   });
 
-  it("shows confirmed mobile-created orders beside warehouse work and dispatch readiness", () => {
+  it("shows confirmed-order candidates beside warehouse work and dispatch readiness", () => {
     const fixture = TestBed.createComponent(
       PlatformFulfillmentDeliveryComponent,
     );
@@ -352,7 +352,7 @@ describe("PlatformFulfillmentDeliveryComponent", () => {
     expect(startFulfillment).not.toHaveBeenCalled();
   });
 
-  it("starts warehouse-visible orders from their candidate version without requiring Sales Order detail access", () => {
+  it("starts confirmed candidates using their safe version when Sales detail is outside the read scope", () => {
     sessionState.set({
       status: "authenticated",
       session: {
@@ -370,6 +370,15 @@ describe("PlatformFulfillmentDeliveryComponent", () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain("SO-1001");
+    expect(fixture.nativeElement.textContent).toContain(
+      "Fulfillment readiness",
+    );
+    expect(fixture.nativeElement.textContent).toContain(
+      "AWAITING_INVENTORY_RESERVATION",
+    );
+    expect(fixture.nativeElement.textContent).not.toContain(
+      "This order is no longer confirmed",
+    );
     expect(fixture.nativeElement.textContent).toContain(
       "full Sales Order detail is outside its read scope",
     );

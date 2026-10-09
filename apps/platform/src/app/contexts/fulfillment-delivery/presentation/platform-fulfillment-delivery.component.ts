@@ -195,13 +195,17 @@ export class PlatformFulfillmentDeliveryComponent implements OnInit {
 
   protected readonly canStartFulfillment = computed(() => {
     const page = this.state();
+    const order = page.order;
+    // The candidate query already filters to confirmed orders. Its status is a
+    // fulfillment-readiness value, so only a loaded Sales Order detail can
+    // invalidate the confirmed-state assumption.
     return (
       page.lease !== null &&
       this.hasFulfillmentManage() &&
-      page.order.status === "ready" &&
-      page.order.ifMatch !== null &&
-      (page.order.currentOrder?.status ?? page.order.candidate.status) ===
-        "CONFIRMED" &&
+      order.status === "ready" &&
+      order.ifMatch !== null &&
+      (order.currentOrder === null ||
+        order.currentOrder.status === "CONFIRMED") &&
       page.start.status !== "submitting" &&
       page.start.status !== "success"
     );
