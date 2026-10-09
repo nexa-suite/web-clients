@@ -1,6 +1,6 @@
 import { signal, type WritableSignal } from "@angular/core";
 import { TestBed, type ComponentFixture } from "@angular/core/testing";
-import { provideRouter } from "@angular/router";
+import { Router, provideRouter } from "@angular/router";
 import { Subject, of } from "rxjs";
 import type { AccessContextResponse, SessionResponse } from "@nexa/api";
 import {
@@ -184,5 +184,22 @@ describe("PlatformActiveContextComponent", () => {
     sessionState.set({ status: "authenticated", session: switchedSession });
     selection.next(switchedSession);
     selection.complete();
+  });
+  it("returns to sign-in after the active session becomes unavailable", async () => {
+    sessionState.set({ status: "unauthenticated" });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, "navigateByUrl").mockResolvedValue(true);
+    const button = fixture.nativeElement.querySelector(
+      "nexa-button a",
+    ) as HTMLAnchorElement;
+    expect(button.textContent).toContain("Return to sign in");
+    button.click();
+    expect(navigate).toHaveBeenCalledOnce();
+    const target = navigate.mock.calls[0][0];
+    expect(
+      typeof target === "string" ? target : router.serializeUrl(target),
+    ).toBe("/sign-in");
   });
 });
