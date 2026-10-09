@@ -110,6 +110,43 @@ test("uses server Buyer eligibility, commercial catalog facts, and cookie-backed
   await expect(page.getByTestId("portal-catalog-detail-heading")).toHaveText(
     item.itemName,
   );
+  const credit = apiResponse(
+    page,
+    "/api/v1/client-accounts/me/credit-exposure",
+  );
+  const receivables = apiResponse(page, "/api/v1/receivables");
+  await page.getByRole("link", { name: "My wallet", exact: true }).click();
+  const [creditResponse, receivablesResponse] = await Promise.all([
+    credit,
+    receivables,
+  ]);
+  expect([creditResponse.status, receivablesResponse.status]).toEqual([
+    200, 200,
+  ]);
+  await expect(
+    page.getByRole("heading", { name: "My wallet", exact: true }),
+  ).toBeVisible();
+  const creditFact = (label) =>
+    page
+      .locator("dl")
+      .filter({ has: page.getByText("Credit account", { exact: true }) })
+      .locator("dt")
+      .filter({ hasText: new RegExp(`^${label}$`) })
+      .locator("+ dd");
+  await expect(creditFact("Credit limit")).toHaveText(
+    `${creditResponse.body.currency} ${creditResponse.body.creditLimit}`,
+  );
+  await expect(creditFact("Available credit")).toHaveText(
+    `${creditResponse.body.currency} ${creditResponse.body.availableCredit}`,
+  );
+  const documents = apiResponse(page, "/api/v1/business-documents");
+  await page.getByRole("link", { name: "Documents", exact: true }).click();
+  const documentsResponse = await documents;
+  expect(documentsResponse.status).toBe(200);
+  expect(Array.isArray(documentsResponse.body.items)).toBe(true);
+  await expect(
+    page.getByTestId("portal-business-documents-page"),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Sign in to your workspace" }),
