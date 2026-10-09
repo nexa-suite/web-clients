@@ -1,0 +1,241 @@
+<section class="context-page" aria-labelledby="context-title">
+  @if (session(); as currentSession) {
+    <header class="context-heading">
+      <p class="section-kicker">SESSION CONTEXT</p>
+      <h1 id="context-title">Active business context</h1>
+      <p>
+        The identity, Tenant, Workspace and membership below come from the
+        current API session.
+      </p>
+      <p class="context-boundary">
+        This page displays the context returned by the current API session. The
+        API lists eligible contexts and validates any context change.
+      </p>
+    </header>
+
+    <div class="context-grid">
+      <nexa-surface>
+        <h2>Current session</h2>
+        <dl class="session-values">
+          <div>
+            <dt>Identity</dt>
+            <dd>
+              {{
+                apiValue(
+                  currentSession.user?.displayName || currentSession.user?.email
+                )
+              }}
+            </dd>
+          </div>
+          <div>
+            <dt>User ID</dt>
+            <dd>{{ apiValue(currentSession.user?.userId) }}</dd>
+          </div>
+          <div>
+            <dt>Tenant ID</dt>
+            <dd>{{ apiValue(currentSession.tenant?.tenantId) }}</dd>
+          </div>
+          <div>
+            <dt>Tenant slug</dt>
+            <dd>{{ apiValue(currentSession.tenant?.tenantSlug) }}</dd>
+          </div>
+          <div>
+            <dt>Workspace ID</dt>
+            <dd>{{ apiValue(currentSession.workspace?.workspaceId) }}</dd>
+          </div>
+          <div>
+            <dt>Workspace slug</dt>
+            <dd>{{ apiValue(currentSession.workspace?.workspaceSlug) }}</dd>
+          </div>
+          <div>
+            <dt>Membership ID</dt>
+            <dd>{{ apiValue(currentSession.membership?.membershipId) }}</dd>
+          </div>
+          <div>
+            <dt>API surface</dt>
+            <dd>{{ apiValue(currentSession.surface) }}</dd>
+          </div>
+        </dl>
+      </nexa-surface>
+
+      <nexa-surface tone="soft">
+        <h2>Select active context</h2>
+        <p class="section-note">
+          Choose a Tenant and Workspace returned by the API. The API validates
+          access and issues the replacement session.
+        </p>
+        @let contextList = accessContextList();
+        @switch (contextList.status) {
+          @case ("idle") {
+            <p role="status" aria-live="polite">
+              Waiting for the authenticated Platform session.
+            </p>
+          }
+          @case ("loading") {
+            <p role="status" aria-live="polite">
+              Loading eligible business contexts…
+            </p>
+          }
+          @case ("error") {
+            <div class="context-request-error" role="alert">
+              <p>{{ contextList.message }}</p>
+              <nexa-button
+                variant="secondary"
+                size="compact"
+                (click)="retryAccessContexts()"
+                >Try again</nexa-button
+              >
+            </div>
+          }
+          @case ("ready") {
+            @if (contextList.contexts.length === 0) {
+              <p class="empty-value">
+                The API returned no eligible contexts for selection.
+              </p>
+            } @else {
+              <form
+                class="context-selection-form"
+                (submit)="switchContext($event)"
+              >
+                <label for="eligible-context">Eligible business context</label>
+                <select
+                  id="eligible-context"
+                  data-testid="eligible-context-select"
+                  name="membershipId"
+                  required
+                  [value]="selectedMembershipId()"
+                  [disabled]="selectionPending()"
+                  aria-describedby="eligible-context-help"
+                  (change)="selectMembership($event)"
+                >
+                  <option value="" disabled>Choose a business context</option>
+                  @for (
+                    context of contextList.contexts;
+                    track context.membershipId
+                  ) {
+                    <option [value]="context.membershipId">
+                      {{ context.tenantName }} ({{ context.tenantSlug }}) —
+                      {{ context.workspaceName }} ({{ context.workspaceSlug }})
+                    </option>
+                  }
+                </select>
+                <p id="eligible-context-help" class="section-note">
+                  Your current context is shown above. The API will revalidate
+                  the selected membership before changing scope.
+                </p>
+                @if (selectionError(); as message) {
+                  <div class="context-request-error" role="alert">
+                    <p>{{ message }}</p>
+                    <nexa-button
+                      variant="secondary"
+                      size="compact"
+                      (click)="retryAccessContexts()"
+                      >Refresh eligible contexts</nexa-button
+                    >
+                  </div>
+                }
+                @if (selectionPending()) {
+                  <p role="status" aria-live="polite">
+                    The API is validating the selected context…
+                  </p>
+                }
+                <nexa-button
+                  data-testid="select-access-context-button"
+                  type="submit"
+                  variant="secondary"
+                  size="compact"
+                  [disabled]="!canSelectContext()"
+                  [loading]="selectionPending()"
+                >
+                  Use this context
+                </nexa-button>
+              </form>
+            }
+          }
+        }
+      </nexa-surface>
+
+      <nexa-surface tone="soft">
+        <h2>API roles</h2>
+        <p class="section-note">
+          Role strings are displayed as returned. Any actor label is
+          informational and does not authorize client actions.
+        </p>
+        @if (apiRoles(); as roleState) {
+          @switch (roleState.status) {
+            @case ("not-supplied") {
+              <p class="empty-value">
+                The API session did not include a roles field.
+              </p>
+            }
+            @case ("empty") {
+              <p class="empty-value">The API returned no role entries.</p>
+            }
+            @case ("provided") {
+              <ul class="api-values" data-testid="api-roles">
+                @for (role of roleState.values; track role.apiRole) {
+                  <li>
+                    <code>{{ role.apiRole }}</code>
+                    @if (role.canonicalActorName) {
+                      <span>Label only: {{ role.canonicalActorName }}</span>
+                    } @else {
+                      <span class="unmapped-role"
+                        >No canonical Platform actor mapping is defined for this
+                        API role.</span
+                      >
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          }
+        }
+      </nexa-surface>
+
+      <nexa-surface>
+        <h2>API permissions</h2>
+        <p class="section-note">
+          Permission strings are displayed as returned by the API. Server
+          authorization remains authoritative.
+        </p>
+        @if (apiPermissions(); as permissionState) {
+          @switch (permissionState.status) {
+            @case ("not-supplied") {
+              <p class="empty-value">
+                The API session did not include a permissions field.
+              </p>
+            }
+            @case ("empty") {
+              <p class="empty-value">The API returned no permission entries.</p>
+            }
+            @case ("provided") {
+              <ul class="api-values" data-testid="api-permissions">
+                @for (permission of permissionState.values; track permission) {
+                  <li>
+                    <code>{{ permission }}</code>
+                  </li>
+                }
+              </ul>
+            }
+          }
+        }
+      </nexa-surface>
+    </div>
+  } @else if (
+    sessionStatus() === "unauthenticated" || sessionStatus() === "error"
+  ) {
+    <div class="context-session-error" role="alert">
+      <p>
+        {{
+          selectionError() ||
+            "The current Platform session could not be verified. Sign in again to continue."
+        }}
+      </p>
+      <nexa-button variant="secondary" size="compact" routerLink="/sign-in"
+        >Return to sign in</nexa-button
+      >
+    </div>
+  } @else {
+    <p role="status">Loading the current API session.</p>
+  }
+</section>

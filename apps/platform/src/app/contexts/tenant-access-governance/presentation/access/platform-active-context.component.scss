@@ -51,6 +51,55 @@
   font: 700 var(--nexa-font-size-lg) / 1.3 var(--nexa-font-family-display);
 }
 
+.context-selection-form {
+  display: grid;
+  gap: var(--nexa-space-3);
+}
+
+.context-selection-form label {
+  color: var(--nexa-color-text-primary);
+  font-size: var(--nexa-font-size-sm);
+  font-weight: 600;
+}
+
+.context-selection-form select {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--nexa-control-height-lg);
+  border: 1px solid var(--nexa-color-border-interactive);
+  border-radius: var(--nexa-radius-control);
+  padding-inline: var(--nexa-space-3);
+  color: var(--nexa-color-text-primary);
+  background: var(--nexa-surface-card);
+  font: inherit;
+}
+
+.context-selection-form select:focus-visible {
+  outline: none;
+  box-shadow: var(--nexa-focus-ring);
+}
+
+.context-selection-form select:disabled {
+  color: var(--nexa-color-text-muted);
+  background: var(--nexa-surface-inset);
+  cursor: not-allowed;
+}
+
+.context-request-error,
+.context-session-error {
+  display: grid;
+  justify-items: start;
+  gap: var(--nexa-space-3);
+}
+
+.context-request-error p,
+.context-session-error p {
+  margin: 0;
+  color: var(--nexa-color-danger-text);
+  font-size: var(--nexa-font-size-sm);
+  line-height: 1.5;
+}
+
 .section-note,
 .empty-value {
   margin: 0 0 var(--nexa-space-3);

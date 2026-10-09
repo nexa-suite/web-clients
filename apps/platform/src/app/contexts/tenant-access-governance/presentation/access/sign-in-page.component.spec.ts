@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import type { WorkspacePreviewResponse } from '@nexa/api';
 import { Subject } from 'rxjs';
-import { PlatformSessionStore, type PlatformSessionState } from '../../core/platform-session.store';
+import { PlatformSessionStore, type PlatformSessionState } from '../../application/platform-session.store';
 import { SignInPageComponent } from './sign-in-page.component';
 
 describe('SignInPageComponent', () => {

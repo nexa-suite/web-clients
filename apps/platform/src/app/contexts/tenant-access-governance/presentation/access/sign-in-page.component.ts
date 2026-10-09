@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } 
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NexaButton, NexaLogo, NexaStatusChip, NexaTextField } from 'nexa-ui';
 import type { WorkspacePreviewResponse } from '@nexa/api';
-import { platformApiErrorMessage } from '../../core/platform-api-error-message';
-import { PlatformSessionStore } from '../../core/platform-session.store';
+import { platformApiErrorMessage } from '../../../../core/platform-api-error-message';
+import { PlatformSessionStore } from '../../application/platform-session.store';
 
 @Component({
   selector: 'platform-sign-in-page',

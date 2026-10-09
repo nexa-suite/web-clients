@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
-import { requirePlatformAuthentication, requirePlatformAuthenticationForChild } from '../../core/platform-authentication.guard';
-import { PlatformShellSessionWrapperComponent } from '../../core/platform-shell-session-wrapper.component';
+import { requirePlatformAuthentication, requirePlatformAuthenticationForChild } from '../platform-authentication.guard';
+import { PlatformShellSessionWrapperComponent } from '../platform-shell-session-wrapper.component';
 import { PlatformActiveContextComponent } from './platform-active-context.component';
 import { RecoveryPageComponent } from './recovery-page.component';
 import { SignInPageComponent } from './sign-in-page.component';
@@ -35,7 +35,7 @@ export const accessRoutes: Routes = [
       },
       {
         path: 'operations/overview',
-        loadComponent: () => import('../operations/operations-overview.component')
+        loadComponent: () => import('../../../../features/operations/operations-overview.component')
           .then((module) => module.PlatformOperationsOverviewComponent),
         title: 'Operations overview | Nexa Platform',
       },

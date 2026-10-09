@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateChildFn, CanActivateFn, Router } from '@angular/router';
 import { map } from 'rxjs';
-import { PlatformSessionStore } from './platform-session.store';
+import { PlatformSessionStore } from '../application/platform-session.store';
 
 export const requirePlatformAuthentication: CanActivateFn = (_route, routeState) => {
   const sessions = inject(PlatformSessionStore);

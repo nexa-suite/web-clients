@@ -25,7 +25,7 @@ export const NEXA_REQUEST_POLICY = new HttpContextToken<NexaRequestPolicy>(() =>
 
 export interface NexaApiHttpConfiguration {
   apiBaseUrl: string;
-  surface: string;
+  surface: 'PLATFORM' | 'PORTAL';
   requestTimeoutMs: number;
 }
 
