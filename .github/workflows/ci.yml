@@ -110,7 +110,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: nexa-suite/api
-          ref: d205f5c06a3cc6422e0b9294c669cb5d8049fd2d
+          ref: 66ef0a32fad3ff3c6530f9a8436ff5b6bdcff480
           path: api
 
       - name: Set up Node.js
@@ -136,7 +136,7 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          # The access slice does not exercise object storage; use the API's local filesystem adapter.
+          # Keep generated document artifacts in the ephemeral local filesystem adapter.
           cat > "$RUNNER_TEMP/nexa-api-access.override.yml" <<'YAML'
           services:
             modern-api:
