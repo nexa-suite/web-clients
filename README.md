@@ -17,7 +17,7 @@ This repository owns the shared Angular foundation and the separate Platform and
 - npm test runs library and app unit tests.
 - docker compose up --build serves Platform on port 4200 and Portal on port 4300.
 
-Platform includes the first API-backed access slice: workspace preview, sign-in, cookie-based session restoration, an authentication-only route guard, active API context display and sign-out. Portal remains a neutral application shell. Platform has no post-login context-switch route because the current API contract does not provide one; see [the Platform access traceability record](docs/traceability/platform-access.md) for the story and contract boundaries.
+Platform and Portal remain separate experiences over one shared API authority. The current API supports bearer-authenticated browser context listing and selection; its identity-first sign-in and pre-context ticket flow is NATIVE-only. See the [canonical context coverage map](docs/architecture/canonical-context-coverage.md) for the inspected AS-IS Web baseline, TARGET coverage and contract boundaries.
 
 The consolidated static `web-clients` application provides the public password
 reset route at `/reset-password`. Its API boundary and Pages deployment

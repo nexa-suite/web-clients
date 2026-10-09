@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validateRepositoryImportBoundaries } from './validate-import-boundaries.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const errors = [];
@@ -48,8 +49,8 @@ assert(
 );
 
 const platformRoutes = read(platform.sourceRoot + '/app/app.routes.ts');
-const accessRoutes = read('apps/platform/src/app/features/access/access.routes.ts');
-const authenticationGuard = read('apps/platform/src/app/core/platform-authentication.guard.ts');
+const accessRoutes = read('apps/platform/src/app/contexts/tenant-access-governance/presentation/access/access.routes.ts');
+const authenticationGuard = read('apps/platform/src/app/contexts/tenant-access-governance/presentation/platform-authentication.guard.ts');
 const portalRoutes = read(portal.sourceRoot + '/app/app.routes.ts');
 assert(/accessRoutes/.test(platformRoutes), 'Platform must mount its access feature routes.');
 assert(/path:\s*'sign-in'/.test(accessRoutes), 'Platform must provide its public sign-in route.');
@@ -63,6 +64,10 @@ const uiPublicApi = read('libs/nexa-ui/src/public-api.ts');
 const uiPackage = JSON.parse(read('libs/nexa-ui/ng-package.json'));
 assert(uiPublicApi.length > 0, 'The shared UI public API must be present.');
 assert(uiPackage.lib?.entryFile === 'src/public-api.ts', 'The shared UI package must build from its public API.');
+const apiPublicApi = read('libs/nexa-api/src/public-api.ts');
+const apiPackage = JSON.parse(read('libs/nexa-api/ng-package.json'));
+assert(apiPublicApi.length > 0, 'The shared API public API must be present.');
+assert(apiPackage.lib?.entryFile === 'src/public-api.ts', 'Applications must consume the shared API public entrypoint.');
 
 for (const file of [
   'tokens/primitive.tokens.json',
@@ -108,7 +113,7 @@ for (const { file, source } of appText.filter(({ file }) => file.endsWith('.ts')
   assert(!primitiveSelector.test(source), relative(root, file) + ' must not define a duplicate shared primitive.');
 }
 
-const authContracts = read('libs/nexa-api/src/lib/contracts/authentication.contracts.ts');
+const authContracts = read('libs/nexa-api/src/lib/contexts/tenant-access-governance/contracts/authentication.contracts.ts');
 for (const path of [
   "workspacePreview: '/auth/workspace-previews'",
   "signIn: '/authentication/sign-in'",
@@ -122,6 +127,8 @@ assert(
   !/localStorage|sessionStorage|indexedDB|document\.cookie/.test(read('libs/nexa-api/src/lib/http/access-token.store.ts')),
   'The access token store must remain in memory.',
 );
+
+errors.push(...validateRepositoryImportBoundaries(root));
 
 if (errors.length) {
   console.error('Foundation architecture check failed:\n' + errors.map((error) => '- ' + error).join('\n'));

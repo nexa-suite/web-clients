@@ -74,6 +74,18 @@ test('uses the live API for preview, sign in, restored session, and sign out', a
   await expect(page.getByTestId('api-permissions').locator('code').first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
 
+  const eligibleContext = page.getByLabel('Eligible business context');
+  await expect(eligibleContext).toBeVisible();
+  const currentMembership = await eligibleContext.inputValue();
+  expect(Boolean(currentMembership)).toBe(true);
+  const selectionResponse = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === '/api/v1/me/access-context-selections'
+      && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Use this context' }).click();
+  expect((await selectionResponse).status()).toBe(200);
+  await expect(page.getByRole('button', { name: 'Use this context' })).toBeEnabled();
+  await expect(eligibleContext).toHaveValue(currentMembership);
+
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Active business context' })).toBeVisible();
   await expect(page.getByTestId('api-roles').locator('code').first()).toBeVisible();
