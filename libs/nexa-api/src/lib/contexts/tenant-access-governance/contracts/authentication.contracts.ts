@@ -8,6 +8,8 @@ export const NEXA_AUTH_API_PATHS = {
   refresh: '/authentication/refresh',
   signOut: '/authentication/sign-out',
   session: '/session',
+  accessContexts: '/me/access-contexts',
+  accessContextSelections: '/me/access-context-selections',
 } as const;
 
 export interface WorkspacePreviewRequest {
@@ -114,29 +116,20 @@ export interface MembershipContext {
   authorizationVersion?: number;
 }
 
-export interface ProblemDetail {
-  type?: string;
-  title?: string;
-  status?: number;
-  detail?: string;
-  instance?: string;
-  properties?: Readonly<Record<string, unknown>>;
+export interface AccessContextResponse {
+  membershipId: string;
+  tenantId: string;
+  tenantName: string;
+  tenantSlug: string;
+  workspaceId: string;
+  workspaceName: string;
+  workspaceSlug: string;
 }
 
-export interface NexaProblemDetail extends ProblemDetail {
-  code: string;
-  correlationId: string;
-  category: string;
-  retryable: boolean;
-  traceId?: string;
-  errors?: readonly Readonly<Record<string, unknown>>[];
+export interface AccessContextsResponse {
+  accessContexts: readonly AccessContextResponse[];
 }
 
-export interface ApiProblemDetails extends ProblemDetail {
-  code?: string;
-  correlationId?: string;
-  category?: string;
-  retryable?: boolean;
-  traceId?: string;
-  errors?: readonly Readonly<Record<string, unknown>>[];
+export interface SelectAccessContextRequest {
+  membershipId: string;
 }

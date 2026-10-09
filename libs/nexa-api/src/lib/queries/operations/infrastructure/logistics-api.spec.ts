@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { NexaLogisticsApi } from './logistics-api';
-import { provideNexaHttp } from '../http/nexa-http';
+import { provideNexaHttp } from '../../../http/nexa-http';
 
 describe('NexaLogisticsApi', () => {
   let api: NexaLogisticsApi;

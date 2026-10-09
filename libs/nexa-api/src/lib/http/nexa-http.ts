@@ -7,20 +7,25 @@ import {
 } from '@angular/core';
 import {
   HttpInterceptorFn,
+  HttpContextToken,
   provideHttpClient,
   withInterceptors,
 } from '@angular/common/http';
 import { catchError, throwError, timeout } from 'rxjs';
-import {
-  NEXA_AUTH_API_PATHS,
-  NexaSurface,
-} from '../contracts/authentication.contracts';
 import { NexaAccessTokenStore } from './access-token.store';
 import { mapNexaApiError } from './api-error';
 
+export interface NexaRequestPolicy {
+  readonly omitBearer?: boolean;
+  readonly withCredentials?: boolean;
+  readonly headers?: Readonly<Record<string, string>>;
+}
+
+export const NEXA_REQUEST_POLICY = new HttpContextToken<NexaRequestPolicy>(() => ({}));
+
 export interface NexaApiHttpConfiguration {
   apiBaseUrl: string;
-  surface: NexaSurface;
+  surface: string;
   requestTimeoutMs: number;
 }
 
@@ -66,37 +71,19 @@ const nexaApiInterceptor: HttpInterceptorFn = (request, next) => {
     return next(request);
   }
 
-  const normalizedPath = path.replace(/\/+$/, '') || '/';
+  const policy = request.context.get(NEXA_REQUEST_POLICY);
   let headers = request.headers;
-
-  if (normalizedPath === '/authentication/refresh' || normalizedPath === '/authentication/sign-out') {
-    headers = headers.set('X-Nexa-Surface', configuration.surface);
+  for (const [name, value] of Object.entries(policy.headers ?? {})) {
+    headers = headers.set(name, value);
   }
-
   const accessToken = accessTokens.read();
-  const bearerExcludedPaths: readonly string[] = [
-    NEXA_AUTH_API_PATHS.workspacePreview,
-    NEXA_AUTH_API_PATHS.passwordResetRequest,
-    NEXA_AUTH_API_PATHS.passwordReset,
-    NEXA_AUTH_API_PATHS.signIn,
-    NEXA_AUTH_API_PATHS.refresh,
-  ];
-  if (
-    accessToken &&
-    !bearerExcludedPaths.includes(normalizedPath) &&
-    !headers.has('Authorization')
-  ) {
+  if (accessToken && !policy.omitBearer && !headers.has('Authorization')) {
     headers = headers.set('Authorization', 'Bearer ' + accessToken);
   }
 
-  const browserSessionPaths = [
-    '/authentication/sign-in',
-    '/authentication/refresh',
-    '/authentication/sign-out',
-  ];
   const outgoingRequest = request.clone({
     headers,
-    withCredentials: request.withCredentials || browserSessionPaths.includes(normalizedPath),
+    withCredentials: request.withCredentials || policy.withCredentials === true,
   });
 
   return next(outgoingRequest).pipe(

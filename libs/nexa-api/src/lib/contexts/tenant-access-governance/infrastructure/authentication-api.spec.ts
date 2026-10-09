@@ -3,8 +3,8 @@ import {
   HttpTestingController,
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { NexaAccessTokenStore } from '../http/access-token.store';
-import { provideNexaHttp } from '../http/nexa-http';
+import { NexaAccessTokenStore } from '../../../http/access-token.store';
+import { provideNexaHttp } from '../../../http/nexa-http';
 import { NexaAuthenticationApi } from './authentication-api';
 
 describe('NexaAuthenticationApi', () => {
@@ -164,4 +164,31 @@ describe('NexaAuthenticationApi', () => {
     expect(request.request.withCredentials).toBe(true);
     request.flush(null, { status: 204, statusText: 'No Content' });
   });
+  it('lists eligible browser contexts with bearer and surface, without native ticket authority', () => {
+    TestBed.inject(NexaAccessTokenStore).set('current-memory-token');
+    api.listAccessContexts().subscribe();
+    const request = controller.expectOne('http://localhost:8080/api/v1/me/access-contexts');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.headers.get('Authorization')).toBe('Bearer current-memory-token');
+    expect(request.request.headers.get('X-Nexa-Surface')).toBe('PLATFORM');
+    expect(request.request.headers.has('X-Nexa-Context-Ticket')).toBe(false);
+    expect(request.request.headers.has('X-Nexa-Client')).toBe(false);
+    expect(request.request.withCredentials).toBe(false);
+    request.flush({ accessContexts: [] });
+  });
+
+  it('selects browser context with bearer, surface and cookie rotation transport', () => {
+    TestBed.inject(NexaAccessTokenStore).set('current-memory-token');
+    api.selectAccessContext({ membershipId: 'membership-2' }).subscribe();
+    const request = controller.expectOne('http://localhost:8080/api/v1/me/access-context-selections');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ membershipId: 'membership-2' });
+    expect(request.request.headers.get('Authorization')).toBe('Bearer current-memory-token');
+    expect(request.request.headers.get('X-Nexa-Surface')).toBe('PLATFORM');
+    expect(request.request.headers.has('X-Nexa-Context-Ticket')).toBe(false);
+    expect(request.request.headers.has('X-Nexa-Client')).toBe(false);
+    expect(request.request.withCredentials).toBe(true);
+    request.flush({ accessToken: 'selected-memory-token' });
+  });
+
 });

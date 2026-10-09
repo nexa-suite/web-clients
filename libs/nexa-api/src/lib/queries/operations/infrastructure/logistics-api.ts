@@ -5,7 +5,7 @@ import {
   LogisticsOperationsDashboardResponse,
   NEXA_LOGISTICS_API_PATHS,
 } from '../contracts/logistics.contracts';
-import { NEXA_API_HTTP_CONFIGURATION } from '../http/nexa-http';
+import { NEXA_API_HTTP_CONFIGURATION } from '../../../http/nexa-http';
 
 /** Typed browser transport for current Logistics reads. */
 @Injectable({ providedIn: 'root' })
