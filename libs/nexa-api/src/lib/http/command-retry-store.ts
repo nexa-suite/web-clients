@@ -4,6 +4,10 @@ import { Injectable, inject } from "@angular/core";
 const BUYER_SUBMIT_PREFIX = "nexa:buyer:purchase-request-submit:";
 const PLATFORM_REVIEW_PREFIX = "nexa:platform:purchase-request-command:";
 const PLATFORM_FULFILLMENT_PREFIX = "nexa.platform.fulfillment-start:";
+const PLATFORM_ORDER_SUMMARY_PREFIX = "nexa:platform:order-summary-generation:";
+const PLATFORM_FULFILLMENT_COMMAND_PREFIX = "nexa:platform:fulfillment-command:";
+const BUYER_BANK_TRANSFER_PREFIX = "nexa:buyer:bank-transfer:";
+const PLATFORM_MEMBER_INVITATION_PREFIX = "nexa:platform:member-invitation:";
 const MAX_STORAGE_KEY_LENGTH = 2_048;
 const MAX_STORAGE_VALUE_LENGTH = 65_536;
 
@@ -53,7 +57,9 @@ export class NexaCommandRetryStore {
   write(key: string, value: string): void {
     assertAllowedKey(key);
     if (!isAllowedValue(key, value)) {
-      throw new TypeError("The retry value is not an allowed Nexa command payload.");
+      throw new TypeError(
+        "The retry value is not an allowed Nexa command payload.",
+      );
     }
 
     this.memory.set(key, value);
@@ -105,13 +111,28 @@ function allowedPrefixFor(key: string): string | null {
     BUYER_SUBMIT_PREFIX,
     PLATFORM_REVIEW_PREFIX,
     PLATFORM_FULFILLMENT_PREFIX,
+    PLATFORM_ORDER_SUMMARY_PREFIX,
+    PLATFORM_FULFILLMENT_COMMAND_PREFIX,
+    BUYER_BANK_TRANSFER_PREFIX,
+    PLATFORM_MEMBER_INVITATION_PREFIX,
   ].find((candidate) => key.startsWith(candidate));
   if (!prefix) return null;
 
-  const expectedSegments =
-    prefix === PLATFORM_FULFILLMENT_PREFIX ? 6 : 4;
+  const expectedSegments = new Map([
+    [BUYER_SUBMIT_PREFIX, 4],
+    [PLATFORM_REVIEW_PREFIX, 4],
+    [PLATFORM_FULFILLMENT_PREFIX, 6],
+    [PLATFORM_ORDER_SUMMARY_PREFIX, 5],
+    [PLATFORM_FULFILLMENT_COMMAND_PREFIX, 7],
+    [BUYER_BANK_TRANSFER_PREFIX, 6],
+    [PLATFORM_MEMBER_INVITATION_PREFIX, 5],
+  ]).get(prefix);
   const segments = key.slice(prefix.length).split(":");
   if (segments.length !== expectedSegments) return null;
+  if (
+    (prefix === PLATFORM_FULFILLMENT_COMMAND_PREFIX || prefix === BUYER_BANK_TRANSFER_PREFIX || prefix === PLATFORM_MEMBER_INVITATION_PREFIX) &&
+    !/^[a-f0-9]{64}$/.test(segments.at(-1) ?? "")
+  ) return null;
   for (const segment of segments) {
     if (!segment) return null;
     try {
@@ -142,7 +163,13 @@ function isAllowedValue(key: string, value: string): boolean {
   if (key.startsWith(BUYER_SUBMIT_PREFIX)) {
     return /^buyer-pr-submit-[a-z0-9-]{8,256}$/.test(value);
   }
-  if (key.startsWith(PLATFORM_FULFILLMENT_PREFIX)) {
+  if (
+    key.startsWith(PLATFORM_FULFILLMENT_PREFIX) ||
+    key.startsWith(PLATFORM_ORDER_SUMMARY_PREFIX) ||
+    key.startsWith(PLATFORM_FULFILLMENT_COMMAND_PREFIX) ||
+    key.startsWith(BUYER_BANK_TRANSFER_PREFIX) ||
+    key.startsWith(PLATFORM_MEMBER_INVITATION_PREFIX)
+  ) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       value,
     );

@@ -67,6 +67,8 @@ export type {
   ReceivablesPageResponse,
 } from "./lib/contexts/credit-receivables/contracts/receivables.contracts";
 export { NexaPaymentHistoryApi } from "./lib/contexts/payments/infrastructure/payment-history-api";
+export { NexaPaymentCommandsApi } from "./lib/contexts/payments/infrastructure/payment-commands-api";
+export type { BankTransferReportRequest, PaymentResponse } from "./lib/contexts/payments/contracts/payment-command.contracts";
 export type {
   PaymentHistoryResponse,
   PaymentHistoryPageResponse,
@@ -74,7 +76,10 @@ export type {
 
 export * from "./lib/contexts/business-documents/public-api";
 export * from "./lib/contexts/sales-commitment/public-api";
+export * from "./lib/contexts/tenant-access-governance/public-api";
 
 export * from "./lib/queries/fulfillment-readiness/public-api";
 export * from "./lib/contexts/fulfillment-delivery/public-api";
 export { NexaCommandRetryStore } from "./lib/http/command-retry-store";
+export { NexaBuyerDeliveriesApi } from "./lib/contexts/fulfillment-delivery/infrastructure/buyer-deliveries-api";
+export type { BuyerDeliveryResponse, BuyerDeliveryPageResponse, BuyerDeliveryEventResponse } from "./lib/contexts/fulfillment-delivery/contracts/buyer-delivery.contracts";

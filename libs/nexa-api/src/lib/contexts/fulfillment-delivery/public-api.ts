@@ -1,8 +1,19 @@
 export {
   NEXA_FULFILLMENT_DELIVERY_API_PATHS,
+  type AssignDriverRequest,
+  type ConfirmPickingRequest,
+  type DispatchAssigneeResponse,
+  type DispatchRequest,
+  type DispatchWindowPlanRequest,
+  type DispatchWindowPlanResponse,
+  type DriverAssignmentResponse,
   type FulfillmentLineResponse,
+  type FulfillmentResourceResponse,
   type FulfillmentResponse,
   type FulfillmentStatus,
+  type OutgoingGoodsCheckResponse,
+  type RecordOutgoingGoodsCheckRequest,
+  type ResolveShortageRequest,
   type StartFulfillmentResponse,
 } from "./contracts/fulfillment-delivery.contracts";
 export { NexaFulfillmentDeliveryApi } from "./infrastructure/fulfillment-delivery-api";

@@ -1,10 +1,12 @@
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { inject, Injectable } from "@angular/core";
 import { NEXA_API_HTTP_CONFIGURATION } from "../../../http/nexa-http";
 import type {
   BusinessDocumentPageResponse,
+  BusinessDocumentGenerationRequestResponse,
   BusinessDocumentResponse,
   BusinessDocumentsQuery,
+  OrderSummaryPdfGenerationRequest,
 } from "../contracts/business-document.contracts";
 
 const DEFAULT_PAGE_SIZE = 25;
@@ -51,6 +53,22 @@ export class NexaBusinessDocumentsApi {
     );
   }
 
+  requestOrderSummaryPdf(salesOrderId: string, idempotencyKey: string) {
+    const subjectId = requiredDocumentId(salesOrderId);
+    const key = requiredIdempotencyKey(idempotencyKey);
+    const request: OrderSummaryPdfGenerationRequest = {
+      subjectType: "SALES_ORDER",
+      subjectId,
+      documentType: "ORDER_SUMMARY",
+      format: "PDF",
+    };
+    return this.http.post<BusinessDocumentGenerationRequestResponse>(
+      `${this.config.apiBaseUrl}/business-document-generation-requests`,
+      request,
+      { headers: new HttpHeaders({ "Idempotency-Key": key }) },
+    );
+  }
+
   download(documentId: string) {
     const id = requiredDocumentId(documentId);
     return this.http.get(
@@ -64,4 +82,12 @@ function requiredDocumentId(value: string): string {
   const id = value.trim();
   if (!id) throw new Error("Business document ID is required.");
   return id;
+}
+
+function requiredIdempotencyKey(value: string): string {
+  const key = value.trim();
+  if (!key || key.length > 160) {
+    throw new Error("A valid business document idempotency key is required.");
+  }
+  return key;
 }
