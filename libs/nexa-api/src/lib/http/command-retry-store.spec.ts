@@ -97,6 +97,18 @@ describe("NexaCommandRetryStore", () => {
     expect(() => store.write(payment.replace(hash, "raw-reference"), id)).toThrow();
   });
 
+  it("accepts only hashed credit-configuration retry keys with UUID values", () => {
+    const hash = "c".repeat(64);
+    const key = `nexa:platform:credit-configuration:user:tenant:workspace:member:account:PEN:${hash}`;
+    const idempotencyKey = "123e4567-e89b-42d3-a456-426614174000";
+    store.write(key, idempotencyKey);
+
+    expect(store.read(key)).toBe(idempotencyKey);
+    expect(() => store.read(key.replace(hash, "credit-limit-500"))).toThrow();
+    expect(() => store.write(key, '{"creditLimit":500}')).toThrow();
+    expect(() => store.write(key.replace(hash, "a".repeat(63)), idempotencyKey)).toThrow();
+  });
+
   it("keeps an idempotency key in memory when session storage is blocked", () => {
     storage.setItem.mockImplementation(() => {
       throw new DOMException("Storage is unavailable", "SecurityError");

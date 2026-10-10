@@ -1,17 +1,16 @@
-/** Buyer-safe projection; the API filters the account and redacts operational details. */
+/** Buyer-safe Delivery projection; the API derives account scope from authority. */
 export interface BuyerDeliveryResponse {
   readonly id: string;
-  readonly dispatchNumber: string;
-  readonly salesOrderNumber: string | null;
+  readonly salesOrderNumber: string;
   readonly status: string;
   readonly destination: string | null;
-  readonly deliveryWindowStart: string | null;
-  readonly deliveryWindowEnd: string | null;
-  readonly eta: string | null;
-  readonly podStatus: string | null;
+  readonly scheduledAt: string | null;
+  readonly dispatchedAt: string | null;
+  readonly deliveredAt: string | null;
+  readonly proofOfDeliveryStatus: string | null;
+  readonly version: number;
+  readonly createdAt: string;
   readonly updatedAt: string;
-  readonly alerts: readonly string[];
-  readonly continuationDeliveryStatus: string | null;
 }
 export interface BuyerDeliveryPageResponse {
   readonly items: readonly BuyerDeliveryResponse[];
@@ -20,8 +19,6 @@ export interface BuyerDeliveryPageResponse {
   readonly total: number;
 }
 export interface BuyerDeliveryEventResponse {
-  readonly id: string;
   readonly type: string;
   readonly occurredAt: string;
-  readonly summary: string;
 }

@@ -155,6 +155,18 @@ export interface OutgoingGoodsCheckResponse {
   readonly discrepancy: unknown | null;
 }
 
+/** Minimal current Warehouse evidence facts exposed to scoped Dispatch readers. */
+export interface DispatchOutgoingGoodsCheckSummaryResponse {
+  readonly id: string;
+  readonly fulfillmentId: string;
+  readonly fulfillmentVersion: number;
+  readonly physicalAllocationId: string;
+  readonly physicalAllocationVersion: number;
+  readonly matches: boolean;
+  readonly current: boolean;
+  readonly openDiscrepancy: boolean;
+}
+
 export interface DispatchRequest {
   readonly physicalAllocationId: string;
   readonly physicalAllocationVersion: number;

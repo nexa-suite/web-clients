@@ -199,6 +199,6 @@ export interface CreatePurchaseRequestDraftRequest {
 }
 
 export interface SetPurchaseRequestDraftPreferencesRequest {
-  readonly paymentPreference: 'CREDIT_LINE' | 'BANK_TRANSFER' | 'CARD_STRIPE' | 'CASH' | 'CASH_ON_DELIVERY';
+  readonly paymentPreference: 'CREDIT_LINE' | 'BANK_TRANSFER' | 'CARD_STRIPE' | 'CASH' | 'CASH_ON_DELIVERY' | 'WALLET';
   readonly requestedDeliveryDate: string;
 }

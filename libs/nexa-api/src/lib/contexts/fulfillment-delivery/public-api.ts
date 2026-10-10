@@ -3,6 +3,7 @@ export {
   type AssignDriverRequest,
   type ConfirmPickingRequest,
   type DispatchAssigneeResponse,
+  type DispatchOutgoingGoodsCheckSummaryResponse,
   type DispatchRequest,
   type DispatchWindowPlanRequest,
   type DispatchWindowPlanResponse,

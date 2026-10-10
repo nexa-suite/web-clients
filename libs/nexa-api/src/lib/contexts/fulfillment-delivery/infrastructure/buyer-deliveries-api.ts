@@ -8,7 +8,7 @@ export class NexaBuyerDeliveriesApi {
   private readonly http = inject(HttpClient);
   private readonly configuration = inject(NEXA_API_HTTP_CONFIGURATION);
   list(page = 0) {
-    return this.http.get<BuyerDeliveryPageResponse>(`${this.configuration.apiBaseUrl}/dispatch-orders`, { params: { page, size: 25 } });
+    return this.http.get<BuyerDeliveryPageResponse>(`${this.configuration.apiBaseUrl}/buyer/deliveries`, { params: { page, size: 25 } });
   }
   detail(id: string) {
     return this.http.get<BuyerDeliveryResponse>(this.path(id));
@@ -17,7 +17,9 @@ export class NexaBuyerDeliveriesApi {
     return this.http.get<readonly BuyerDeliveryEventResponse[]>(`${this.path(id)}/events`);
   }
   private path(id: string): string {
-    if (!id.trim()) throw new Error("Delivery ID is required.");
-    return `${this.configuration.apiBaseUrl}/dispatch-orders/${encodeURIComponent(id)}`;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      throw new Error("A valid Delivery ID is required.");
+    }
+    return `${this.configuration.apiBaseUrl}/buyer/deliveries/${encodeURIComponent(id)}`;
   }
 }

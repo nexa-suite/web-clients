@@ -6,6 +6,7 @@ import {
   AssignDriverRequest,
   ConfirmPickingRequest,
   DispatchAssigneeResponse,
+  DispatchOutgoingGoodsCheckSummaryResponse,
   DispatchRequest,
   DispatchWindowPlanRequest,
   DispatchWindowPlanResponse,
@@ -149,6 +150,14 @@ export class NexaFulfillmentDeliveryApi {
   ): Observable<FulfillmentResourceResponseFor<OutgoingGoodsCheckResponse> | null> {
     return this.getOptionalResource<OutgoingGoodsCheckResponse>(
       `${this.fulfillmentsPath(fulfillmentId)}/outgoing-checks/current`,
+    );
+  }
+
+  getCurrentDispatchOutgoingGoodsCheckSummary(
+    fulfillmentId: string,
+  ): Observable<FulfillmentResourceResponseFor<DispatchOutgoingGoodsCheckSummaryResponse> | null> {
+    return this.getOptionalResource<DispatchOutgoingGoodsCheckSummaryResponse>(
+      `${this.fulfillmentsPath(fulfillmentId)}/outgoing-checks/current-summary`,
     );
   }
 

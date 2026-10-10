@@ -1,6 +1,8 @@
 export {
   NEXA_API_HTTP_CONFIGURATION,
+  NEXA_REQUEST_POLICY,
   provideNexaHttp,
+  type NexaRequestPolicy,
   type NexaApiHttpConfiguration,
 } from "./lib/http/nexa-http";
 export { NexaAuthenticationApi } from "./lib/contexts/tenant-access-governance/infrastructure/authentication-api";
@@ -66,9 +68,30 @@ export type {
   ReceivableResponse,
   ReceivablesPageResponse,
 } from "./lib/contexts/credit-receivables/contracts/receivables.contracts";
+export { NexaCreditAccountConfigurationApi, NEXA_CREDIT_ACCOUNT_CONFIGURATION_PATHS } from "./lib/contexts/credit-receivables/infrastructure/credit-account-configuration-api";
+export type {
+  ConfigureCreditAccountRequest,
+  ConfiguredCreditAccount,
+  CreditAccountConfigurationResponse,
+  CreditConfigurationCustomerAccount,
+  CreditConfigurationCustomerAccountPage,
+  NotConfiguredCreditAccount,
+} from "./lib/contexts/credit-receivables/contracts/credit-account-configuration.contracts";
 export { NexaPaymentHistoryApi } from "./lib/contexts/payments/infrastructure/payment-history-api";
+export { NexaBuyerWalletApi } from "./lib/contexts/payments/infrastructure/buyer-wallet-api";
 export { NexaPaymentCommandsApi } from "./lib/contexts/payments/infrastructure/payment-commands-api";
 export type { BankTransferReportRequest, PaymentResponse } from "./lib/contexts/payments/contracts/payment-command.contracts";
+export type {
+  BuyerWalletActiveResponse,
+  BuyerWalletMovementPageResponse,
+  BuyerWalletMovementResponse,
+  BuyerWalletNotInitializedResponse,
+  BuyerWalletResponse,
+  BuyerWalletCapabilitiesResponse,
+  BuyerWalletRechargeCreatedResponse,
+  BuyerWalletRechargeStatusResponse,
+  BuyerWalletRechargeStatus,
+} from "./lib/contexts/payments/contracts/buyer-wallet.contracts";
 export type {
   PaymentHistoryResponse,
   PaymentHistoryPageResponse,

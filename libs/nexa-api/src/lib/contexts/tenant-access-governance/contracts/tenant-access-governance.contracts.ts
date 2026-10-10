@@ -15,6 +15,8 @@ export type InternalMembershipRole =
   | "LOGISTICS"
   | "BUSINESS_OPERATIONS_MANAGER";
 
+export type WorkspaceMembershipType = "INTERNAL" | "BUYER" | "SYSTEM_WORKFLOW";
+
 export interface OrganizationSummaryResponse {
   readonly id: string;
   readonly name: string;
@@ -38,6 +40,7 @@ export interface WorkspaceMembershipResponse {
   readonly id: string;
   readonly workspaceId: string;
   readonly userId: string;
+  readonly membershipType: WorkspaceMembershipType;
   readonly email: string;
   readonly displayName: string;
   readonly status: string;

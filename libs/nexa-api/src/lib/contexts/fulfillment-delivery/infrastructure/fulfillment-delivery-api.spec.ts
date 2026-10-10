@@ -58,4 +58,43 @@ describe("NexaFulfillmentDeliveryApi", () => {
       /Idempotency-Key/,
     );
   });
+
+  it("reads the minimal current outgoing-check summary for dispatch", () => {
+    let received: unknown;
+    api
+      .getCurrentDispatchOutgoingGoodsCheckSummary("fulfillment/1")
+      .subscribe((value) => (received = value));
+
+    const request = http.expectOne(
+      "https://api.example.test/api/v1/fulfillments/fulfillment%2F1/outgoing-checks/current-summary",
+    );
+    expect(request.request.method).toBe("GET");
+    request.flush(
+      {
+        id: "check-1",
+        fulfillmentId: "fulfillment/1",
+        fulfillmentVersion: 5,
+        physicalAllocationId: "allocation-1",
+        physicalAllocationVersion: 7,
+        matches: true,
+        current: true,
+        openDiscrepancy: false,
+      },
+      { status: 200, statusText: "OK", headers: { ETag: '"5"' } },
+    );
+
+    expect(received).toEqual({
+      body: {
+        id: "check-1",
+        fulfillmentId: "fulfillment/1",
+        fulfillmentVersion: 5,
+        physicalAllocationId: "allocation-1",
+        physicalAllocationVersion: 7,
+        matches: true,
+        current: true,
+        openDiscrepancy: false,
+      },
+      etag: '"5"',
+    });
+  });
 });
