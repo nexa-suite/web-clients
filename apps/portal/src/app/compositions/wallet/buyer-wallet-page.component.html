@@ -3,9 +3,133 @@
   <p>Your receivables and payment history with this supplier.</p>
   <nexa-button
     variant="secondary"
-    (click)="payments.clear(); receivables.load(); credit.load()"
+    (click)="refresh()"
     >Refresh</nexa-button
   >
+  <section aria-labelledby="wallet-balance-heading" data-testid="buyer-wallet-balance">
+    <h2 id="wallet-balance-heading">Wallet balance</h2>
+    <p>Wallet funds are separate from credit, receivables, and reported transfers.</p>
+    @if (!wallet.canRead()) {
+      <p role="status">Wallet balance requires the payment.read permission for the active membership.</p>
+    } @else if (wallet.state(); as walletState) {
+      @if (walletState.status === "loading") {
+        <p role="status">Loading wallet balance…</p>
+      } @else if (walletState.status === "unavailable") {
+        <p role="alert">{{ walletState.message }}</p>
+      } @else if (walletState.status === "error") {
+        <p role="alert">{{ walletState.message }}</p>
+      } @else if (walletState.wallet.status === "NOT_INITIALIZED") {
+        <nexa-surface>
+          <p>This wallet is not initialized.</p>
+          <p>No wallet balance is available for this account.</p>
+        </nexa-surface>
+      } @else {
+        <nexa-surface>
+          <dl>
+            <dt>Posted balance</dt>
+            <dd>{{ walletState.wallet.currency }} {{ walletState.wallet.postedBalance | number: "1.2-2" }}</dd>
+            <dt>Reserved balance</dt>
+            <dd>{{ walletState.wallet.currency }} {{ walletState.wallet.reservedBalance | number: "1.2-2" }}</dd>
+            <dt>Available balance</dt>
+            <dd>{{ walletState.wallet.currency }} {{ walletState.wallet.availableBalance | number: "1.2-2" }}</dd>
+          </dl>
+          <h3>Wallet movements</h3>
+          @if (walletState.wallet.movements.items.length === 0) {
+            <p>No wallet movements.</p>
+          } @else {
+            <ol>
+              @for (movement of walletState.wallet.movements.items; track $index) {
+                <li>
+                  {{ movement.type }} · {{ movement.amountDelta | number: "1.2-2" }} {{ walletState.wallet.currency }}
+                  · {{ movement.occurredAt | date: "medium" }}
+                </li>
+              }
+            </ol>
+          }
+          @if (walletState.wallet.movements.total > 0) {
+            <nav aria-label="Wallet movement pages">
+              <nexa-button
+                [disabled]="walletState.wallet.movements.page === 0"
+                (click)="walletPageBy(-1)"
+                >Previous movements</nexa-button
+              >
+              <span>Page {{ walletState.wallet.movements.page + 1 }}</span>
+              <nexa-button
+                [disabled]="(walletState.wallet.movements.page + 1) * walletState.wallet.movements.size >= walletState.wallet.movements.total"
+                (click)="walletPageBy(1)"
+                >Next movements</nexa-button
+              >
+            </nav>
+          }
+        </nexa-surface>
+      }
+    } @else {
+      <p role="status">Wallet balance has not been loaded.</p>
+    }
+  </section>
+  <section aria-labelledby="wallet-recharge-heading" data-testid="buyer-wallet-recharge">
+    <h2 id="wallet-recharge-heading">Add funds</h2>
+    <p>Recharge this supplier wallet in PEN. Commercial credit and receivables stay separate.</p>
+    @if (!wallet.canRecharge()) {
+      <p role="status">Wallet recharges require the payment.create permission for the active Buyer membership.</p>
+    } @else {
+      @let rechargeState = wallet.rechargeState();
+      <label for="wallet-recharge-amount">Amount (PEN)</label>
+      <input
+        id="wallet-recharge-amount"
+        type="number"
+        min="0.01"
+        step="0.01"
+        inputmode="decimal"
+        autocomplete="off"
+        [value]="rechargeAmount()"
+        [disabled]="rechargeState?.status === 'creating' || rechargeState?.status === 'pending' || (rechargeState?.status === 'error' && rechargeState.operation === 'create' && rechargeState.retryAllowed)"
+        (input)="rechargeAmount.set($any($event.target).value)"
+      />
+      <nexa-button
+        [disabled]="rechargeState?.status === 'creating' || rechargeState?.status === 'pending' || (rechargeState?.status === 'error' && (rechargeState.operation === 'read' || rechargeState.retryAllowed))"
+        (click)="createRecharge()"
+      >{{ wallet.rechargeState()?.status === "creating" ? "Starting recharge…" : "Start recharge" }}</nexa-button>
+      @if (wallet.rechargeState(); as recharge) {
+        @if (recharge.status === "error") {
+          <p role="alert">{{ recharge.message }}</p>
+          @if (recharge.operation === "create" && recharge.retryAllowed) {
+            <p>Retry amount: {{ recharge.amount | number: "1.2-2" }} PEN.</p>
+            <nexa-button variant="secondary" (click)="wallet.retryRecharge()">Retry this recharge</nexa-button>
+          } @else if (recharge.operation === "read" && wallet.canRead()) {
+            <nexa-button variant="secondary" (click)="wallet.readRechargeStatus()">Check recharge status</nexa-button>
+          }
+        } @else if (recharge.status === "pending" || recharge.status === "final") {
+          <nexa-surface>
+            <p role="status">{{ statusLabel(recharge.recharge.status) }}</p>
+            <p>{{ recharge.recharge.currency }} {{ recharge.recharge.amount | number: "1.2-2" }} · {{ recharge.recharge.createdAt | date: "medium" }}</p>
+            <p>Recharge reference: {{ recharge.recharge.id }}</p>
+            @if (wallet.canRead()) {
+              <nexa-button variant="secondary" (click)="wallet.readRechargeStatus(recharge.recharge.id)">Check recharge status</nexa-button>
+            } @else {
+              <p>Status refresh requires the payment.read permission. This page will not infer payment completion.</p>
+            }
+            @if (recharge.status === "pending" && recharge.recharge.provider.toLowerCase() !== "stripe") {
+              <p>The local provider does not start browser checkout. Use the API host's signed callback harness, then refresh this status. The recharge stays pending until the provider callback confirms it.</p>
+            } @else if (recharge.status === "pending" && recharge.recharge.provider.toLowerCase() === "stripe" && !stripeCheckout()) {
+              <p>Stripe checkout is unavailable because valid browser checkout configuration or the one-time client secret is missing. This recharge stays pending.</p>
+            }
+          </nexa-surface>
+        }
+      }
+      @if (stripeCheckout(); as checkout) {
+        @if (wallet.rechargeState(); as checkoutState) {
+          @if (wallet.canRecharge() && checkoutState.status === "pending" && checkoutState.recharge.id === checkout.rechargeId) {
+            <portal-wallet-stripe-checkout
+              [publishableKey]="checkout.publishableKey"
+              [clientSecret]="checkout.clientSecret"
+              (paymentSubmitted)="paymentSubmitted()"
+            />
+          }
+        }
+      }
+    }
+  </section>
   @if (credit.state(); as state) {
     @if (state.loading) {
       <p role="status">Loading credit…</p>

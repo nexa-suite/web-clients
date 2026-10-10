@@ -17,25 +17,22 @@ import { BuyerDeliveriesStore } from "../application/buyer-deliveries.store";
       @if (state.error) { <p role="alert">{{ state.error }}</p> }
       @if (state.detail; as delivery) {
         <nexa-surface>
-          <h2>{{ delivery.dispatchNumber }}</h2>
+          <h2>Order {{ delivery.salesOrderNumber }}</h2>
           <dl>
-            <dt>Order</dt><dd>{{ delivery.salesOrderNumber }}</dd>
             <dt>Status</dt><dd>{{ delivery.status }}</dd>
             <dt>Destination</dt><dd>{{ delivery.destination ?? "Not available" }}</dd>
-            <dt>Window starts</dt><dd>{{ delivery.deliveryWindowStart ? (delivery.deliveryWindowStart | date: "medium") : "Not scheduled" }}</dd>
-            <dt>Window ends</dt><dd>{{ delivery.deliveryWindowEnd ? (delivery.deliveryWindowEnd | date: "medium") : "Not scheduled" }}</dd>
-            <dt>Estimated arrival</dt><dd>{{ delivery.eta ? (delivery.eta | date: "medium") : "Not available" }}</dd>
-            <dt>Proof of delivery</dt><dd>{{ delivery.podStatus ?? "Not issued" }}</dd>
+            <dt>Scheduled</dt><dd>{{ delivery.scheduledAt ? (delivery.scheduledAt | date: "medium") : "Not scheduled" }}</dd>
+            <dt>Dispatched</dt><dd>{{ delivery.dispatchedAt ? (delivery.dispatchedAt | date: "medium") : "Not available" }}</dd>
+            <dt>Delivered</dt><dd>{{ delivery.deliveredAt ? (delivery.deliveredAt | date: "medium") : "Not available" }}</dd>
+            <dt>Proof of delivery</dt><dd>{{ delivery.proofOfDeliveryStatus ?? "Not available" }}</dd>
             <dt>Updated</dt><dd>{{ delivery.updatedAt | date: "medium" }}</dd>
           </dl>
-          @for (alert of delivery.alerts; track alert) { <p role="status">{{ alert }}</p> }
-          @if (delivery.continuationDeliveryStatus) { <p>Remaining delivery: {{ delivery.continuationDeliveryStatus }}</p> }
         </nexa-surface>
         <h2>Delivery history</h2>
         @if (!state.events.length) { <p>No delivery events available yet.</p> }
         <ol>
-          @for (event of state.events; track event.id) {
-            <li>{{ event.occurredAt | date: "medium" }} · {{ event.summary }}</li>
+          @for (event of state.events; track $index) {
+            <li>{{ event.occurredAt | date: "medium" }} · {{ event.type }}</li>
           }
         </ol>
       }

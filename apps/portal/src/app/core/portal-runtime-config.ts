@@ -9,6 +9,7 @@ export interface PortalRuntimeConfiguration {
 export interface PortalWindow extends Window {
   __NEXA_PORTAL_CONFIG__?: {
     readonly apiBaseUrl?: string;
+    readonly stripePublishableKey?: string;
   };
 }
 
@@ -25,4 +26,16 @@ export function readPortalRuntimeConfiguration(
       : DEFAULT_PORTAL_API_BASE_URL;
 
   return { apiBaseUrl };
+}
+
+/** Reads a browser publishable key only when it has Stripe's public-key shape. */
+export function readPortalStripePublishableKey(
+  browserWindow: PortalWindow | null = typeof window === "undefined"
+    ? null
+    : (window as PortalWindow),
+): string | null {
+  const configured = browserWindow?.__NEXA_PORTAL_CONFIG__?.stripePublishableKey;
+  return typeof configured === "string" && /^pk_(test|live)_[A-Za-z0-9]+$/.test(configured.trim())
+    ? configured.trim()
+    : null;
 }

@@ -8,6 +8,20 @@ import { BuyerDeliveriesStore } from "./buyer-deliveries.store";
 describe("Buyer deliveries authority fencing", () => {
   const lease: PortalSessionLease = { epoch: 1, scope: { userId: "buyer", tenantId: "tenant", workspaceId: "workspace", membershipId: "member", surface: "PORTAL" } };
   const page: BuyerDeliveryPageResponse = { items: [], page: 0, size: 25, total: 0 };
+  const delivery = {
+    id: "00000000-0000-4000-8000-000000000001",
+    salesOrderNumber: "SO-0001",
+    status: "DISPATCHED",
+    destination: "Sucursal principal",
+    scheduledAt: null,
+    dispatchedAt: "2026-10-09T12:00:00Z",
+    deliveredAt: null,
+    proofOfDeliveryStatus: null,
+    version: 3,
+    createdAt: "2026-10-09T11:00:00Z",
+    updatedAt: "2026-10-09T12:05:00Z",
+  };
+  const history = [{ type: "HANDED_OVER", occurredAt: "2026-10-09T12:00:00Z" }];
   let active: ReturnType<typeof signal<boolean>>;
   let list: ReturnType<typeof vi.fn>;
   let detail: ReturnType<typeof vi.fn>;
@@ -18,8 +32,8 @@ describe("Buyer deliveries authority fencing", () => {
   beforeEach(() => {
     active = signal(true);
     list = vi.fn(() => of(page));
-    detail = vi.fn(() => of({ id: "delivery", status: "DELIVERY_SCHEDULED" }));
-    events = vi.fn(() => of([{ id: "event", summary: "DELIVERY_SCHEDULED" }]));
+    detail = vi.fn(() => of(delivery));
+    events = vi.fn(() => of(history));
     expire = vi.fn();
     invalidate = vi.fn();
     TestBed.configureTestingModule({ providers: [
@@ -32,8 +46,9 @@ describe("Buyer deliveries authority fencing", () => {
     await store.detail("delivery");
     expect(detail).toHaveBeenCalledWith("delivery");
     expect(events).toHaveBeenCalledWith("delivery");
-    expect(store.state()?.detail?.status).toBe("DELIVERY_SCHEDULED");
-    expect(store.state()?.events).toHaveLength(1);
+    expect(store.state()?.detail?.status).toBe("DISPATCHED");
+    expect(store.state()?.detail?.proofOfDeliveryStatus).toBeNull();
+    expect(store.state()?.events).toEqual(history);
   });
   it("masks loaded delivery facts when authority changes", async () => {
     await store.detail("delivery");
@@ -65,5 +80,14 @@ describe("Buyer deliveries authority fencing", () => {
     await store.list();
     expect(invalidate).toHaveBeenCalledWith(lease);
     expect(expire).not.toHaveBeenCalled();
+  });
+
+  it("keeps the session active when the server denies the tracking capability", async () => {
+    detail.mockReturnValue(throwError(() => new NexaApiError("forbidden", 403, { code: "permission_denied" })));
+    await store.detail(delivery.id);
+    expect(store.state()?.error).toContain("current Buyer context");
+    expect(active()).toBe(true);
+    expect(expire).not.toHaveBeenCalled();
+    expect(invalidate).not.toHaveBeenCalled();
   });
 });

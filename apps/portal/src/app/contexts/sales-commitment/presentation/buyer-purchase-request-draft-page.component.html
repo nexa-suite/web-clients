@@ -110,13 +110,16 @@
             </label>
             <label>
               Payment preference
-              <select [value]="paymentPreference" (change)="paymentPreference = $any($event.target).value">
+              <select [value]="paymentPreference" (change)="choosePaymentPreference($any($event.target).value)">
                 <option value="">Choose a preference</option>
-                @for (preference of paymentPreferences; track preference) {
+                @for (preference of paymentPreferences(); track preference) {
                   <option [value]="preference">{{ preference.replaceAll('_', ' ') }}</option>
                 }
               </select>
             </label>
+            @if (paymentPreference === 'WALLET') {
+              <p class="request-builder__notice">Wallet is a payment preference for this Purchase Request; no wallet funds are reserved or debited when the request is submitted. The full total is checked by the server when Sales confirms the order.</p>
+            }
             <label>
               Delivery destination
               <select [value]="selectedAddressId" (change)="chooseAddress($any($event.target).value)">

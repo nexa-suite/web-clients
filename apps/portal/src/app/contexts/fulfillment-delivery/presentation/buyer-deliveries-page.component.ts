@@ -19,10 +19,10 @@ import { BuyerDeliveriesStore } from "../application/buyer-deliveries.store";
           @if (!page.items.length) { <p>No deliveries for this account yet.</p> }
           @for (delivery of page.items; track delivery.id) {
             <nexa-surface>
-              <h2><a [routerLink]="['/deliveries', delivery.id]">{{ delivery.dispatchNumber }}</a></h2>
-              <p>Order: {{ delivery.salesOrderNumber ?? "Not available" }}</p>
+              <h2><a [routerLink]="['/deliveries', delivery.id]">Order {{ delivery.salesOrderNumber }}</a></h2>
+              <p>Order: {{ delivery.salesOrderNumber }}</p>
               <p>Status: {{ delivery.status }}</p>
-              <p>Estimated arrival: {{ delivery.eta ? (delivery.eta | date: "medium") : "Not scheduled" }}</p>
+              <p>Scheduled: {{ delivery.scheduledAt ? (delivery.scheduledAt | date: "medium") : "Not scheduled" }}</p>
             </nexa-surface>
           }
           <nav aria-label="Delivery pages">

@@ -6,6 +6,7 @@ import { CatalogStore } from "../../catalog-commercial-policy/application/public
 import { BuyerPurchaseRequestDraftStore } from "../application/buyer-purchase-request-draft.store";
 import type { PurchaseRequestDraftLineInput, SetPurchaseRequestDraftPreferencesRequest } from "@nexa/api";
 import { PortalSessionStore, type PortalSessionLease } from "../../tenant-access-governance/application/public-api";
+import { BUYER_WALLET_CAPABILITIES_PORT } from "../../payments/application/public-api";
 
 interface DraftLineForm {
   readonly skuId: string;
@@ -21,6 +22,7 @@ const PAYMENT_PREFERENCES: readonly SetPurchaseRequestDraftPreferencesRequest["p
   "CASH",
   "CASH_ON_DELIVERY",
 ];
+const WALLET_PREFERENCE: SetPurchaseRequestDraftPreferencesRequest["paymentPreference"] = "WALLET";
 
 @Component({
   selector: "portal-buyer-purchase-request-draft-page",
@@ -34,6 +36,7 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
   protected readonly store = inject(BuyerPurchaseRequestDraftStore);
   protected readonly workflow = this.store.state;
   private readonly sessions = inject(PortalSessionStore);
+  private readonly walletCapabilities = inject(BUYER_WALLET_CAPABILITIES_PORT);
   private readonly formLease = signal<PortalSessionLease | null>(this.sessions.captureSessionLease());
   private initialized = false;
   private initializedLease: PortalSessionLease | null = null;
@@ -57,7 +60,21 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
 
   protected requestedDeliveryDate = localDateString(new Date());
   protected paymentPreference: SetPurchaseRequestDraftPreferencesRequest["paymentPreference"] | "" = "";
-  protected readonly paymentPreferences = PAYMENT_PREFERENCES;
+  protected readonly canUseWallet = computed(() => {
+    const current = this.sessions.state();
+    if (current.status !== "authenticated" || current.session.surface !== "PORTAL") return false;
+    const membership = current.session.membership;
+    return membership?.roles?.includes("BUYER") === true
+      && membership.permissions?.includes("payment.read") === true
+      && membership.permissions?.includes("buyer.sales.write") === true
+      && this.eligibility.currentAccount() !== null
+      && this.contextIsCurrent()
+      && this.walletCapabilities.canRead()
+      && this.walletCapabilities.orderPaymentSupported();
+  });
+  protected readonly paymentPreferences = computed(() => this.canUseWallet()
+    ? [...PAYMENT_PREFERENCES, WALLET_PREFERENCE]
+    : PAYMENT_PREFERENCES);
   protected lines: DraftLineForm[] = [{ skuId: "", quantity: "1", unit: "", notes: "" }];
   protected localError = "";
   protected selectedAddressId = "";
@@ -69,10 +86,14 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
       if (scopedLease && !this.sessions.isSessionLeaseCurrent(scopedLease)) {
         this.clearLocalForm();
         this.store.clear();
+        this.walletCapabilities.clear();
         this.initializedLease = null;
         this.formLease.set(currentLease);
         if (currentLease && this.initialized) void this.initializeForLease(currentLease);
         return;
+      }
+      if (!this.canUseWallet() && this.paymentPreference === WALLET_PREFERENCE) {
+        this.paymentPreference = "";
       }
       if (!scopedLease && currentLease) {
         this.formLease.set(currentLease);
@@ -96,6 +117,12 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
     const account = this.eligibility.currentAccount();
     if (account) await this.store.loadAddresses(account.id);
     if (!this.sessions.isSessionLeaseCurrent(lease)) return;
+    if (account && this.canRequestWalletCapability()) {
+      await this.walletCapabilities.loadCapabilities();
+    } else {
+      this.walletCapabilities.clear();
+    }
+    if (!this.sessions.isSessionLeaseCurrent(lease)) return;
     const draftId = this.route.snapshot.queryParamMap.get("draftId");
     if (draftId) {
       await this.store.loadDraft(draftId);
@@ -103,9 +130,12 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
       const draft = this.workflow().draft;
       if (draft) {
         this.requestedDeliveryDate = draft.requestedDeliveryDate;
-        this.paymentPreference = PAYMENT_PREFERENCES.includes(draft.paymentPreference as SetPurchaseRequestDraftPreferencesRequest["paymentPreference"])
+        this.paymentPreference = [...PAYMENT_PREFERENCES, WALLET_PREFERENCE].includes(draft.paymentPreference as SetPurchaseRequestDraftPreferencesRequest["paymentPreference"])
           ? draft.paymentPreference as SetPurchaseRequestDraftPreferencesRequest["paymentPreference"]
           : "";
+        if (this.paymentPreference === WALLET_PREFERENCE && !this.canUseWallet()) {
+          this.paymentPreference = "";
+        }
         this.lines = draft.lines.map((line) => ({
           skuId: line.skuId,
           quantity: String(line.quantity),
@@ -167,14 +197,59 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
 
   protected async savePreferences(): Promise<void> {
     this.localError = "";
-    if (!this.paymentPreference) {
+    const paymentPreference = this.paymentPreference;
+    if (this.paymentPreference === WALLET_PREFERENCE && !this.canUseWallet()) {
+      this.paymentPreference = "";
+      this.localError = "Wallet payment is not currently supported for this Buyer context. Refresh the page before choosing it.";
+      return;
+    }
+    if (!paymentPreference) {
       this.localError = "Choose a payment preference before saving.";
       return;
     }
+    if (paymentPreference === WALLET_PREFERENCE) {
+      const lease = this.formLease();
+      const account = this.eligibility.currentAccount();
+      if (
+        !lease ||
+        !account ||
+        !this.canRequestWalletCapability() ||
+        !this.sessions.isSessionLeaseCurrent(lease)
+      ) {
+        this.paymentPreference = "";
+        this.localError = "Wallet payment support changed for this Buyer context. Refresh before saving this preference.";
+        return;
+      }
+      await this.walletCapabilities.loadCapabilities();
+      if (
+        !this.sessions.isSessionLeaseCurrent(lease) ||
+        this.eligibility.currentAccount()?.id !== account.id ||
+        this.paymentPreference !== WALLET_PREFERENCE ||
+        !this.canUseWallet()
+      ) {
+        if (this.paymentPreference === WALLET_PREFERENCE) {
+          this.paymentPreference = "";
+        }
+        this.localError = "Wallet payment support changed for this Buyer context. Refresh before saving this preference.";
+        return;
+      }
+    }
     await this.store.setPreferences({
-      paymentPreference: this.paymentPreference,
+      paymentPreference,
       requestedDeliveryDate: this.requestedDeliveryDate,
     });
+  }
+
+  protected choosePaymentPreference(value: string): void {
+    if (value === WALLET_PREFERENCE && !this.canUseWallet()) {
+      this.paymentPreference = "";
+      this.localError = "Wallet payment is not currently supported for this Buyer context. Refresh the page before choosing it.";
+      return;
+    }
+    if (value === "" || [...PAYMENT_PREFERENCES, WALLET_PREFERENCE].includes(value as SetPurchaseRequestDraftPreferencesRequest["paymentPreference"])) {
+      this.paymentPreference = value as SetPurchaseRequestDraftPreferencesRequest["paymentPreference"] | "";
+      this.localError = "";
+    }
   }
 
   protected async chooseAddress(addressId: string): Promise<void> {
@@ -246,6 +321,15 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
       });
     }
     return normalized;
+  }
+
+  private canRequestWalletCapability(): boolean {
+    const current = this.sessions.state();
+    if (current.status !== "authenticated" || current.session.surface !== "PORTAL") return false;
+    const membership = current.session.membership;
+    return membership?.roles?.includes("BUYER") === true
+      && membership.permissions?.includes("payment.read") === true
+      && membership.permissions?.includes("buyer.sales.write") === true;
   }
 }
 
