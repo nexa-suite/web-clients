@@ -3,5 +3,6 @@ dist/
 .angular/
 coverage/
 playwright-report/
+.playwright-cli/
 test-results/
 .DS_Store

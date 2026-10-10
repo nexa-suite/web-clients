@@ -204,3 +204,59 @@ test("uses server Buyer eligibility, commercial catalog facts, and cookie-backed
     page.getByRole("heading", { name: "Sign in to your workspace" }),
   ).toBeVisible();
 });
+
+test("reads Buyer-scoped Delivery tracking without creating delivery facts", async ({
+  page,
+}) => {
+  await signInBuyer(page);
+  const pageResponse = apiResponse(page, "/api/v1/buyer/deliveries");
+  await page.goto("/deliveries");
+  const response = await pageResponse;
+  expect(response.status).toBe(200);
+  expect(response.body.page).toBe(0);
+  expect(response.body.size).toBe(25);
+  expect(Array.isArray(response.body.items)).toBe(true);
+
+  const deliveries = response.body.items;
+  expect(deliveries.length).toBeGreaterThan(0);
+
+  const selected = deliveries[0];
+  expect(typeof selected.id).toBe("string");
+  expect(typeof selected.salesOrderNumber).toBe("string");
+  expect(typeof selected.status).toBe("string");
+  for (const key of ["clientAccountId", "salesOrderId", "fulfillmentId", "driverId", "assignmentId"]) {
+    expect(selected).not.toHaveProperty(key);
+  }
+
+  const detailResponse = apiResponse(
+    page,
+    `/api/v1/buyer/deliveries/${selected.id}`,
+  );
+  const eventResponse = apiResponse(
+    page,
+    `/api/v1/buyer/deliveries/${selected.id}/events`,
+  );
+  await page.goto(`/deliveries/${encodeURIComponent(selected.id)}`);
+  const [detailResult, eventResult] = await Promise.all([
+    detailResponse,
+    eventResponse,
+  ]);
+  expect([detailResult.status, eventResult.status]).toEqual([200, 200]);
+  expect(detailResult.body.id).toBe(selected.id);
+  expect(typeof detailResult.body.salesOrderNumber).toBe("string");
+  expect(typeof detailResult.body.status).toBe("string");
+  expect("proofOfDeliveryStatus" in detailResult.body).toBe(true);
+  expect(Array.isArray(eventResult.body)).toBe(true);
+  expect(eventResult.body.length).toBeGreaterThan(0);
+  for (const event of eventResult.body) {
+    expect(typeof event.type).toBe("string");
+    expect(typeof event.occurredAt).toBe("string");
+    expect(event).not.toHaveProperty("actorMembershipId");
+    expect(event).not.toHaveProperty("reason");
+    expect(event).not.toHaveProperty("driverId");
+  }
+  await expect(
+    page.getByRole("heading", { name: "Delivery tracking" }),
+  ).toBeVisible();
+  await expect(page.getByText(detailResult.body.status, { exact: true })).toBeVisible();
+});
