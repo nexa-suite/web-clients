@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.2.0-alpha.1] - 2026-10-10
+
+Source checkpoint prerelease; incomplete integration and distribution gates. See [checkpoint notes](docs/releases/v0.2.0-alpha.1.md).
+
 ## Unreleased — v0.2.0 candidate
 
 - Extend Buyer Portal with supplier-scoped wallet balance, recharge and wallet order tender over authoritative API contracts.
