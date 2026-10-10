@@ -2,12 +2,18 @@
 set -eu
 
 case "${NEXA_WEB_SURFACE:-}" in
-    PLATFORM) api_base_url=${NEXA_PLATFORM_API_BASE_URL:-}; config_key=__NEXA_PLATFORM_CONFIG__ ;;
-    PORTAL) api_base_url=${NEXA_PORTAL_API_BASE_URL:-}; config_key=__NEXA_PORTAL_CONFIG__ ;;
+    PLATFORM) api_base_url=${NEXA_PLATFORM_API_BASE_URL:-}; stripe_publishable_key=; config_key=__NEXA_PLATFORM_CONFIG__ ;;
+    PORTAL) api_base_url=${NEXA_PORTAL_API_BASE_URL:-}; stripe_publishable_key=${NEXA_PORTAL_STRIPE_PUBLISHABLE_KEY:-}; config_key=__NEXA_PORTAL_CONFIG__ ;;
     *) printf '%s\n' 'NEXA_WEB_SURFACE must be PLATFORM or PORTAL.' >&2; exit 1 ;;
 esac
-if [ -z "$api_base_url" ]; then
+if [ -z "$api_base_url" ] && [ -z "$stripe_publishable_key" ]; then
     exit 0
+fi
+if [ -z "$api_base_url" ]; then api_base_url=/api/v1; fi
+
+if [ -n "$stripe_publishable_key" ] && ! printf '%s\n' "$stripe_publishable_key" | awk '/^pk_(test|live)_[A-Za-z0-9]+$/ { valid = 1 } END { exit !valid }'; then
+    printf '%s\n' 'Stripe publishable key has an invalid format.' >&2
+    exit 1
 fi
 
 while [ "${api_base_url%/}" != "$api_base_url" ]; do
@@ -84,6 +90,6 @@ esac
 
 temporary_config=$(mktemp /usr/share/nginx/html/runtime-config.XXXXXX)
 trap 'rm -f "$temporary_config"' EXIT HUP INT TERM
-printf 'window.%s = { apiBaseUrl: "%s" };\n' "$config_key" "$api_base_url" > "$temporary_config"
+printf 'window.%s = { apiBaseUrl: "%s", stripePublishableKey: "%s" };\n' "$config_key" "$api_base_url" "$stripe_publishable_key" > "$temporary_config"
 chmod 0644 "$temporary_config"
 mv "$temporary_config" /usr/share/nginx/html/runtime-config.js

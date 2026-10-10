@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: apps/platform/Dockerfile
     environment:
-      NEXA_PLATFORM_API_BASE_URL: ${NEXA_PLATFORM_API_BASE_URL:-}
+      NEXA_PLATFORM_API_BASE_URL: ${NEXA_PLATFORM_API_BASE_URL:-http://localhost:8080/api/v1}
     ports:
       - "4200:80"
 
@@ -13,6 +13,7 @@ services:
       context: .
       dockerfile: apps/portal/Dockerfile
     environment:
-      NEXA_PORTAL_API_BASE_URL: ${NEXA_PORTAL_API_BASE_URL:-}
+      NEXA_PORTAL_API_BASE_URL: ${NEXA_PORTAL_API_BASE_URL:-http://localhost:8080/api/v1}
+      NEXA_PORTAL_STRIPE_PUBLISHABLE_KEY: ${NEXA_PORTAL_STRIPE_PUBLISHABLE_KEY:-}
     ports:
       - "4300:80"
