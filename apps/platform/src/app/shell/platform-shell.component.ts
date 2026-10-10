@@ -77,11 +77,29 @@ export class PlatformShellComponent {
   protected get canViewDocuments(): boolean {
     return this.hasAnyPermission(new Set(["document.read", "document:read"]));
   }
+  protected get canConfigureCredit(): boolean {
+    return (
+      this.session?.surface === "PLATFORM" &&
+      this.hasAnyPermission(new Set(["client.credit.configuration.manage"]))
+    );
+  }
   protected get canViewTenantAccess(): boolean {
     return this.hasAnyPermission(new Set(["tenant.member.read"]));
   }
   protected get canViewTenantRoles(): boolean {
     return this.hasAnyPermission(new Set(["tenant.role.read"]));
+  }
+
+  protected get canManageSupportConsents(): boolean {
+    return (
+      this.session?.surface === "PLATFORM" &&
+      this.hasAnyPermission(new Set(["tenant:read", "tenant.organization.read"]))
+    );
+  }
+
+  protected get canManageWarehouseAccessGrants(): boolean {
+    return this.session?.surface === "PLATFORM" &&
+      this.hasAnyPermission(new Set(["tenant.role.assign"]));
   }
 
   private hasAnyPermission(allowed: ReadonlySet<string>): boolean {

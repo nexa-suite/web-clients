@@ -4,10 +4,10 @@ import { provideRouter } from "@angular/router";
 import { NexaApiError, NexaCommandRetryStore } from "@nexa/api";
 import type {
   DispatchAssigneeResponse,
+  DispatchOutgoingGoodsCheckSummaryResponse,
   DispatchReadinessResponse,
   DriverAssignmentResponse,
   FulfillmentResponse,
-  OutgoingGoodsCheckResponse,
   PhysicalAllocationResponse,
 } from "@nexa/api";
 import { of, throwError } from "rxjs";
@@ -40,11 +40,10 @@ describe("PlatformDispatchPlannerStore", () => {
   };
   let commands: {
     getCurrentDriverAssignment: ReturnType<typeof vi.fn>;
-    getCurrentOutgoingGoodsCheck: ReturnType<typeof vi.fn>;
+    getCurrentDispatchOutgoingGoodsCheckSummary: ReturnType<typeof vi.fn>;
     listDispatchAssignees: ReturnType<typeof vi.fn>;
     assignDriver: ReturnType<typeof vi.fn>;
     planDispatchWindow: ReturnType<typeof vi.fn>;
-    recordOutgoingGoodsCheck: ReturnType<typeof vi.fn>;
     dispatch: ReturnType<typeof vi.fn>;
   };
   let retryValues: Map<string, string>;
@@ -71,7 +70,7 @@ describe("PlatformDispatchPlannerStore", () => {
             "dispatch.assign",
             "dispatch.schedule",
             "logistics.read",
-            "fulfillment.manage",
+            "dispatch.complete",
           ],
         },
       },
@@ -87,7 +86,7 @@ describe("PlatformDispatchPlannerStore", () => {
     };
     commands = {
       getCurrentDriverAssignment: vi.fn(() => of(null)),
-      getCurrentOutgoingGoodsCheck: vi.fn(() => of(null)),
+      getCurrentDispatchOutgoingGoodsCheckSummary: vi.fn(() => of(null)),
       listDispatchAssignees: vi.fn(() =>
         of<readonly DispatchAssigneeResponse[]>([
           { id: driverId, displayName: "Warehouse Driver" },
@@ -109,9 +108,6 @@ describe("PlatformDispatchPlannerStore", () => {
           },
           etag: '"6"',
         }),
-      ),
-      recordOutgoingGoodsCheck: vi.fn(() =>
-        of({ body: outgoingCheck(), etag: '"6"' }),
       ),
       dispatch: vi.fn(() =>
         of({ body: fulfillment("HANDED_OVER", 7), etag: '"7"' }),
@@ -175,7 +171,7 @@ describe("PlatformDispatchPlannerStore", () => {
     expect(commands.assignDriver).not.toHaveBeenCalled();
   });
 
-  it("plans the delivery window before assigning, then checks observed goods before handoff", async () => {
+  it("plans and assigns, then hands off only from a fresh Warehouse check summary", async () => {
     store.inspect(readiness(), lease);
     store.setDispatchWindow("windowStart", "2026-10-10T10:00");
     store.setDispatchWindow("windowEnd", "2026-10-10T11:00");
@@ -224,34 +220,23 @@ describe("PlatformDispatchPlannerStore", () => {
     expect(assigned.assignment?.current).toBe(true);
     expect(assigned.fulfillment.version).toBe(6);
 
-    const dockObservation = store.outgoingObservation(assigned, allocationLineId);
-    expect(dockObservation.quantity).toBe("");
-    store.setDispatchObservation(allocationLineId, "quantity", "5");
-    store.setDispatchObservation(allocationLineId, "lotId", "observed-lot-1");
-    inspection = store.state();
-    if (inspection.status !== "ready") throw new Error("Dispatch inspection was lost.");
-    expect(store.canRecordOutgoingCheck(inspection)).toBe(true);
-    expect(await store.recordOutgoingCheck()).toBe(true);
-    expect(commands.recordOutgoingGoodsCheck).toHaveBeenCalledWith(
-      fulfillmentId,
-      '"6"',
-      expect.any(String),
-      {
-        physicalAllocationId: allocationId,
-        physicalAllocationVersion: 7,
-        observations: [
-          {
-            physicalAllocationLineId: allocationLineId,
-            observedLotId: "observed-lot-1",
-            observedQuantity: 5,
-          },
-        ],
-      },
+    expect(store.canDispatch(assigned)).toBe(false);
+    store.clear();
+    reads.getFulfillment.mockReturnValueOnce(
+      of({ body: fulfillment("READY_FOR_DISPATCH", 6), etag: '"6"' }),
     );
-    const checked = store.state();
-    expect(checked.status).toBe("ready");
-    if (checked.status !== "ready") throw new Error("Outgoing check state was lost.");
-    expect(store.canDispatch(checked)).toBe(true);
+    commands.getCurrentDriverAssignment.mockReturnValueOnce(
+      of({ body: assignment(6), etag: '"6"' }),
+    );
+    commands.getCurrentDispatchOutgoingGoodsCheckSummary.mockReturnValueOnce(
+      of({ body: outgoingCheck(), etag: '"6"' }),
+    );
+    store.inspect(readiness(6), lease);
+    inspection = store.state();
+    expect(inspection.status).toBe("ready");
+    if (inspection.status !== "ready") throw new Error("Dispatch inspection was lost.");
+    expect(inspection.outgoingCheck).toEqual(outgoingCheck());
+    expect(store.canDispatch(inspection)).toBe(true);
     expect(await store.dispatchFulfillment()).toBe(true);
     expect(commands.dispatch).toHaveBeenCalledWith(
       fulfillmentId,
@@ -271,6 +256,31 @@ describe("PlatformDispatchPlannerStore", () => {
       expect(handedOver.fulfillment.status).toBe("HANDED_OVER");
       expect(handedOver.etag).toBe('"7"');
     }
+  });
+
+  it("does not allow a Warehouse permission to substitute for dispatch.complete", async () => {
+    sessionState.set({
+      status: "authenticated",
+      session: {
+        membership: {
+          permissions: ["dispatch.read", "dispatch.assign", "logistics.read", "fulfillment.manage"],
+        },
+      },
+    });
+    commands.getCurrentDriverAssignment.mockReturnValueOnce(
+      of({ body: assignment(5), etag: '"5"' }),
+    );
+    commands.getCurrentDispatchOutgoingGoodsCheckSummary.mockReturnValueOnce(
+      of({ body: outgoingCheck(5), etag: '"5"' }),
+    );
+    store.inspect(readiness(5), lease);
+    const inspection = store.state();
+    expect(inspection.status).toBe("ready");
+    if (inspection.status !== "ready") throw new Error("Dispatch inspection did not load.");
+
+    expect(store.canDispatch(inspection)).toBe(false);
+    expect(await store.dispatchFulfillment()).toBe(false);
+    expect(commands.dispatch).not.toHaveBeenCalled();
   });
 
   it("rejects stale readiness and keeps an ambiguous plan on the same ETag and retry key", async () => {
@@ -416,31 +426,15 @@ function assignment(version: number): DriverAssignmentResponse {
   };
 }
 
-function outgoingCheck(): OutgoingGoodsCheckResponse {
+function outgoingCheck(version = 6): DispatchOutgoingGoodsCheckSummaryResponse {
   return {
     id: "outgoing-check-1",
     fulfillmentId,
-    fulfillmentVersion: 6,
+    fulfillmentVersion: version,
     physicalAllocationId: allocationId,
     physicalAllocationVersion: 7,
     matches: true,
     current: true,
     openDiscrepancy: false,
-    checkedByMembershipId: "membership-1",
-    checkedAt: "2026-10-09T10:00:00Z",
-    lines: [
-      {
-        physicalAllocationLineId: allocationLineId,
-        skuId: "sku-1",
-        expectedLotId: "allocated-lot-1",
-        observedLotId: "observed-lot-1",
-        expectedQuantity: 5,
-        observedQuantity: 5,
-        unit: "crate",
-        matches: true,
-      },
-    ],
-    replayed: false,
-    discrepancy: null,
   };
 }

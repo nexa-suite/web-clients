@@ -165,13 +165,91 @@
   white-space: nowrap;
 }
 
+.platform-governance-page__state {
+  margin: 0;
+  padding: 1rem;
+  color: var(--nexa-color-text-muted, #53616b);
+}
+
+.platform-governance-page__button {
+  min-height: 2.6rem;
+  border: 1px solid var(--nexa-color-primary, #155e9a);
+  border-radius: 0.35rem;
+  padding: 0.5rem 0.8rem;
+  background: var(--nexa-color-primary, #155e9a);
+  color: #fff;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.platform-governance-page__button--secondary {
+  background: transparent;
+  color: var(--nexa-color-primary, #155e9a);
+}
+
+.platform-governance-page__button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.platform-support-consents__list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.platform-support-consents__card {
+  border: 1px solid var(--nexa-color-border, #d1d9de);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  background: var(--nexa-color-surface, #fff);
+}
+
+.platform-support-consents__card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.platform-support-consents__card-heading h2,
+.platform-support-consents__card-heading p {
+  margin-block: 0 0.35rem;
+}
+
+.platform-support-consents__scope {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.75rem 1rem;
+  margin-block: 1rem;
+}
+
+.platform-support-consents__scope dt {
+  color: var(--nexa-color-text-muted, #53616b);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.platform-support-consents__scope dd {
+  margin: 0.2rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.platform-support-consents code {
+  font-size: 0.8em;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 48rem) {
   .platform-governance-page {
     padding: 1rem;
   }
 
   .platform-governance-page__heading,
-  .platform-governance-page__section-heading {
+  .platform-governance-page__section-heading,
+  .platform-support-consents__card-heading {
     align-items: flex-start;
+    flex-direction: column;
   }
 }

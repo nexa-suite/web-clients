@@ -4,6 +4,7 @@ import { provideRouter } from "@angular/router";
 import { NexaApiError, NexaCommandRetryStore } from "@nexa/api";
 import type {
   FulfillmentResponse,
+  OutgoingGoodsCheckResponse,
   PhysicalAllocationResponse,
 } from "@nexa/api";
 import { of, throwError } from "rxjs";
@@ -35,12 +36,14 @@ describe("PlatformWarehouseLifecycleStore", () => {
     getPhysicalAllocation: ReturnType<typeof vi.fn>;
   };
   let commands: {
+    getCurrentOutgoingGoodsCheck: ReturnType<typeof vi.fn>;
     startPicking: ReturnType<typeof vi.fn>;
     confirmPicking: ReturnType<typeof vi.fn>;
     resolveShortage: ReturnType<typeof vi.fn>;
     pack: ReturnType<typeof vi.fn>;
     stage: ReturnType<typeof vi.fn>;
     readyForDispatch: ReturnType<typeof vi.fn>;
+    recordOutgoingGoodsCheck: ReturnType<typeof vi.fn>;
   };
   let retryValues: Map<string, string>;
   let retryWrite: ReturnType<typeof vi.fn>;
@@ -71,6 +74,7 @@ describe("PlatformWarehouseLifecycleStore", () => {
       ),
     };
     commands = {
+      getCurrentOutgoingGoodsCheck: vi.fn(() => of(null)),
       startPicking: vi.fn(() => of({ body: fulfillment("PICKING", 2), etag: '"2"' })),
       confirmPicking: vi.fn(() => of({ body: fulfillment("PICKED", 2), etag: '"2"' })),
       resolveShortage: vi.fn(() => of({ body: fulfillment("PICKED", 2), etag: '"2"' })),
@@ -78,6 +82,9 @@ describe("PlatformWarehouseLifecycleStore", () => {
       stage: vi.fn(() => of({ body: fulfillment("STAGED", 2), etag: '"2"' })),
       readyForDispatch: vi.fn(() =>
         of({ body: fulfillment("READY_FOR_DISPATCH", 2), etag: '"2"' }),
+      ),
+      recordOutgoingGoodsCheck: vi.fn(() =>
+        of({ body: outgoingCheck(3), etag: '"3"' }),
       ),
     };
     TestBed.configureTestingModule({
@@ -153,6 +160,75 @@ describe("PlatformWarehouseLifecycleStore", () => {
     expect(store.state().status).toBe("error");
     expect(await store.startPicking()).toBe(false);
     expect(commands.startPicking).not.toHaveBeenCalled();
+  });
+
+  it("records actual outgoing observations in Warehouse and keeps the response versioned", async () => {
+    reads.getFulfillment.mockReturnValueOnce(
+      of({ body: fulfillment("READY_FOR_DISPATCH", 3), etag: '"3"' }),
+    );
+    store.inspect(fulfillmentId, lease);
+    let inspection = store.state();
+    expect(inspection.status).toBe("ready");
+    if (inspection.status !== "ready") throw new Error("Warehouse inspection did not load.");
+
+    expect(store.canRecordOutgoingCheck(inspection)).toBe(false);
+    store.setOutgoingObservation(allocationLine1, "quantity", "3");
+    store.setOutgoingObservation(allocationLine1, "lotId", "observed-lot-1");
+    store.setOutgoingObservation(allocationLine2, "quantity", "2");
+    store.setOutgoingObservation(allocationLine2, "lotId", "observed-lot-2");
+    inspection = store.state();
+    if (inspection.status !== "ready") throw new Error("Warehouse inspection was lost.");
+
+    expect(store.canRecordOutgoingCheck(inspection)).toBe(true);
+    expect(await store.recordOutgoingGoodsCheck()).toBe(true);
+    expect(commands.recordOutgoingGoodsCheck).toHaveBeenCalledWith(
+      fulfillmentId,
+      '"3"',
+      expect.any(String),
+      {
+        physicalAllocationId: allocationId,
+        physicalAllocationVersion: 7,
+        observations: [
+          {
+            physicalAllocationLineId: allocationLine1,
+            observedLotId: "observed-lot-1",
+            observedQuantity: 3,
+          },
+          {
+            physicalAllocationLineId: allocationLine2,
+            observedLotId: "observed-lot-2",
+            observedQuantity: 2,
+          },
+        ],
+      },
+    );
+    const completed = store.state();
+    expect(completed.status).toBe("ready");
+    if (completed.status === "ready") {
+      expect(completed.fulfillment.version).toBe(3);
+      expect(completed.etag).toBe('"3"');
+      expect(completed.outgoingCheck?.id).toBe("outgoing-check-1");
+      expect(completed.command.status).toBe("success");
+    }
+  });
+
+  it("does not load or write Warehouse evidence without fulfillment.manage", async () => {
+    sessionState.set({
+      status: "authenticated",
+      session: { membership: { permissions: ["fulfillment.read"] } },
+    });
+    reads.getFulfillment.mockReturnValueOnce(
+      of({ body: fulfillment("READY_FOR_DISPATCH", 3), etag: '"3"' }),
+    );
+    store.inspect(fulfillmentId, lease);
+    const inspection = store.state();
+    expect(inspection.status).toBe("ready");
+    if (inspection.status !== "ready") throw new Error("Read-only inspection did not load.");
+
+    expect(commands.getCurrentOutgoingGoodsCheck).not.toHaveBeenCalled();
+    expect(store.canRecordOutgoingCheck(inspection)).toBe(false);
+    expect(await store.recordOutgoingGoodsCheck()).toBe(false);
+    expect(commands.recordOutgoingGoodsCheck).not.toHaveBeenCalled();
   });
 
   it("submits only the observed picking quantities and reuses an ambiguous command key", async () => {
@@ -333,5 +409,23 @@ function allocation(): PhysicalAllocationResponse {
         expirationDate: null,
       },
     ],
+  };
+}
+
+function outgoingCheck(version: number): OutgoingGoodsCheckResponse {
+  return {
+    id: "outgoing-check-1",
+    fulfillmentId,
+    fulfillmentVersion: version,
+    physicalAllocationId: allocationId,
+    physicalAllocationVersion: 7,
+    matches: true,
+    current: true,
+    openDiscrepancy: false,
+    checkedByMembershipId: "membership-1",
+    checkedAt: "2026-10-09T10:00:00Z",
+    lines: [],
+    replayed: false,
+    discrepancy: null,
   };
 }

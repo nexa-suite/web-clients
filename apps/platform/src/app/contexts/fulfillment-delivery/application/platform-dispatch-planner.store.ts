@@ -10,15 +10,14 @@ import {
 import type {
   AssignDriverRequest,
   DispatchAssigneeResponse,
+  DispatchOutgoingGoodsCheckSummaryResponse,
   DispatchRequest,
   DispatchReadinessResponse,
   DispatchWindowPlanRequest,
   DispatchWindowPlanResponse,
   DriverAssignmentResponse,
   FulfillmentResponse,
-  OutgoingGoodsCheckResponse,
   PhysicalAllocationResponse,
-  RecordOutgoingGoodsCheckRequest,
 } from "@nexa/api";
 import { forkJoin, firstValueFrom, of, type Observable } from "rxjs";
 import type { PlatformSessionLease } from "../../tenant-access-governance/application/public-api";
@@ -29,17 +28,10 @@ import { fulfillmentCommandRetryIdentity } from "./fulfillment-command-retry";
 export type DispatchActionName =
   | "driver-assignment"
   | "dispatch-window-plan"
-  | "outgoing-goods-check"
   | "dispatch-handoff";
-
-export interface DispatchObservationDraft {
-  readonly quantity: string;
-  readonly lotId: string;
-}
 
 export interface DispatchFormDraft {
   readonly fulfillmentId: string | null;
-  readonly observations: Readonly<Record<string, DispatchObservationDraft>>;
   readonly selectedDriverMembershipId: string;
   readonly windowStart: string;
   readonly windowEnd: string;
@@ -49,7 +41,6 @@ export interface DispatchFormDraft {
 function emptyDispatchDraft(fulfillmentId: string | null = null): DispatchFormDraft {
   return {
     fulfillmentId,
-    observations: {},
     selectedDriverMembershipId: "",
     windowStart: "",
     windowEnd: "",
@@ -94,7 +85,7 @@ export type DispatchPlannerState =
       readonly assignment: DriverAssignmentResponse | null;
       readonly assignmentEtag: string | null;
       readonly assignees: readonly DispatchAssigneeResponse[];
-      readonly outgoingCheck: OutgoingGoodsCheckResponse | null;
+      readonly outgoingCheck: DispatchOutgoingGoodsCheckSummaryResponse | null;
       readonly command: DispatchCommandState;
     }
   | {
@@ -142,8 +133,8 @@ export class PlatformDispatchPlannerStore {
   readonly canReadAssignees = computed(() =>
     this.hasPermission("logistics.read"),
   );
-  readonly canManageFulfillment = computed(() =>
-    this.hasPermission("fulfillment.manage"),
+  readonly canCompleteHandoff = computed(() =>
+    this.hasPermission("dispatch.complete"),
   );
 
   clear(): void {
@@ -172,7 +163,7 @@ export class PlatformDispatchPlannerStore {
       fulfillment: this.reads.getFulfillment(id),
       allocation: this.reads.getPhysicalAllocation(id),
       assignment: this.commands.getCurrentDriverAssignment(id),
-      outgoingCheck: this.commands.getCurrentOutgoingGoodsCheck(id),
+      outgoingCheck: this.commands.getCurrentDispatchOutgoingGoodsCheckSummary(id),
       assignees: this.canReadAssignees()
         ? this.commands.listDispatchAssignees()
         : of<readonly DispatchAssigneeResponse[]>([]),
@@ -234,25 +225,6 @@ export class PlatformDispatchPlannerStore {
 
   dispatchForm(fulfillmentId: string): DispatchFormDraft {
     return this.formFor(fulfillmentId);
-  }
-
-  setDispatchObservation(
-    lineId: string,
-    field: keyof DispatchObservationDraft,
-    value: string,
-  ): void {
-    const dispatch = this.currentInspection();
-    if (!dispatch) return;
-    const draft = this.formFor(dispatch.id);
-    const observation = draft.observations[lineId] ?? emptyDispatchObservation();
-    this.form.set({
-      ...draft,
-      fulfillmentId: dispatch.id,
-      observations: {
-        ...draft.observations,
-        [lineId]: { ...observation, [field]: value },
-      },
-    });
   }
 
   setDispatchAssignee(value: string): void {
@@ -327,25 +299,14 @@ export class PlatformDispatchPlannerStore {
     );
   }
 
-  canRecordOutgoingCheck(
-    dispatch: Extract<DispatchPlannerState, { status: "ready" }>,
-  ): boolean {
-    return (
-      this.canManageFulfillment() &&
-      versionEtag(dispatch.etag, dispatch.fulfillment.version) !== null &&
-      dispatch.fulfillment.status === "READY_FOR_DISPATCH" &&
-      this.outgoingGoodsRequest(dispatch) !== null &&
-      !this.isCommandLocked(dispatch.command)
-    );
-  }
-
   canDispatch(
     dispatch: Extract<DispatchPlannerState, { status: "ready" }>,
   ): boolean {
     const assignment = dispatch.assignment;
     const check = dispatch.outgoingCheck;
     return (
-      this.canManageFulfillment() &&
+      this.canRead() &&
+      this.canCompleteHandoff() &&
       versionEtag(dispatch.etag, dispatch.fulfillment.version) !== null &&
       dispatch.fulfillment.status === "READY_FOR_DISPATCH" &&
       assignment?.current === true &&
@@ -359,16 +320,6 @@ export class PlatformDispatchPlannerStore {
       check.physicalAllocationVersion === dispatch.allocation.version &&
       !check.openDiscrepancy &&
       !this.isCommandLocked(dispatch.command)
-    );
-  }
-
-  outgoingObservation(
-    dispatch: Extract<DispatchPlannerState, { status: "ready" }>,
-    lineId: string,
-  ): DispatchObservationDraft {
-    return (
-      this.formFor(dispatch.id).observations[lineId] ??
-      emptyDispatchObservation()
     );
   }
 
@@ -390,12 +341,6 @@ export class PlatformDispatchPlannerStore {
     const dispatch = this.currentInspection();
     if (!dispatch || !this.canPlanDispatchWindow(dispatch)) return Promise.resolve(false);
     return this.execute("dispatch-window-plan");
-  }
-
-  recordOutgoingCheck(): Promise<boolean> {
-    const dispatch = this.currentInspection();
-    if (!dispatch || !this.canRecordOutgoingCheck(dispatch)) return Promise.resolve(false);
-    return this.execute("outgoing-goods-check");
   }
 
   dispatchFulfillment(): Promise<boolean> {
@@ -504,14 +449,8 @@ export class PlatformDispatchPlannerStore {
         );
       case "dispatch-window-plan":
         return this.canRead() && this.canSchedule() && this.dispatchWindowRequest(state) !== null;
-      case "outgoing-goods-check":
-        return (
-          this.canManageFulfillment() &&
-          state.fulfillment.status === "READY_FOR_DISPATCH" &&
-          this.outgoingGoodsRequest(state) !== null
-        );
       case "dispatch-handoff":
-        return this.canManageFulfillment() && this.dispatchRequest(state) !== null;
+        return this.canRead() && this.canCompleteHandoff() && this.dispatchRequest(state) !== null;
     }
   }
 
@@ -524,8 +463,6 @@ export class PlatformDispatchPlannerStore {
         return this.driverAssignmentRequest(state);
       case "dispatch-window-plan":
         return this.dispatchWindowRequest(state);
-      case "outgoing-goods-check":
-        return this.outgoingGoodsRequest(state);
       case "dispatch-handoff":
         return this.dispatchRequest(state);
     }
@@ -607,35 +544,6 @@ export class PlatformDispatchPlannerStore {
     return current.status === "ready" ? current : null;
   }
 
-  private outgoingGoodsRequest(
-    dispatch: Extract<DispatchPlannerState, { status: "ready" }>,
-  ): RecordOutgoingGoodsCheckRequest | null {
-    if (dispatch.allocation.lines.length === 0) return null;
-    const observations: RecordOutgoingGoodsCheckRequest["observations"][number][] = [];
-    for (const line of dispatch.allocation.lines) {
-      const draft = this.formFor(dispatch.id).observations[
-        line.physicalAllocationLineId
-      ] ?? emptyDispatchObservation();
-      if (!draft.quantity.trim()) return null;
-      const quantity = Number(draft.quantity);
-      if (!Number.isFinite(quantity) || quantity < 0) return null;
-      const observedLotId = draft.lotId.trim() || null;
-      if ((quantity > 0 && observedLotId === null) || (quantity === 0 && observedLotId !== null)) {
-        return null;
-      }
-      observations.push({
-        physicalAllocationLineId: line.physicalAllocationLineId,
-        observedLotId,
-        observedQuantity: quantity,
-      });
-    }
-    return {
-      physicalAllocationId: dispatch.allocation.allocationId,
-      physicalAllocationVersion: dispatch.allocation.version,
-      observations,
-    };
-  }
-
   private async send(
     fulfillmentId: string,
     action: DispatchActionName,
@@ -714,13 +622,6 @@ export class PlatformDispatchPlannerStore {
           key,
           payload as DispatchWindowPlanRequest,
         );
-      case "outgoing-goods-check":
-        return this.commands.recordOutgoingGoodsCheck(
-          fulfillmentId,
-          etag,
-          key,
-          payload as RecordOutgoingGoodsCheckRequest,
-        );
       case "dispatch-handoff":
         return this.commands.dispatch(
           fulfillmentId,
@@ -775,28 +676,6 @@ export class PlatformDispatchPlannerStore {
               windowEnd: plan.windowEnd,
               windowSource: "DISPATCH_PLAN",
             },
-          };
-          break;
-        }
-        case "outgoing-goods-check": {
-          const check = body as OutgoingGoodsCheckResponse;
-          const currentEtag = versionEtag(etag, check.fulfillmentVersion);
-          updated = {
-            ...updated,
-            outgoingCheck: check,
-            etag: currentEtag,
-            fulfillment: {
-              ...updated.fulfillment,
-              version: check.fulfillmentVersion,
-            },
-            assignment: updated.assignment
-              ? {
-                  ...updated.assignment,
-                  current:
-                    updated.assignment.fulfillmentVersion ===
-                    check.fulfillmentVersion,
-                }
-              : null,
           };
           break;
         }
@@ -921,14 +800,9 @@ type DispatchCommandResponse = {
   readonly body:
     | DriverAssignmentResponse
     | DispatchWindowPlanResponse
-    | OutgoingGoodsCheckResponse
     | FulfillmentResponse;
   readonly etag: string | null;
 };
-
-function emptyDispatchObservation(): DispatchObservationDraft {
-  return { quantity: "", lotId: "" };
-}
 
 function parseLocalDateTime(value: string): Date | null {
   if (!value.trim()) return null;
@@ -951,8 +825,6 @@ function dispatchActionSuccessMessage(action: DispatchActionName): string {
       return "The API recorded the current Logistics assignment.";
     case "dispatch-window-plan":
       return "The API recorded the dispatch window. Assign a driver after planning.";
-    case "outgoing-goods-check":
-      return "The API compared the observed goods with the current allocation.";
     case "dispatch-handoff":
       return "The API recorded handoff to the assigned driver.";
   }

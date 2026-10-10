@@ -202,6 +202,48 @@ describe("PlatformTenantAccessGovernanceStore", () => {
     );
   });
 
+  it("keeps SYSTEM_WORKFLOW out of the human directory and role assignment commands", async () => {
+    const systemWorkflowMembership = membership({
+      id: "workflow-membership",
+      userId: "11111111-1111-4111-8111-111111111111",
+      membershipType: "SYSTEM_WORKFLOW",
+      email: "nexa-automation@system.invalid",
+      displayName: "NEXA_AUTOMATION",
+      roles: ["system_workflow"],
+      roleDefinitionIds: ["22222222-2222-4222-8222-222222222222"],
+    });
+    api.listMemberships.mockReturnValue(of([membership(), systemWorkflowMembership]));
+    api.listInvitations.mockReturnValue(of(invitationPage()));
+    api.listRoles.mockReturnValue(of([
+      role(),
+      role({
+        id: "22222222-2222-4222-8222-222222222222",
+        tenantId: null,
+        workspaceId: null,
+        type: "SYSTEM_RESERVED",
+        code: "system_workflow",
+      }),
+    ]));
+    api.listPermissionCatalog.mockReturnValue(of([]));
+
+    await store.load();
+
+    expect(store.state().memberships).toEqual([membership()]);
+    expect(store.assignableRoleDefinitions().map((value) => value.code)).not.toContain(
+      "system_workflow",
+    );
+    expect(
+      await store.assignMembershipRoles(
+        "membership-1",
+        3,
+        ["22222222-2222-4222-8222-222222222222"],
+      ),
+    ).toBe(false);
+    expect(await store.changeMembershipStatus("suspend", systemWorkflowMembership)).toBe(false);
+    expect(api.updateMembershipRoleDefinitions).not.toHaveBeenCalled();
+    expect(api.suspendMembership).not.toHaveBeenCalled();
+  });
+
   it("masks a pending query when its session lease becomes stale", async () => {
     const memberships = new Subject<readonly WorkspaceMembershipResponse[]>();
     api.listMemberships.mockReturnValue(memberships.asObservable());
@@ -440,6 +482,7 @@ function membership(
     id: "membership-1",
     workspaceId: "workspace-1",
     userId: "user-2",
+    membershipType: "INTERNAL",
     email: "person@example.test",
     displayName: "A Person",
     status: "ACTIVE",

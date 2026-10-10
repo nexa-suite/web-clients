@@ -135,8 +135,8 @@ export class PlatformFulfillmentDeliveryComponent implements OnInit {
     this.runDispatchCommand(() => this.dispatchStore.planDispatchWindow());
   }
 
-  protected recordOutgoingCheck(): void {
-    this.runDispatchCommand(() => this.dispatchStore.recordOutgoingCheck());
+  protected recordWarehouseOutgoingCheck(): void {
+    this.runWarehouseCommand(() => this.warehouseStore.recordOutgoingGoodsCheck());
   }
 
   protected dispatchFulfillment(): void {

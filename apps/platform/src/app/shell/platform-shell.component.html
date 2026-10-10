@@ -8,7 +8,8 @@
         canViewOperationsOverview ||
         canViewSalesCommitment ||
         canViewFulfillment ||
-        canViewDocuments || canViewTenantAccess || canViewTenantRoles
+        canViewDocuments || canViewTenantAccess || canViewTenantRoles || canConfigureCredit
+        || canManageSupportConsents || canManageWarehouseAccessGrants
       ) {
         <nav
           class="platform-shell__navigation"
@@ -19,6 +20,12 @@
           }
           @if (canViewTenantRoles) {
             <a class="platform-shell__navigation-link" routerLink="/organization/roles" routerLinkActive="platform-shell__navigation-link--active" ariaCurrentWhenActive="page">Roles and permissions</a>
+          }
+          @if (canManageSupportConsents) {
+            <a class="platform-shell__navigation-link" routerLink="/organization/support-consents" routerLinkActive="platform-shell__navigation-link--active" ariaCurrentWhenActive="page">Support consent</a>
+          }
+          @if (canManageWarehouseAccessGrants) {
+            <a class="platform-shell__navigation-link" routerLink="/organization/warehouse-access" routerLinkActive="platform-shell__navigation-link--active" ariaCurrentWhenActive="page">Warehouse access</a>
           }
           @if (canViewOperationsOverview) {
             <a
@@ -60,6 +67,14 @@
               ariaCurrentWhenActive="page"
               >Documents</a
             >
+          }
+          @if (canConfigureCredit) {
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/credit-configuration"
+              routerLinkActive="platform-shell__navigation-link--active"
+              ariaCurrentWhenActive="page"
+            >Credit configuration</a>
           }
         </nav>
       }

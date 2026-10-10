@@ -277,7 +277,8 @@
         <div>
           <h2 id="warehouse-title">Warehouse work</h2>
           <p>
-            Allocated and picking work visible through current warehouse grants.
+            Allocated, picking, and outgoing-check work visible through current
+            warehouse grants.
           </p>
         </div>
         @if (page.warehouseWork.status === "ready") {
@@ -309,7 +310,7 @@
         @case ("ready") {
           @if (page.warehouseWork.value.items.length === 0) {
             <p class="fulfillment-state">
-              No allocated or picking work is visible in this context.
+              No warehouse work is visible through the current warehouse grants.
             </p>
           } @else {
             <div class="fulfillment-list" role="list">
@@ -574,10 +575,81 @@
               >Mark ready for dispatch</nexa-button
             >
           } @else if (inspection.fulfillment.status === "READY_FOR_DISPATCH") {
-            <p class="fulfillment-hint">
-              This fulfillment is ready for dispatch. Continue from the current
-              dispatch-readiness panel.
-            </p>
+            <section class="fulfillment-picking" aria-labelledby="outgoing-check-title">
+              <h4 id="outgoing-check-title">Confirm outgoing goods</h4>
+              @if (inspection.outgoingCheck) {
+                <p
+                  class="fulfillment-hint"
+                  [class.fulfillment-message--error]="!inspection.outgoingCheck.current || !inspection.outgoingCheck.matches || inspection.outgoingCheck.openDiscrepancy"
+                >
+                  Check {{ inspection.outgoingCheck.id }} ·
+                  {{ inspection.outgoingCheck.current ? "current" : "stale" }} ·
+                  {{ inspection.outgoingCheck.matches ? "matches allocation" : "discrepancy recorded" }}
+                  @if (inspection.outgoingCheck.openDiscrepancy) {
+                    · discrepancy unresolved
+                  }
+                </p>
+                @for (line of inspection.outgoingCheck.lines; track line.physicalAllocationLineId) {
+                  <p class="fulfillment-hint">
+                    Physical line {{ line.physicalAllocationLineId }} ·
+                    observed {{ line.observedQuantity }} {{ line.unit }} ·
+                    lot {{ line.observedLotId || "not observed" }}
+                  </p>
+                }
+              }
+              <p class="fulfillment-hint">
+                Physically inspect the staged goods after final assignment or
+                schedule changes. The API compares each observed quantity and
+                lot with the current physical allocation.
+              </p>
+              @for (line of inspection.allocation.lines; track line.physicalAllocationLineId) {
+                <fieldset class="fulfillment-observation">
+                  <legend>{{ line.catalogItemId }}</legend>
+                  <p class="fulfillment-hint">
+                    Physical line {{ line.physicalAllocationLineId }} ·
+                    expected {{ line.remainingQuantity }} {{ line.unit }} ·
+                    allocated lot {{ line.lotId || "not assigned" }}
+                  </p>
+                  <label>
+                    Observed quantity ({{ line.unit }})
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      [value]="warehouseStore.outgoingObservation(inspection, line.physicalAllocationLineId).quantity"
+                      [disabled]="!workbench.hasFulfillmentManage() || warehouseStore.isCommandLocked(inspection.command)"
+                      (input)="warehouseStore.setOutgoingObservation(line.physicalAllocationLineId, 'quantity', $any($event.target).value)"
+                    />
+                  </label>
+                  <label>
+                    Observed lot ID
+                    <input
+                      type="text"
+                      autocomplete="off"
+                      placeholder="Enter the observed lot ID"
+                      [value]="warehouseStore.outgoingObservation(inspection, line.physicalAllocationLineId).lotId"
+                      [disabled]="!workbench.hasFulfillmentManage() || warehouseStore.isCommandLocked(inspection.command)"
+                      (input)="warehouseStore.setOutgoingObservation(line.physicalAllocationLineId, 'lotId', $any($event.target).value)"
+                    />
+                  </label>
+                </fieldset>
+              }
+              @if (workbench.hasFulfillmentManage()) {
+                <nexa-button
+                  type="button"
+                  variant="secondary"
+                  [disabled]="!warehouseStore.canRecordOutgoingCheck(inspection)"
+                  [loading]="inspection.command.status === 'submitting'"
+                  (click)="recordWarehouseOutgoingCheck()"
+                  >Record outgoing goods check</nexa-button
+                >
+              } @else {
+                <p class="fulfillment-hint">
+                  Recording physical evidence requires the current
+                  fulfillment.manage permission.
+                </p>
+              }
+            </section>
           }
         </div>
       }
@@ -917,64 +989,8 @@
               </p>
             } @else {
               <p class="fulfillment-hint">
-                Record the observed goods after the final assignment or
-                schedule change so the check matches the current version.
-              </p>
-            }
-            @if (workbench.hasFulfillmentManage()) {
-              <p class="fulfillment-hint">
-                Enter actual dock quantities and observed lot IDs. The API
-                compares these observations with the current physical
-                allocation; it does not trust this page to mark a check as
-                matching.
-              </p>
-              @for (
-                line of dispatch.allocation.lines;
-                track line.physicalAllocationLineId
-              ) {
-                <fieldset class="fulfillment-observation">
-                  <legend>{{ line.catalogItemId }}</legend>
-                  <p class="fulfillment-hint">
-                    Physical line {{ line.physicalAllocationLineId }} ·
-                    expected {{ line.remainingQuantity }} {{ line.unit }} ·
-                    lot {{ line.lotId || "not assigned" }}
-                  </p>
-                  <label>
-                    Observed quantity ({{ line.unit }})
-                    <input
-                      type="number"
-                      min="0"
-                      step="any"
-                      [value]="dispatchStore.outgoingObservation(dispatch, line.physicalAllocationLineId).quantity"
-                      [disabled]="dispatchStore.isCommandLocked(dispatch.command)"
-                      (input)="dispatchStore.setDispatchObservation(line.physicalAllocationLineId, 'quantity', $any($event.target).value)"
-                    />
-                  </label>
-                  <label>
-                    Observed lot ID
-                    <input
-                      type="text"
-                      autocomplete="off"
-                      placeholder="Enter the observed lot ID"
-                      [value]="dispatchStore.outgoingObservation(dispatch, line.physicalAllocationLineId).lotId"
-                      [disabled]="dispatchStore.isCommandLocked(dispatch.command)"
-                      (input)="dispatchStore.setDispatchObservation(line.physicalAllocationLineId, 'lotId', $any($event.target).value)"
-                    />
-                  </label>
-                </fieldset>
-              }
-              <nexa-button
-                type="button"
-                variant="secondary"
-                [disabled]="!dispatchStore.canRecordOutgoingCheck(dispatch)"
-                [loading]="dispatch.command.status === 'submitting'"
-                (click)="recordOutgoingCheck()"
-                >Record outgoing goods check</nexa-button
-              >
-            } @else {
-              <p class="fulfillment-hint">
-                Recording a physical outgoing-goods check requires
-                fulfillment.manage.
+                Warehouse evidence is pending. The Dispatch view receives only
+                the current match, version, and open-discrepancy facts.
               </p>
             }
           </section>
@@ -997,7 +1013,7 @@
               >
             } @else {
               <p class="fulfillment-hint">
-                Handoff is enabled only when the API reports a current driver
+                Handoff requires dispatch.read and dispatch.complete, plus a current driver
                 assignment and a matching outgoing-goods check for this
                 fulfillment and physical-allocation version. The command uses
                 those exact snapshots.

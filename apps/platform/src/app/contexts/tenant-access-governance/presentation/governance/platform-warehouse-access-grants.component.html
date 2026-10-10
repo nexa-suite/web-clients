@@ -1,0 +1,211 @@
+<section
+  class="platform-governance-page"
+  aria-labelledby="warehouse-grants-title"
+  data-testid="platform-warehouse-access-grants"
+>
+  <header class="platform-governance-page__heading">
+    <div>
+      <p class="platform-governance-page__eyebrow">TENANT ACCESS GOVERNANCE</p>
+      <h1 id="warehouse-grants-title">Warehouse access for NEXA_AUTOMATION</h1>
+      <p>
+        Grant or revoke Warehouse access for the verified SYSTEM_WORKFLOW actor
+        in the active Tenant and Workspace.
+      </p>
+    </div>
+    @if (canManage()) {
+      <nexa-button variant="secondary" size="compact" (click)="refresh()"
+        >Refresh</nexa-button
+      >
+    }
+  </header>
+
+  @if (!canManage()) {
+    <nexa-surface tone="inset">
+      <p role="alert">
+        This page requires an authenticated Platform Company Owner or Tenant
+        Administrator with tenant.role.assign.
+      </p>
+    </nexa-surface>
+  } @else {
+    @let view = state();
+    @if (view.status === "idle" || view.status === "loading") {
+      <p
+        class="platform-governance-page__notice"
+        role="status"
+        aria-live="polite"
+      >
+        Loading exact Workspace actor and Warehouses…
+      </p>
+    } @else if (view.status === "error") {
+      <nexa-surface tone="inset">
+        <p class="platform-governance-page__error" role="alert">
+          {{ view.message }}
+        </p>
+        @if (view.lease) {
+          <nexa-button variant="secondary" (click)="refresh()"
+            >Reload current Workspace</nexa-button
+          >
+        }
+      </nexa-surface>
+    } @else {
+      @if (view.message) {
+        <p
+          class="platform-governance-page__error"
+          role="alert"
+          aria-live="polite"
+        >
+          {{ view.message }}
+        </p>
+      }
+      @if (view.notice) {
+        <p
+          class="platform-governance-page__notice"
+          role="status"
+          aria-live="polite"
+        >
+          {{ view.notice }}
+        </p>
+      }
+
+      <nexa-surface tone="inset">
+        <h2>Explicit technical actor</h2>
+        @if (view.systemActor) {
+          <p><strong>NEXA_AUTOMATION</strong> · SYSTEM_WORKFLOW · ACTIVE</p>
+          <p>
+            Only this verified Workspace membership can be changed here. Human
+            membership roles, identity, password, and status are not editable on
+            this page.
+          </p>
+        } @else {
+          <p role="alert">{{ view.actorIssue }}</p>
+        }
+        <dl class="platform-governance-page__scope">
+          <div>
+            <dt>Tenant</dt>
+            <dd>
+              <code>{{ view.lease.scope.tenantId }}</code>
+            </dd>
+          </div>
+          <div>
+            <dt>Workspace</dt>
+            <dd>
+              <code>{{ view.lease.scope.workspaceId }}</code>
+            </dd>
+          </div>
+        </dl>
+      </nexa-surface>
+
+      <nexa-surface tone="default">
+        <div class="platform-governance-page__section-heading">
+          <div>
+            <h2>Warehouse grants</h2>
+            <p>
+              {{ view.warehouses.total }} Warehouse(s) in the active Workspace.
+            </p>
+          </div>
+          <nav
+            class="platform-governance-page__pagination"
+            aria-label="Warehouse pages"
+          >
+            <nexa-button
+              size="compact"
+              variant="secondary"
+              [disabled]="view.busy || view.warehouses.page === 0"
+              (click)="previousPage()"
+              >Previous</nexa-button
+            >
+            <span
+              >Page {{ view.warehouses.page + 1 }} of
+              {{ pageCount(view.warehouses.total, view.warehouses.size) }}</span
+            >
+            <nexa-button
+              size="compact"
+              variant="secondary"
+              [disabled]="
+                view.busy ||
+                (view.warehouses.page + 1) * view.warehouses.size >=
+                  view.warehouses.total
+              "
+              (click)="nextPage()"
+              >Next</nexa-button
+            >
+          </nav>
+        </div>
+
+        @if (view.warehouses.items.length === 0) {
+          <p>No Warehouses were returned for the active Workspace.</p>
+        } @else {
+          <label for="warehouse-grant-selection">Warehouse</label>
+          <select
+            id="warehouse-grant-selection"
+            [value]="view.selectedWarehouseId ?? ''"
+            (change)="selectWarehouse($event)"
+            [disabled]="view.busy || !view.systemActor"
+          >
+            <option value="">Choose a Warehouse</option>
+            @for (warehouse of view.warehouses.items; track warehouse.id) {
+              <option [value]="warehouse.id">
+                {{ warehouse.code }} · {{ warehouse.name }} ·
+                {{ warehouse.status }}
+              </option>
+            }
+          </select>
+        }
+
+        @if (view.selectedWarehouseId) {
+          @if (view.grantsStatus === "loading") {
+            <p role="status" aria-live="polite">
+              Loading grant for the selected Warehouse…
+            </p>
+          } @else if (view.grantsStatus === "error") {
+            <p class="platform-governance-page__error" role="alert">
+              Grant state is unknown. Refresh before changing access.
+            </p>
+          } @else if (view.grantsStatus === "ready") {
+            <section
+              class="platform-governance-page__form"
+              aria-labelledby="selected-warehouse-grant-title"
+            >
+              <h3 id="selected-warehouse-grant-title">
+                Selected Warehouse access
+              </h3>
+              @if (view.selectedGrant; as selectedGrant) {
+                <p>
+                  Current state: <strong>{{ selectedGrant.status }}</strong> ·
+                  version
+                  {{ selectedGrant.version }}
+                </p>
+                @if (store.canRevoke()) {
+                  <nexa-button
+                    variant="danger"
+                    [disabled]="view.busy || view.needsRefresh"
+                    (click)="revoke()"
+                    >Revoke access</nexa-button
+                  >
+                } @else if (store.canGrant()) {
+                  <nexa-button
+                    [disabled]="view.busy || view.needsRefresh"
+                    (click)="grant()"
+                    >Reactivate access</nexa-button
+                  >
+                }
+              } @else {
+                <p>
+                  No Warehouse grant exists for NEXA_AUTOMATION in this
+                  Workspace.
+                </p>
+                @if (store.canGrant()) {
+                  <nexa-button
+                    [disabled]="view.busy || view.needsRefresh"
+                    (click)="grant()"
+                    >Grant access</nexa-button
+                  >
+                }
+              }
+            </section>
+          }
+        }
+      </nexa-surface>
+    }
+  }
+</section>

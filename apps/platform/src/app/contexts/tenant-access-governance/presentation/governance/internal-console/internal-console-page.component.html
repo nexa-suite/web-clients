@@ -1,0 +1,155 @@
+<main class="internal-console" aria-labelledby="internal-console-title">
+  <header class="internal-console__heading">
+    <div>
+      <p class="internal-console__eyebrow">Nexa · internal operations</p>
+      <h1 id="internal-console-title">Onboarding and support console</h1>
+      <p>
+        Review onboarding health and request a time-limited read of one sales order.
+        A Company Owner must consent to the exact Tenant, Workspace, order, and expiry;
+        another operator must approve it.
+      </p>
+    </div>
+  </header>
+
+  @if (credential(); as operator) {
+    <section class="internal-console__panel" aria-labelledby="operator-title">
+      <div class="internal-console__panel-heading">
+        <div>
+          <h2 id="operator-title">Internal operator session</h2>
+          <p>Authenticated operator UUID: <code>{{ operator.operatorId }}</code></p>
+          <p class="internal-console__muted">The credential is held in page memory for these requests and is not saved in browser storage.</p>
+        </div>
+        <div class="internal-console__actions">
+          <button type="button" class="internal-console__button internal-console__button--secondary" [disabled]="loading() || !!busyAction()" (click)="refresh()">Refresh</button>
+          <button type="button" class="internal-console__button internal-console__button--quiet" (click)="clearCredentials()">Clear credentials</button>
+        </div>
+      </div>
+
+      @if (message()) {
+        <p class="internal-console__message" role="status" aria-live="polite">{{ message() }}</p>
+      }
+
+      @if (loading()) {
+        <p class="internal-console__state" role="status">Refreshing central status…</p>
+      }
+
+      <section class="internal-console__section" aria-labelledby="onboarding-title">
+        <div class="internal-console__section-heading">
+          <div>
+            <h2 id="onboarding-title">Onboarding and Tenant database health</h2>
+            <p>Bounded workflow status only. Contact details and database locators are not returned.</p>
+          </div>
+        </div>
+        @if (onboarding().length === 0 && !loading()) {
+          <p class="internal-console__state">No onboarding records are visible for this query.</p>
+        } @else {
+          <div class="internal-console__table-wrap">
+            <table class="internal-console__table">
+              <thead>
+                <tr>
+                  <th scope="col">Registration</th>
+                  <th scope="col">Workflow</th>
+                  <th scope="col">Tenant / Workspace</th>
+                  <th scope="col">Provisioning</th>
+                  <th scope="col">Registry</th>
+                  <th scope="col">Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (entry of onboarding(); track onboardingTrackKey(entry)) {
+                  <tr>
+                    <td><code>{{ entry.registrationId ?? "Provisioning-only workspace" }}</code></td>
+                    <td>{{ entry.registrationStatus ?? "No registration record" }}</td>
+                    <td>
+                      <span class="internal-console__identifier">T: {{ entry.tenantId ?? "not assigned" }}</span>
+                      <span class="internal-console__identifier">W: {{ entry.workspaceId ?? "not assigned" }}</span>
+                    </td>
+                    <td>{{ entry.provisioningStatus ?? "not reported" }} @if (entry.attemptCount !== null) { <span>· {{ entry.attemptCount }} attempts</span> }</td>
+                    <td>{{ entry.registryLifecycleState ?? "not reported" }}</td>
+                    <td>{{ entry.updatedAt }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      <section class="internal-console__section" aria-labelledby="support-title">
+        <div class="internal-console__section-heading">
+          <div>
+            <h2 id="support-title">Temporary Sales Order support</h2>
+            <p>Read-only projection is limited to status, total, currency, and version.</p>
+          </div>
+        </div>
+
+        <form class="internal-console__request-form" (submit)="requestSupport($event)">
+          <label>Tenant UUID<input [value]="tenantIdInput()" (input)="setInput('tenantIdInput', $event)" autocomplete="off" spellcheck="false" /></label>
+          <label>Workspace UUID<input [value]="workspaceIdInput()" (input)="setInput('workspaceIdInput', $event)" autocomplete="off" spellcheck="false" /></label>
+          <label>Sales Order UUID<input [value]="salesOrderIdInput()" (input)="setInput('salesOrderIdInput', $event)" autocomplete="off" spellcheck="false" /></label>
+          <label>Expires at<input type="datetime-local" [value]="deadlineInput()" (input)="setInput('deadlineInput', $event)" /></label>
+          <button type="submit" class="internal-console__button" [disabled]="loading() || !!busyAction() || needsRefresh() || outcomeUnknown()">Request Owner consent</button>
+        </form>
+
+        @if (outcomeUnknown()) {
+          <p class="internal-console__notice" role="alert">The last request result is unresolved. Refresh the request list before submitting another one.</p>
+        }
+
+        @if (requests().length === 0 && !loading()) {
+          <p class="internal-console__state">No support requests are visible.</p>
+        } @else {
+          <div class="internal-console__request-list">
+            @for (request of requests(); track request.id) {
+              <article class="internal-console__request">
+                <div class="internal-console__request-heading">
+                  <div>
+                    <h3>{{ request.status.replaceAll("_", " ") }}</h3>
+                    <p>Sales Order <code>{{ request.resourceId }}</code></p>
+                  </div>
+                  <span class="internal-console__deadline">Expires {{ request.expiresAt }}</span>
+                </div>
+                <dl class="internal-console__scope">
+                  <div><dt>Tenant</dt><dd><code>{{ request.tenantId }}</code></dd></div>
+                  <div><dt>Workspace</dt><dd><code>{{ request.workspaceId }}</code></dd></div>
+                  <div><dt>Requester</dt><dd><code>{{ request.requestedByOperatorId }}</code></dd></div>
+                  <div><dt>Approver</dt><dd><code>{{ request.approvedByOperatorId ?? "pending" }}</code></dd></div>
+                </dl>
+                <div class="internal-console__actions">
+                  @if (canApprove(request)) {
+                    <button type="button" class="internal-console__button" [disabled]="!!busyAction() || needsRefresh()" (click)="approve(request)">Approve as second operator</button>
+                  }
+                  @if (canRevoke(request)) {
+                    <button type="button" class="internal-console__button internal-console__button--secondary" [disabled]="!!busyAction() || needsRefresh()" (click)="revoke(request)">Revoke support</button>
+                  }
+                  @if (canReadOrder(request)) {
+                    <button type="button" class="internal-console__button internal-console__button--secondary" [disabled]="!!busyAction() || needsRefresh()" (click)="readOrder(request)">Read minimized order status</button>
+                  }
+                </div>
+              </article>
+            }
+          </div>
+        }
+
+        @if (salesOrderResult(); as result) {
+          <aside class="internal-console__result" aria-live="polite">
+            <h3>Sales Order projection</h3>
+            <p>Status: <strong>{{ result.status }}</strong> · Total: <strong>{{ result.total }} {{ result.currency }}</strong> · Version: <strong>{{ result.version }}</strong></p>
+          </aside>
+        }
+      </section>
+    </section>
+  } @else {
+    <section class="internal-console__panel" aria-labelledby="credentials-title">
+      <h2 id="credentials-title">Authenticate as an internal operator</h2>
+      <p>Use the operator UUID and token configured for the internal allowlist. This page does not create a Tenant session.</p>
+      <form class="internal-console__credential-form" (submit)="connect($event)">
+        <label>Operator UUID<input [value]="operatorIdInput()" (input)="setInput('operatorIdInput', $event)" autocomplete="off" spellcheck="false" required /></label>
+        <label>Internal token<input type="password" [value]="tokenInput()" (input)="setInput('tokenInput', $event)" autocomplete="off" required /></label>
+        <button type="submit" class="internal-console__button">Connect</button>
+      </form>
+      @if (message()) {
+        <p class="internal-console__message" role="alert">{{ message() }}</p>
+      }
+    </section>
+  }
+</main>

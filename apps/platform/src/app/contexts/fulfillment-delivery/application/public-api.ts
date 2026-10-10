@@ -25,7 +25,6 @@ export {
   type DispatchActionName,
   type DispatchCommandState,
   type DispatchFormDraft,
-  type DispatchObservationDraft,
   type DispatchPlannerState,
 } from "./platform-dispatch-planner.store";
 export {

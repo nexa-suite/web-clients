@@ -200,7 +200,7 @@ export class PlatformTenantAccessGovernanceStore {
       this.snapshot.set({
         status: "ready",
         lease,
-        memberships: scopedMemberships,
+        memberships: scopedMemberships.filter(isInternalMembership),
         invitations: scopedInvitations,
         roles: scopedRoles,
         permissionCatalog: validCatalog,
@@ -279,7 +279,7 @@ export class PlatformTenantAccessGovernanceStore {
     const current = this.state().memberships.find((value) => value.id === membershipId);
     if (
       !current ||
-      !isMembershipInScope(current, lease) ||
+      !isInternalMembershipInScope(current, lease) ||
       current.version !== version ||
       current.status.toUpperCase() !== "ACTIVE"
     ) {
@@ -305,7 +305,7 @@ export class PlatformTenantAccessGovernanceStore {
           version,
           uniqueIds,
         ),
-      (value) => isMembershipInScope(value, lease),
+      (value) => isInternalMembershipInScope(value, lease),
       "Membership roles updated.",
     );
   }
@@ -320,7 +320,7 @@ export class PlatformTenantAccessGovernanceStore {
     if (
       !lease ||
       !current ||
-      !isMembershipInScope(current, lease) ||
+      !isInternalMembershipInScope(current, lease) ||
       current.version !== membership.version ||
       !isAllowedMembershipTransition(action, current.status)
     ) {
@@ -335,7 +335,7 @@ export class PlatformTenantAccessGovernanceStore {
     return this.runCommand(
       lease,
       operation,
-      (value) => isMembershipInScope(value, lease),
+      (value) => isInternalMembershipInScope(value, lease),
       `Membership ${{
         suspend: "suspended",
         reactivate: "reactivated",
@@ -717,7 +717,10 @@ function isAssignableRoleDefinition(
   role: RoleDefinitionResponse,
   lease: PlatformSessionLease,
 ): boolean {
-  if (role.status !== "ACTIVE" || role.code.toUpperCase() === "BUYER") return false;
+  if (
+    role.status !== "ACTIVE" ||
+    ["BUYER", "SYSTEM_WORKFLOW"].includes(role.code.trim().toUpperCase())
+  ) return false;
   if (role.type !== "CUSTOM") return true;
   return (
     role.tenantId === lease.scope.tenantId &&
@@ -733,6 +736,7 @@ function isMembershipInScope(
     isRecord(value) &&
     isNonEmptyString(value.id) &&
     value.workspaceId === lease.scope.workspaceId &&
+    ["INTERNAL", "BUYER", "SYSTEM_WORKFLOW"].includes(value.membershipType) &&
     isNonEmptyString(value.email) &&
     isNonEmptyString(value.displayName) &&
     Number.isSafeInteger(value.version) &&
@@ -740,6 +744,17 @@ function isMembershipInScope(
     Array.isArray(value.roleDefinitionIds) &&
     Array.isArray(value.permissionCodes)
   );
+}
+
+function isInternalMembership(value: WorkspaceMembershipResponse): boolean {
+  return value.membershipType === "INTERNAL";
+}
+
+function isInternalMembershipInScope(
+  value: WorkspaceMembershipResponse,
+  lease: PlatformSessionLease,
+): boolean {
+  return isMembershipInScope(value, lease) && isInternalMembership(value);
 }
 
 function isInvitationInScope(

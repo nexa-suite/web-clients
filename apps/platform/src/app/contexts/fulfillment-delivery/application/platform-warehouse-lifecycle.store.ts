@@ -14,9 +14,11 @@ import type {
   FulfillmentResponse,
   PhysicalAllocationLineResponse,
   PhysicalAllocationResponse,
+  OutgoingGoodsCheckResponse,
+  RecordOutgoingGoodsCheckRequest,
   ResolveShortageRequest,
 } from "@nexa/api";
-import { forkJoin, firstValueFrom, type Observable } from "rxjs";
+import { forkJoin, firstValueFrom, of, type Observable } from "rxjs";
 import type { PlatformSessionLease } from "../../tenant-access-governance/application/public-api";
 import { PlatformSessionStore } from "../../tenant-access-governance/application/public-api";
 import { fulfillmentApiErrorMessage } from "./fulfillment-api-error-message";
@@ -28,12 +30,18 @@ export type FulfillmentActionName =
   | "shortage-resolution"
   | "packing"
   | "staging"
-  | "ready-for-dispatch";
+  | "ready-for-dispatch"
+  | "outgoing-goods-check";
 
 export interface PickingObservationDraft {
   readonly quantity: string;
   readonly lotId: string;
   readonly warehouseId: string;
+}
+
+export interface OutgoingObservationDraft {
+  readonly quantity: string;
+  readonly lotId: string;
 }
 
 export interface PickingRow {
@@ -45,11 +53,17 @@ export interface PickingRow {
 interface WarehouseFormDraft {
   readonly fulfillmentId: string | null;
   readonly observations: Readonly<Record<string, PickingObservationDraft>>;
+  readonly outgoingObservations: Readonly<Record<string, OutgoingObservationDraft>>;
   readonly shortageReason: string;
 }
 
 function emptyWarehouseDraft(fulfillmentId: string | null = null): WarehouseFormDraft {
-  return { fulfillmentId, observations: {}, shortageReason: "" };
+  return {
+    fulfillmentId,
+    observations: {},
+    outgoingObservations: {},
+    shortageReason: "",
+  };
 }
 
 export type FulfillmentCommandState =
@@ -91,6 +105,7 @@ export type WarehouseLifecycleState =
       readonly fulfillment: FulfillmentResponse;
       readonly etag: string | null;
       readonly allocation: PhysicalAllocationResponse;
+      readonly outgoingCheck: OutgoingGoodsCheckResponse | null;
       readonly command: FulfillmentCommandState;
     }
   | {
@@ -165,14 +180,19 @@ export class PlatformWarehouseLifecycleStore {
     forkJoin({
       fulfillment: this.reads.getFulfillment(fulfillmentId),
       allocation: this.reads.getPhysicalAllocation(fulfillmentId),
+      outgoingCheck: this.canManage()
+        ? this.commands.getCurrentOutgoingGoodsCheck(fulfillmentId)
+        : of(null),
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ fulfillment, allocation }) => {
+        next: ({ fulfillment, allocation, outgoingCheck }) => {
           if (!this.isLoadCurrent(fulfillmentId, requestVersion, lease)) return;
           if (
             fulfillment.body.id !== fulfillmentId ||
             fulfillment.body.physicalAllocationId !== allocation.body.allocationId ||
+            (outgoingCheck !== null &&
+              outgoingCheck.body.fulfillmentId !== fulfillmentId) ||
             (expectedAllocationId !== undefined &&
               allocation.body.allocationId !== expectedAllocationId)
           ) {
@@ -193,6 +213,7 @@ export class PlatformWarehouseLifecycleStore {
             fulfillment: fulfillment.body,
             etag: versionEtag(fulfillment.etag, fulfillment.body.version),
             allocation: allocation.body,
+            outgoingCheck: outgoingCheck?.body ?? null,
             command: { status: "idle" },
           });
         },
@@ -272,6 +293,34 @@ export class PlatformWarehouseLifecycleStore {
     });
   }
 
+  outgoingObservation(
+    inspection: Extract<WarehouseLifecycleState, { status: "ready" }>,
+    lineId: string,
+  ): OutgoingObservationDraft {
+    return this.formFor(inspection.id).outgoingObservations[lineId] ??
+      emptyOutgoingObservation();
+  }
+
+  setOutgoingObservation(
+    lineId: string,
+    field: keyof OutgoingObservationDraft,
+    value: string,
+  ): void {
+    const inspection = this.currentInspection();
+    if (!inspection) return;
+    const draft = this.formFor(inspection.id);
+    const observation = draft.outgoingObservations[lineId] ??
+      emptyOutgoingObservation();
+    this.form.set({
+      ...draft,
+      fulfillmentId: inspection.id,
+      outgoingObservations: {
+        ...draft.outgoingObservations,
+        [lineId]: { ...observation, [field]: value },
+      },
+    });
+  }
+
   shortageReason(
     inspection: Extract<WarehouseLifecycleState, { status: "ready" }>,
   ): string {
@@ -335,6 +384,13 @@ export class PlatformWarehouseLifecycleStore {
     return this.canTransition(inspection, "STAGED");
   }
 
+  canRecordOutgoingCheck(
+    inspection: Extract<WarehouseLifecycleState, { status: "ready" }>,
+  ): boolean {
+    return this.canExecute("outgoing-goods-check", inspection) &&
+      !this.isCommandLocked(inspection.command);
+  }
+
   startPicking(): Promise<boolean> {
     return this.execute("picking-start");
   }
@@ -357,6 +413,10 @@ export class PlatformWarehouseLifecycleStore {
 
   markReadyForDispatch(): Promise<boolean> {
     return this.execute("ready-for-dispatch");
+  }
+
+  recordOutgoingGoodsCheck(): Promise<boolean> {
+    return this.execute("outgoing-goods-check");
   }
 
   async execute(action: FulfillmentActionName): Promise<boolean> {
@@ -468,7 +528,10 @@ export class PlatformWarehouseLifecycleStore {
         request.pipe(takeUntilDestroyed(this.destroyRef)),
       );
       if (!this.isCommandCurrent(fulfillmentId, requestVersion, lease)) return false;
-      if (result.body.id !== fulfillmentId) {
+      const responseFulfillmentId = action === "outgoing-goods-check"
+        ? (result.body as OutgoingGoodsCheckResponse).fulfillmentId
+        : (result.body as FulfillmentResponse).id;
+      if (responseFulfillmentId !== fulfillmentId) {
         this.setCommandError(
           fulfillmentId,
           action,
@@ -481,20 +544,7 @@ export class PlatformWarehouseLifecycleStore {
         return false;
       }
       this.retries.remove(storageKey);
-      this.snapshot.update((state) =>
-        state.status === "ready" && state.id === fulfillmentId
-          ? {
-              ...state,
-              fulfillment: result.body,
-              etag: versionEtag(result.etag, result.body.version),
-              command: {
-                status: "success",
-                action,
-                message: fulfillmentActionSuccessMessage(action),
-              },
-            }
-          : state,
-      );
+      this.applyCommandResult(fulfillmentId, action, result.body, result.etag);
       return true;
     } catch (error: unknown) {
       if (!this.isCommandCurrent(fulfillmentId, requestVersion, lease)) return false;
@@ -518,7 +568,7 @@ export class PlatformWarehouseLifecycleStore {
     etag: string,
     key: string,
     payload: unknown,
-  ): Observable<FulfillmentResourceResponse> {
+  ): Observable<WarehouseCommandResponse> {
     switch (action) {
       case "picking-start":
         return this.commands.startPicking(fulfillmentId, etag, key);
@@ -542,7 +592,46 @@ export class PlatformWarehouseLifecycleStore {
         return this.commands.stage(fulfillmentId, etag, key);
       case "ready-for-dispatch":
         return this.commands.readyForDispatch(fulfillmentId, etag, key);
+      case "outgoing-goods-check":
+        return this.commands.recordOutgoingGoodsCheck(
+          fulfillmentId,
+          etag,
+          key,
+          payload as RecordOutgoingGoodsCheckRequest,
+        );
     }
+  }
+
+  private applyCommandResult(
+    fulfillmentId: string,
+    action: FulfillmentActionName,
+    body: WarehouseCommandResponse["body"],
+    etag: string | null,
+  ): void {
+    this.snapshot.update((state) => {
+      if (state.status !== "ready" || state.id !== fulfillmentId) return state;
+      const command: FulfillmentCommandState = {
+        status: "success",
+        action,
+        message: fulfillmentActionSuccessMessage(action),
+      };
+      if (action === "outgoing-goods-check") {
+        const check = body as OutgoingGoodsCheckResponse;
+        return {
+          ...state,
+          outgoingCheck: check,
+          etag: versionEtag(etag, check.fulfillmentVersion),
+          command,
+        };
+      }
+      const fulfillment = body as FulfillmentResponse;
+      return {
+        ...state,
+        fulfillment,
+        etag: versionEtag(etag, fulfillment.version),
+        command,
+      };
+    });
   }
 
   private setCommand(
@@ -606,6 +695,9 @@ export class PlatformWarehouseLifecycleStore {
         return this.canTransitionState(inspection, "PACKED");
       case "ready-for-dispatch":
         return this.canTransitionState(inspection, "STAGED");
+      case "outgoing-goods-check":
+        return inspection.fulfillment.status === "READY_FOR_DISPATCH" &&
+          this.outgoingGoodsRequest(inspection) !== null;
     }
   }
 
@@ -618,6 +710,8 @@ export class PlatformWarehouseLifecycleStore {
         return this.confirmPickingRequest(inspection);
       case "shortage-resolution":
         return this.shortageResolutionRequest(inspection);
+      case "outgoing-goods-check":
+        return this.outgoingGoodsRequest(inspection);
       default:
         return null;
     }
@@ -723,6 +817,36 @@ export class PlatformWarehouseLifecycleStore {
     return lines.length > 0 && reason ? { reason, lines } : null;
   }
 
+  private outgoingGoodsRequest(
+    inspection: Extract<WarehouseLifecycleState, { status: "ready" }>,
+  ): RecordOutgoingGoodsCheckRequest | null {
+    if (inspection.allocation.lines.length === 0) return null;
+    const observations: RecordOutgoingGoodsCheckRequest["observations"][number][] = [];
+    for (const line of inspection.allocation.lines) {
+      const draft = this.formFor(inspection.id).outgoingObservations[
+        line.physicalAllocationLineId
+      ] ?? emptyOutgoingObservation();
+      if (!draft.quantity.trim()) return null;
+      const quantity = Number(draft.quantity);
+      if (!Number.isFinite(quantity) || quantity < 0) return null;
+      const observedLotId = draft.lotId.trim() || null;
+      if ((quantity > 0 && observedLotId === null) ||
+          (quantity === 0 && observedLotId !== null)) {
+        return null;
+      }
+      observations.push({
+        physicalAllocationLineId: line.physicalAllocationLineId,
+        observedLotId,
+        observedQuantity: quantity,
+      });
+    }
+    return {
+      physicalAllocationId: inspection.allocation.allocationId,
+      physicalAllocationVersion: inspection.allocation.version,
+      observations,
+    };
+  }
+
   private canTransition(
     inspection: Extract<WarehouseLifecycleState, { status: "ready" }>,
     status: FulfillmentResponse["status"],
@@ -801,6 +925,17 @@ function emptyPickingObservation(): PickingObservationDraft {
   return { quantity: "", lotId: "", warehouseId: "" };
 }
 
+function emptyOutgoingObservation(): OutgoingObservationDraft {
+  return { quantity: "", lotId: "" };
+}
+
+type WarehouseCommandResponse =
+  | FulfillmentResourceResponse
+  | {
+      readonly body: OutgoingGoodsCheckResponse;
+      readonly etag: string | null;
+    };
+
 function versionEtag(etag: string | null, version: number): string | null {
   if (!etag || !Number.isSafeInteger(version) || version < 0) return null;
   return etag === `"${version}"` ? etag : null;
@@ -824,5 +959,7 @@ function fulfillmentActionSuccessMessage(action: FulfillmentActionName): string 
       return "The API recorded staging for this fulfillment.";
     case "ready-for-dispatch":
       return "The API marked this fulfillment ready for dispatch.";
+    case "outgoing-goods-check":
+      return "The API compared observed goods with the current physical allocation.";
   }
 }
