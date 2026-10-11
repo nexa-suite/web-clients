@@ -43,7 +43,7 @@
           <div class="request-builder__line">
             <label>
               Catalog SKU
-              <select [value]="line.skuId" (change)="updateLine(row, 'skuId', $any($event.target).value)">
+              <select [ngModel]="line.skuId" (ngModelChange)="updateLine(row, 'skuId', $event)">
                 <option value="">Choose a sellable SKU</option>
                 @if (line.skuId && !hasCatalogSku(line.skuId) && isSavedDraftSku(line.skuId)) {
                   <option [value]="line.skuId" disabled>{{ skuLabel(line.skuId) }}</option>
@@ -133,10 +133,13 @@
           <div class="request-builder__actions">
             <nexa-button variant="secondary" size="compact" (click)="savePreferences()" [disabled]="workflow().submissionKeyPending">Save details</nexa-button>
             <nexa-button variant="secondary" size="compact" (click)="refreshAddresses()">Refresh saved addresses</nexa-button>
-            <nexa-button variant="secondary" size="compact" (click)="previewRoute()" [disabled]="!draft.destination || workflow().submissionKeyPending">Preview route</nexa-button>
+            <nexa-button variant="secondary" size="compact" (click)="previewRoute()" [disabled]="!draft.destination || !selectedAddressId || !selectedAddressHasRouteCoordinates() || workflow().submissionKeyPending">Preview route</nexa-button>
           </div>
           @if (!workflow().addresses.length) {
             <p class="request-builder__notice">No active saved addresses are available for this Buyer account. Add a delivery address to the account, then refresh addresses here.</p>
+          }
+          @if (selectedAddressId && !selectedAddressHasRouteCoordinates()) {
+            <p class="request-builder__notice" role="status">This saved address has no map coordinates, so route preview is unavailable. Ask Sales to add or update a delivery address with coordinates, then refresh saved addresses.</p>
           }
         </section>
       </nexa-surface>

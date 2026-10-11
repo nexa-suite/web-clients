@@ -85,6 +85,57 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
     itemName: "Private catalog item",
   } as BuyerCatalogItem;
 
+  it("selects the requested catalog SKU before asynchronous address loading completes", async () => {
+    const state = signal<BuyerDraftWorkflowState>(emptyWorkflow());
+    let finishAddressLoading!: () => void;
+    const addressLoading = new Promise<void>((resolve) => { finishAddressLoading = resolve; });
+    const store = {
+      state,
+      clear: vi.fn(() => state.set(emptyWorkflow())),
+      loadAddresses: vi.fn(() => addressLoading),
+    };
+    const catalog = {
+      page: signal<CatalogPageState>({ kind: "results", page: { items: [catalogItem], page: 0, size: 50, totalItems: 1, totalPages: 1 }, errorMessage: null }),
+      detail: signal<CatalogDetailState>({ kind: "idle", item: null, errorMessage: null }),
+    };
+    TestBed.configureTestingModule({
+      imports: [BuyerPurchaseRequestDraftPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: (key: string) => key === "skuId" ? catalogItem.sellableSkuId : null } } } },
+        {
+          provide: PortalSessionStore,
+          useValue: {
+            state: signal({ status: "authenticated", session: { surface: "PORTAL", membership: { roles: ["BUYER"], permissions: ["buyer.sales.write"] } } }),
+            captureSessionLease: vi.fn(() => lease),
+            isSessionLeaseCurrent: vi.fn(() => true),
+          },
+        },
+        { provide: PortalBuyerEligibilityService, useValue: { currentAccount: () => ({ id: "account-1" }) } },
+        { provide: BuyerPurchaseRequestDraftStore, useValue: store },
+        { provide: CatalogStore, useValue: catalog },
+        { provide: BUYER_WALLET_CAPABILITIES_PORT, useValue: { canRead: () => false, orderPaymentSupported: () => false, loadCapabilities: vi.fn(), clear: vi.fn() } },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(BuyerPurchaseRequestDraftPageComponent);
+    fixture.detectChanges();
+    await Promise.resolve();
+    fixture.detectChanges();
+    const select = fixture.nativeElement.querySelector(".request-builder__line select") as HTMLSelectElement;
+    expect(store.loadAddresses).toHaveBeenCalledWith("account-1");
+    expect((fixture.componentInstance as unknown as { lines: readonly { skuId: string }[] }).lines[0]?.skuId).toBe(catalogItem.sellableSkuId);
+    expect(select.value).toBe(catalogItem.sellableSkuId);
+    expect(select.selectedOptions[0]?.textContent).toContain("SKU-001");
+
+    finishAddressLoading();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(select.value).toBe(catalogItem.sellableSkuId);
+    expect(select.selectedOptions[0]?.textContent).toContain("SKU-001");
+  });
+
   it("clears and hides a loaded draft form when its Buyer session lease expires", async () => {
     const currentLease = signal<PortalSessionLease | null>(lease);
     const sessions = {
@@ -161,6 +212,56 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
     expect(form.paymentPreference).toBe("");
     expect(form.selectedAddressId).toBe("");
     expect(store.clear).toHaveBeenCalledTimes(2);
+  });
+
+  it("explains when the selected saved address has no coordinates and disables route preview", async () => {
+    const state = signal<BuyerDraftWorkflowState>({
+      ...emptyWorkflow(),
+      status: "ready",
+      draft,
+      addresses: [address],
+    });
+    const store = {
+      state,
+      clear: vi.fn(),
+      loadAddresses: vi.fn(async () => undefined),
+      loadDraft: vi.fn(async () => undefined),
+      previewRoute: vi.fn(async () => undefined),
+    };
+    const catalog = {
+      page: signal<CatalogPageState>({ kind: "results", page: { items: [catalogItem], page: 0, size: 50, totalItems: 1, totalPages: 1 }, errorMessage: null }),
+      detail: signal<CatalogDetailState>({ kind: "idle", item: null, errorMessage: null }),
+    };
+    TestBed.configureTestingModule({
+      imports: [BuyerPurchaseRequestDraftPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: (key: string) => key === "draftId" ? draft.id : null } } } },
+        {
+          provide: PortalSessionStore,
+          useValue: {
+            state: signal({ status: "authenticated", session: { surface: "PORTAL", membership: { roles: ["BUYER"], permissions: ["buyer.sales.write"] } } }),
+            captureSessionLease: vi.fn(() => lease),
+            isSessionLeaseCurrent: vi.fn(() => true),
+          },
+        },
+        { provide: PortalBuyerEligibilityService, useValue: { currentAccount: () => ({ id: "account-1" }) } },
+        { provide: BuyerPurchaseRequestDraftStore, useValue: store },
+        { provide: CatalogStore, useValue: catalog },
+        { provide: BUYER_WALLET_CAPABILITIES_PORT, useValue: { canRead: () => false, orderPaymentSupported: () => false, loadCapabilities: vi.fn(), clear: vi.fn() } },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(BuyerPurchaseRequestDraftPageComponent);
+    await fixture.componentInstance.ngOnInit();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain("This saved address has no map coordinates, so route preview is unavailable.");
+    expect(fixture.nativeElement.textContent).toContain("Ask Sales to add or update a delivery address with coordinates");
+    const previewButton = [...fixture.nativeElement.querySelectorAll("nexa-button button")]
+      .find((button: HTMLButtonElement) => button.textContent?.includes("Preview route")) as HTMLButtonElement;
+    expect(previewButton.disabled).toBe(true);
+    expect(store.previewRoute).not.toHaveBeenCalled();
   });
 
   it("offers WALLET only with the API capability and Buyer read/write grants, then clears stale selection", async () => {

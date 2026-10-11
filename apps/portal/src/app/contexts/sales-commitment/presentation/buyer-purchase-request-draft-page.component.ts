@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from "@angular/core";
+import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import { NexaButton, NexaSurface } from "nexa-ui";
 import { PortalBuyerEligibilityService } from "../../customer-buyer-relationships/application/public-api";
@@ -27,7 +28,7 @@ const WALLET_PREFERENCE: SetPurchaseRequestDraftPreferencesRequest["paymentPrefe
 @Component({
   selector: "portal-buyer-purchase-request-draft-page",
   standalone: true,
-  imports: [NexaButton, NexaSurface, RouterLink],
+  imports: [FormsModule, NexaButton, NexaSurface, RouterLink],
   templateUrl: "./buyer-purchase-request-draft-page.component.html",
   styleUrl: "./buyer-purchase-request-draft-page.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -114,6 +115,11 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
     if (this.initializedLease && sameLease(this.initializedLease, lease)) return;
     this.initializedLease = lease;
     this.store.clear();
+    const draftId = this.route.snapshot.queryParamMap.get("draftId");
+    if (!draftId) {
+      const skuId = this.route.snapshot.queryParamMap.get("skuId") ?? "";
+      if (skuId) this.lines = [{ skuId, quantity: "1", unit: "", notes: "" }];
+    }
     const account = this.eligibility.currentAccount();
     if (account) await this.store.loadAddresses(account.id);
     if (!this.sessions.isSessionLeaseCurrent(lease)) return;
@@ -123,7 +129,6 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
       this.walletCapabilities.clear();
     }
     if (!this.sessions.isSessionLeaseCurrent(lease)) return;
-    const draftId = this.route.snapshot.queryParamMap.get("draftId");
     if (draftId) {
       await this.store.loadDraft(draftId);
       if (!this.sessions.isSessionLeaseCurrent(lease)) return;
@@ -144,9 +149,6 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
         }));
         this.selectedAddressId = draft.destination?.addressId ?? "";
       }
-    } else {
-      const skuId = this.route.snapshot.queryParamMap.get("skuId") ?? "";
-      if (skuId) this.lines = [{ skuId, quantity: "1", unit: "", notes: "" }];
     }
   }
 
@@ -272,6 +274,14 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
 
   protected async previewRoute(): Promise<void> {
     await this.store.previewRoute();
+  }
+
+  protected selectedAddressHasRouteCoordinates(): boolean {
+    const address = this.workflow().addresses.find((candidate) => candidate.id === this.selectedAddressId);
+    return typeof address?.latitude === "number"
+      && Number.isFinite(address.latitude)
+      && typeof address.longitude === "number"
+      && Number.isFinite(address.longitude);
   }
 
   protected async refreshReview(): Promise<void> {
