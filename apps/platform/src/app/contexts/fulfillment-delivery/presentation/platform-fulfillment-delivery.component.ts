@@ -143,6 +143,14 @@ export class PlatformFulfillmentDeliveryComponent implements OnInit {
     this.runDispatchCommand(() => this.dispatchStore.dispatchFulfillment());
   }
 
+  protected sealDeliveryPod(): void {
+    this.runDispatchCommand(() => this.dispatchStore.sealPod());
+  }
+
+  protected retryPodSealCommand(): void {
+    this.runDispatchCommand(() => this.dispatchStore.retryPodSeal());
+  }
+
   protected retryDispatchCommand(): void {
     this.runDispatchCommand(() => this.dispatchStore.retry());
   }

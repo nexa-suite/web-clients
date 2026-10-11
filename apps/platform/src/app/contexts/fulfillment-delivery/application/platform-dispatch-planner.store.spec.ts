@@ -7,6 +7,8 @@ import type {
   DispatchOutgoingGoodsCheckSummaryResponse,
   DispatchReadinessResponse,
   DriverAssignmentResponse,
+  FulfillmentDeliveryResponse,
+  FulfillmentPodResponse,
   FulfillmentResponse,
   PhysicalAllocationResponse,
 } from "@nexa/api";
@@ -41,10 +43,13 @@ describe("PlatformDispatchPlannerStore", () => {
   let commands: {
     getCurrentDriverAssignment: ReturnType<typeof vi.fn>;
     getCurrentDispatchOutgoingGoodsCheckSummary: ReturnType<typeof vi.fn>;
+    getDelivery: ReturnType<typeof vi.fn>;
+    getCurrentPod: ReturnType<typeof vi.fn>;
     listDispatchAssignees: ReturnType<typeof vi.fn>;
     assignDriver: ReturnType<typeof vi.fn>;
     planDispatchWindow: ReturnType<typeof vi.fn>;
     dispatch: ReturnType<typeof vi.fn>;
+    sealPod: ReturnType<typeof vi.fn>;
   };
   let retryValues: Map<string, string>;
   let retryWrite: ReturnType<typeof vi.fn>;
@@ -87,6 +92,10 @@ describe("PlatformDispatchPlannerStore", () => {
     commands = {
       getCurrentDriverAssignment: vi.fn(() => of(null)),
       getCurrentDispatchOutgoingGoodsCheckSummary: vi.fn(() => of(null)),
+      getDelivery: vi.fn(() =>
+        of({ body: delivery("PLANNED", 1), etag: '"1"' }),
+      ),
+      getCurrentPod: vi.fn(() => of(null)),
       listDispatchAssignees: vi.fn(() =>
         of<readonly DispatchAssigneeResponse[]>([
           { id: driverId, displayName: "Warehouse Driver" },
@@ -111,6 +120,9 @@ describe("PlatformDispatchPlannerStore", () => {
       ),
       dispatch: vi.fn(() =>
         of({ body: fulfillment("HANDED_OVER", 7), etag: '"7"' }),
+      ),
+      sealPod: vi.fn(() =>
+        of({ body: pod("SEALED", 4), etag: '"4"' }),
       ),
     };
     TestBed.configureTestingModule({
@@ -283,6 +295,84 @@ describe("PlatformDispatchPlannerStore", () => {
     expect(commands.dispatch).not.toHaveBeenCalled();
   });
 
+  it("seals only a current captured POD using the Delivery ETag and a scoped retry key", async () => {
+    reads.getFulfillment.mockReturnValueOnce(
+      of({ body: fulfillment("COMPLETED", 8), etag: '"8"' }),
+    );
+    commands.getDelivery.mockReturnValueOnce(
+      of({ body: delivery("DELIVERED", 3), etag: '"3"' }),
+    );
+    commands.getCurrentPod.mockReturnValueOnce(
+      of({ body: pod("CAPTURED", 3), etag: '"3"' }),
+    );
+
+    store.inspect(terminalReadiness(), lease);
+    const current = store.state();
+    expect(current.status).toBe("ready");
+    if (current.status !== "ready") throw new Error("Delivery inspection did not load.");
+    expect(store.canSealPod(current)).toBe(true);
+
+    expect(await store.sealPod()).toBe(true);
+    expect(commands.sealPod).toHaveBeenCalledWith(
+      "delivery-1",
+      '"3"',
+      expect.any(String),
+    );
+    const sealed = store.state();
+    expect(sealed.status).toBe("ready");
+    if (sealed.status !== "ready") throw new Error("Sealed delivery state was lost.");
+    expect(sealed.pod?.status).toBe("SEALED");
+    expect(sealed.delivery?.version).toBe(4);
+    expect(store.canSealPod(sealed)).toBe(false);
+    expect(retryRemove).toHaveBeenCalledWith(expect.stringContaining(":pod-seal:"));
+  });
+
+  it("does not seal a current Delivery without dispatch.complete", async () => {
+    sessionState.set({
+      status: "authenticated",
+      session: { membership: { permissions: ["dispatch.read"] } },
+    });
+    reads.getFulfillment.mockReturnValueOnce(
+      of({ body: fulfillment("COMPLETED", 8), etag: '"8"' }),
+    );
+    commands.getDelivery.mockReturnValueOnce(
+      of({ body: delivery("DELIVERED", 3), etag: '"3"' }),
+    );
+    commands.getCurrentPod.mockReturnValueOnce(
+      of({ body: pod("CAPTURED", 3), etag: '"3"' }),
+    );
+    store.inspect(terminalReadiness(), lease);
+    const current = store.state();
+    expect(current.status).toBe("ready");
+    if (current.status !== "ready") throw new Error("Delivery inspection did not load.");
+    expect(store.canSealPod(current)).toBe(false);
+    expect(await store.sealPod()).toBe(false);
+    expect(commands.sealPod).not.toHaveBeenCalled();
+  });
+
+  it("does not seal a captured POD before the Delivery is delivered", async () => {
+    reads.getFulfillment.mockReturnValueOnce(
+      of({ body: fulfillment("COMPLETED", 8), etag: '"8"' }),
+    );
+    commands.getDelivery.mockReturnValueOnce(
+      of({ body: delivery("IN_TRANSIT", 3), etag: '"3"' }),
+    );
+    commands.getCurrentPod.mockReturnValueOnce(
+      of({ body: pod("CAPTURED", 3), etag: '"3"' }),
+    );
+
+    store.inspect(
+      { ...terminalReadiness(), deliveryStatus: "IN_TRANSIT" },
+      lease,
+    );
+    const current = store.state();
+    expect(current.status).toBe("ready");
+    if (current.status !== "ready") throw new Error("Delivery inspection did not load.");
+    expect(store.canSealPod(current)).toBe(false);
+    expect(await store.sealPod()).toBe(false);
+    expect(commands.sealPod).not.toHaveBeenCalled();
+  });
+
   it("rejects stale readiness and keeps an ambiguous plan on the same ETag and retry key", async () => {
     reads.getFulfillment.mockReturnValueOnce(
       of({ body: fulfillment("READY_FOR_DISPATCH", 6), etag: '"6"' }),
@@ -407,6 +497,53 @@ function readiness(version = 5): DispatchReadinessResponse {
     reasons: [],
     lines: [],
     asOf: "2026-10-09T10:00:00Z",
+  };
+}
+
+function terminalReadiness(): DispatchReadinessResponse {
+  return {
+    ...readiness(8),
+    fulfillmentStatus: "COMPLETED",
+    physicalAllocationStatus: "CONSUMED",
+    deliveryStatus: "DELIVERED",
+    deliveryVersion: 3,
+    ready: false,
+    reasons: ["FULFILLMENT_NOT_READY_FOR_DISPATCH"],
+  };
+}
+
+function delivery(
+  status: string,
+  version: number,
+): FulfillmentDeliveryResponse {
+  return {
+    id: "delivery-1",
+    fulfillmentId,
+    salesOrderId: "sales-order-1",
+    status,
+    destinationSnapshot: null,
+    scheduledAt: null,
+    dispatchedAt: "2026-10-09T10:00:00Z",
+    deliveredAt: status === "DELIVERED" ? "2026-10-09T10:10:00Z" : null,
+    version,
+    attempts: [],
+  };
+}
+
+function pod(
+  status: FulfillmentPodResponse["status"],
+  deliveryVersion: number,
+): FulfillmentPodResponse {
+  return {
+    id: "pod-1",
+    deliveryId: "delivery-1",
+    status,
+    receiverName: "Verified receiver",
+    capturedAt: "2026-10-09T10:10:00Z",
+    sealedAt: status === "SEALED" ? "2026-10-09T10:15:00Z" : null,
+    photoEvidenceObjectId: null,
+    signatureEvidenceObjectId: null,
+    deliveryVersion,
   };
 }
 

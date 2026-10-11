@@ -16,6 +16,8 @@ import type {
   DispatchWindowPlanRequest,
   DispatchWindowPlanResponse,
   DriverAssignmentResponse,
+  FulfillmentDeliveryResponse,
+  FulfillmentPodResponse,
   FulfillmentResponse,
   PhysicalAllocationResponse,
 } from "@nexa/api";
@@ -67,6 +69,19 @@ export type DispatchCommandState =
       readonly message: string;
     };
 
+export type PodSealCommandState =
+  | { readonly status: "idle" }
+  | { readonly status: "preparing" }
+  | { readonly status: "submitting" }
+  | {
+      readonly status: "error";
+      readonly etag: string;
+      readonly key: string | null;
+      readonly storageKey: string | null;
+      readonly message: string;
+    }
+  | { readonly status: "success"; readonly message: string };
+
 export type DispatchPlannerState =
   | { readonly status: "idle" }
   | {
@@ -81,12 +96,17 @@ export type DispatchPlannerState =
       readonly readiness: DispatchReadinessResponse;
       readonly fulfillment: FulfillmentResponse;
       readonly etag: string | null;
+      readonly delivery: FulfillmentDeliveryResponse | null;
+      readonly deliveryEtag: string | null;
+      readonly pod: FulfillmentPodResponse | null;
+      readonly podEtag: string | null;
       readonly allocation: PhysicalAllocationResponse;
       readonly assignment: DriverAssignmentResponse | null;
       readonly assignmentEtag: string | null;
       readonly assignees: readonly DispatchAssigneeResponse[];
       readonly outgoingCheck: DispatchOutgoingGoodsCheckSummaryResponse | null;
       readonly command: DispatchCommandState;
+      readonly podCommand: PodSealCommandState;
     }
   | {
       readonly status: "error";
@@ -164,13 +184,19 @@ export class PlatformDispatchPlannerStore {
       allocation: this.reads.getPhysicalAllocation(id),
       assignment: this.commands.getCurrentDriverAssignment(id),
       outgoingCheck: this.commands.getCurrentDispatchOutgoingGoodsCheckSummary(id),
+      delivery: readiness.deliveryId
+        ? this.commands.getDelivery(readiness.deliveryId)
+        : of(null),
+      pod: readiness.deliveryId
+        ? this.commands.getCurrentPod(readiness.deliveryId)
+        : of(null),
       assignees: this.canReadAssignees()
         ? this.commands.listDispatchAssignees()
         : of<readonly DispatchAssigneeResponse[]>([]),
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ fulfillment, allocation, assignment, outgoingCheck, assignees }) => {
+        next: ({ fulfillment, allocation, assignment, outgoingCheck, delivery, pod, assignees }) => {
           if (!this.isLoadCurrent(id, requestVersion, lease)) return;
           if (
             fulfillment.body.id !== id ||
@@ -189,6 +215,36 @@ export class PlatformDispatchPlannerStore {
             });
             return;
           }
+          const deliveryBody = delivery?.body ?? null;
+          const podBody = pod?.body ?? null;
+          const deliveryEtag = deliveryBody
+            ? versionEtag(delivery?.etag ?? null, deliveryBody.version)
+            : null;
+          const podEtag = podBody
+            ? versionEtag(pod?.etag ?? null, podBody.deliveryVersion)
+            : null;
+          if (
+            (readiness.deliveryId !== null &&
+              (!deliveryBody ||
+                deliveryBody.id !== readiness.deliveryId ||
+                deliveryBody.fulfillmentId !== id)) ||
+            (podBody !== null &&
+              (!deliveryBody ||
+                podBody.deliveryId !== deliveryBody.id ||
+                podBody.deliveryVersion !== deliveryBody.version ||
+                !podEtag ||
+                podEtag !== deliveryEtag))
+          ) {
+            this.snapshot.set({
+              status: "error",
+              id,
+              lease,
+              message:
+                "The Delivery and POD snapshots do not describe the same current Delivery version. Reload before continuing.",
+              retryable: true,
+            });
+            return;
+          }
           this.snapshot.set({
             status: "ready",
             id,
@@ -196,12 +252,17 @@ export class PlatformDispatchPlannerStore {
             readiness,
             fulfillment: fulfillment.body,
             etag: versionEtag(fulfillment.etag, fulfillment.body.version),
+            delivery: deliveryBody,
+            deliveryEtag,
+            pod: podBody,
+            podEtag,
             allocation: allocation.body,
             assignment: assignment?.body ?? null,
             assignmentEtag: assignment?.etag ?? null,
             assignees,
             outgoingCheck: outgoingCheck?.body ?? null,
             command: { status: "idle" },
+            podCommand: { status: "idle" },
           });
         },
         error: (error: unknown) => {
@@ -321,6 +382,209 @@ export class PlatformDispatchPlannerStore {
       !check.openDiscrepancy &&
       !this.isCommandLocked(dispatch.command)
     );
+  }
+
+  canSealPod(
+    dispatch: Extract<DispatchPlannerState, { status: "ready" }>,
+  ): boolean {
+    return (
+      this.canRead() &&
+      this.canCompleteHandoff() &&
+      dispatch.delivery?.status === "DELIVERED" &&
+      dispatch.pod?.status === "CAPTURED" &&
+      dispatch.pod.deliveryId === dispatch.delivery.id &&
+      dispatch.pod.deliveryVersion === dispatch.delivery.version &&
+      versionEtag(dispatch.deliveryEtag, dispatch.delivery.version) !== null &&
+      versionEtag(dispatch.podEtag, dispatch.pod.deliveryVersion) ===
+        dispatch.deliveryEtag &&
+      dispatch.podCommand.status === "idle"
+    );
+  }
+
+  isPodCommandLocked(command: PodSealCommandState): boolean {
+    return command.status === "preparing" || command.status === "submitting";
+  }
+
+  sealPod(): Promise<boolean> {
+    const dispatch = this.currentInspection();
+    if (!dispatch || !this.canSealPod(dispatch)) return Promise.resolve(false);
+    return this.preparePodSeal(dispatch);
+  }
+
+  async retryPodSeal(): Promise<boolean> {
+    const current = this.state();
+    if (
+      current.status !== "ready" ||
+      current.podCommand.status !== "error" ||
+      !current.podCommand.key ||
+      !current.podCommand.storageKey ||
+      !current.deliveryEtag ||
+      !this.canRead() ||
+      !this.canCompleteHandoff() ||
+      !this.sessions.isSessionLeaseCurrent(current.lease)
+    ) {
+      return false;
+    }
+    return this.sendPodSeal(
+      current,
+      current.podCommand.etag,
+      current.podCommand.key,
+      current.podCommand.storageKey,
+      this.requestVersion,
+    );
+  }
+
+  private async preparePodSeal(
+    dispatch: Extract<DispatchPlannerState, { status: "ready" }>,
+  ): Promise<boolean> {
+    const etag = versionEtag(dispatch.deliveryEtag, dispatch.delivery?.version ?? -1);
+    if (!etag || !dispatch.delivery || !this.canSealPod(dispatch)) return false;
+    const requestVersion = this.requestVersion;
+    this.setPodCommand(dispatch.id, { status: "preparing" });
+    let identity;
+    try {
+      identity = await fulfillmentCommandRetryIdentity(
+        this.retries,
+        this.sessions,
+        dispatch.lease,
+        dispatch.delivery.id,
+        "pod-seal",
+        etag,
+        {},
+      );
+    } catch {
+      identity = null;
+    }
+    if (!this.isCommandCurrent(dispatch.id, requestVersion, dispatch.lease)) {
+      return false;
+    }
+    if (!identity) {
+      this.setPodCommand(dispatch.id, {
+        status: "error",
+        etag,
+        key: null,
+        storageKey: null,
+        message:
+          "This browser could not preserve a scoped retry key. The seal command was not sent.",
+      });
+      return false;
+    }
+    return this.sendPodSeal(
+      dispatch,
+      etag,
+      identity.key,
+      identity.storageKey,
+      requestVersion,
+    );
+  }
+
+  private async sendPodSeal(
+    dispatch: Extract<DispatchPlannerState, { status: "ready" }>,
+    etag: string,
+    key: string,
+    storageKey: string,
+    requestVersion: number,
+  ): Promise<boolean> {
+    if (!this.isCommandCurrent(dispatch.id, requestVersion, dispatch.lease)) {
+      return false;
+    }
+    const current = this.snapshot();
+    if (
+      current.status !== "ready" ||
+      !current.delivery ||
+      current.delivery.id !== dispatch.delivery?.id ||
+      !this.canRead() ||
+      !this.canCompleteHandoff()
+    ) {
+      return false;
+    }
+    this.setPodCommand(dispatch.id, { status: "submitting" });
+    try {
+      const response = await firstValueFrom(
+        this.commands.sealPod(current.delivery.id, etag, key).pipe(
+          takeUntilDestroyed(this.destroyRef),
+        ),
+      );
+      if (!this.isCommandCurrent(dispatch.id, requestVersion, dispatch.lease)) {
+        return false;
+      }
+      if (
+        response.body.deliveryId !== current.delivery.id ||
+        response.body.status !== "SEALED" ||
+        versionEtag(response.etag, response.body.deliveryVersion) === null
+      ) {
+        this.setPodSealError(
+          dispatch.id,
+          etag,
+          key,
+          storageKey,
+          "The API returned a seal response that did not match the current Delivery. Reload the current POD state.",
+        );
+        return false;
+      }
+      this.retries.remove(storageKey);
+      const currentEtag = versionEtag(
+        response.etag,
+        response.body.deliveryVersion,
+      );
+      this.snapshot.update((state) =>
+        state.status === "ready" && state.id === dispatch.id
+          ? {
+              ...state,
+              delivery: { ...state.delivery!, version: response.body.deliveryVersion },
+              deliveryEtag: currentEtag,
+              pod: response.body,
+              podEtag: currentEtag,
+              readiness: {
+                ...state.readiness,
+                deliveryVersion: response.body.deliveryVersion,
+              },
+              podCommand: {
+                status: "success",
+                message: "The API sealed the proof of delivery.",
+              },
+            }
+          : state,
+      );
+      return true;
+    } catch (error: unknown) {
+      if (!this.isCommandCurrent(dispatch.id, requestVersion, dispatch.lease)) {
+        return false;
+      }
+      this.handleSessionError(error, dispatch.lease);
+      this.setPodSealError(
+        dispatch.id,
+        etag,
+        key,
+        storageKey,
+        fulfillmentApiErrorMessage(error),
+      );
+      return false;
+    }
+  }
+
+  private setPodCommand(id: string, command: PodSealCommandState): void {
+    this.snapshot.update((current) =>
+      current.status === "ready" && current.id === id
+        ? { ...current, podCommand: command }
+        : current,
+    );
+  }
+
+  private setPodSealError(
+    id: string,
+    etag: string,
+    key: string | null,
+    storageKey: string | null,
+    message: string,
+  ): void {
+    this.setPodCommand(id, {
+      status: "error",
+      etag,
+      key,
+      storageKey,
+      message,
+    });
   }
 
   isCommandLocked(command: DispatchCommandState): boolean {

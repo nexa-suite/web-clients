@@ -97,4 +97,79 @@ describe("NexaFulfillmentDeliveryApi", () => {
       etag: '"5"',
     });
   });
+
+  it("reads the current Delivery and treats an empty POD response as not captured", () => {
+    let delivery: unknown;
+    let pod: unknown = "pending";
+    api.getDelivery("delivery/1").subscribe((value) => (delivery = value));
+    api.getCurrentPod("delivery/1").subscribe((value) => (pod = value));
+
+    const deliveryRequest = http.expectOne(
+      "https://api.example.test/api/v1/deliveries/delivery%2F1",
+    );
+    expect(deliveryRequest.request.method).toBe("GET");
+    deliveryRequest.flush(
+      {
+        id: "delivery/1",
+        fulfillmentId: "fulfillment-1",
+        salesOrderId: "order-1",
+        status: "DELIVERED",
+        destinationSnapshot: null,
+        scheduledAt: null,
+        dispatchedAt: "2026-10-11T10:00:00Z",
+        deliveredAt: "2026-10-11T10:15:00Z",
+        version: 18,
+        attempts: [],
+      },
+      { status: 200, statusText: "OK", headers: { ETag: '"18"' } },
+    );
+
+    const podRequest = http.expectOne(
+      "https://api.example.test/api/v1/deliveries/delivery%2F1/pod",
+    );
+    expect(podRequest.request.method).toBe("GET");
+    podRequest.flush(null, { status: 204, statusText: "No Content" });
+
+    expect(delivery).toMatchObject({
+      body: { id: "delivery/1", status: "DELIVERED", version: 18 },
+      etag: '"18"',
+    });
+    expect(pod).toBeNull();
+  });
+
+  it("seals a POD with the current Delivery ETag and stable idempotency key", () => {
+    let received: unknown;
+    api
+      .sealPod("delivery-1", '"18"', "stable-seal-key")
+      .subscribe((value) => (received = value));
+
+    const request = http.expectOne(
+      "https://api.example.test/api/v1/deliveries/delivery-1/pod/seals",
+    );
+    expect(request.request.method).toBe("POST");
+    expect(request.request.body).toEqual({});
+    expect(request.request.headers.get("If-Match")).toBe('"18"');
+    expect(request.request.headers.get("Idempotency-Key")).toBe(
+      "stable-seal-key",
+    );
+    request.flush(
+      {
+        id: "pod-1",
+        deliveryId: "delivery-1",
+        status: "SEALED",
+        receiverName: "Verified receiver",
+        capturedAt: "2026-10-11T10:15:00Z",
+        sealedAt: "2026-10-11T10:20:00Z",
+        photoEvidenceObjectId: null,
+        signatureEvidenceObjectId: null,
+        deliveryVersion: 19,
+      },
+      { status: 200, statusText: "OK", headers: { ETag: '"19"' } },
+    );
+
+    expect(received).toMatchObject({
+      body: { id: "pod-1", deliveryId: "delivery-1", status: "SEALED" },
+      etag: '"19"',
+    });
+  });
 });

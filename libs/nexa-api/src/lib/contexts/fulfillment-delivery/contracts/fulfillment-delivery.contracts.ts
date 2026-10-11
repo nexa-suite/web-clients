@@ -1,6 +1,7 @@
 export const NEXA_FULFILLMENT_DELIVERY_API_PATHS = {
   salesOrders: "/sales-orders",
   fulfillments: "/fulfillments",
+  deliveries: "/deliveries",
   dispatchAssignees: "/dispatch-assignees",
 } as const;
 
@@ -59,6 +60,44 @@ export interface StartFulfillmentResponse {
 
 export interface FulfillmentResourceResponse {
   readonly body: FulfillmentResponse;
+  readonly etag: string | null;
+}
+
+export interface FulfillmentDeliveryResponse {
+  readonly id: string;
+  readonly fulfillmentId: string;
+  readonly salesOrderId: string;
+  readonly status: string;
+  readonly destinationSnapshot: string | null;
+  readonly scheduledAt: string | null;
+  readonly dispatchedAt: string | null;
+  readonly deliveredAt: string | null;
+  readonly version: number;
+  readonly attempts: readonly {
+    readonly id: string;
+    readonly attemptNumber: number;
+    readonly outcome: string;
+    readonly status: string;
+    readonly failureReason: string | null;
+    readonly notes: string | null;
+    readonly attemptedAt: string;
+  }[];
+}
+
+export interface FulfillmentPodResponse {
+  readonly id: string;
+  readonly deliveryId: string;
+  readonly status: "CAPTURED" | "SEALED" | string;
+  readonly receiverName: string;
+  readonly capturedAt: string | null;
+  readonly sealedAt: string | null;
+  readonly photoEvidenceObjectId: string | null;
+  readonly signatureEvidenceObjectId: string | null;
+  readonly deliveryVersion: number;
+}
+
+export interface FulfillmentResourceResponseFor<T> {
+  readonly body: T;
   readonly etag: string | null;
 }
 

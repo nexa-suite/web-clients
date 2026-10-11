@@ -10,6 +10,9 @@ import {
   DispatchRequest,
   DispatchWindowPlanRequest,
   DispatchWindowPlanResponse,
+  FulfillmentDeliveryResponse,
+  FulfillmentPodResponse,
+  FulfillmentResourceResponseFor,
   DriverAssignmentResponse,
   FulfillmentResourceResponse,
   NEXA_FULFILLMENT_DELIVERY_API_PATHS,
@@ -121,6 +124,37 @@ export class NexaFulfillmentDeliveryApi {
   ): Observable<FulfillmentResourceResponseFor<DriverAssignmentResponse> | null> {
     return this.getOptionalResource<DriverAssignmentResponse>(
       `${this.fulfillmentsPath(fulfillmentId)}/driver-assignments`,
+    );
+  }
+
+  getDelivery(
+    deliveryId: string,
+  ): Observable<FulfillmentResourceResponseFor<FulfillmentDeliveryResponse>> {
+    return this.getResource<FulfillmentDeliveryResponse>(
+      `${NEXA_FULFILLMENT_DELIVERY_API_PATHS.deliveries}/${encodeURIComponent(deliveryId)}`,
+      "Delivery response body is missing.",
+    );
+  }
+
+  getCurrentPod(
+    deliveryId: string,
+  ): Observable<FulfillmentResourceResponseFor<FulfillmentPodResponse> | null> {
+    return this.getOptionalResource<FulfillmentPodResponse>(
+      `${NEXA_FULFILLMENT_DELIVERY_API_PATHS.deliveries}/${encodeURIComponent(deliveryId)}/pod`,
+    );
+  }
+
+  sealPod(
+    deliveryId: string,
+    etag: string,
+    idempotencyKey: string,
+  ): Observable<FulfillmentResourceResponseFor<FulfillmentPodResponse>> {
+    return this.resourceCommand(
+      `${NEXA_FULFILLMENT_DELIVERY_API_PATHS.deliveries}/${encodeURIComponent(deliveryId)}/pod/seals`,
+      etag,
+      idempotencyKey,
+      {},
+      "Proof-of-delivery seal response body is missing.",
     );
   }
 
@@ -248,6 +282,18 @@ export class NexaFulfillmentDeliveryApi {
       );
   }
 
+  private getResource<T>(
+    path: string,
+    missingBodyMessage: string,
+  ): Observable<FulfillmentResourceResponseFor<T>> {
+    return this.http.get<T>(this.url(path), { observe: "response" }).pipe(
+      map((response) => {
+        if (!response.body) throw new Error(missingBodyMessage);
+        return { body: response.body, etag: response.headers.get("ETag") };
+      }),
+    );
+  }
+
   private fulfillmentsPath(fulfillmentId: string): string {
     return `${NEXA_FULFILLMENT_DELIVERY_API_PATHS.fulfillments}/${encodeURIComponent(fulfillmentId)}`;
   }
@@ -255,9 +301,4 @@ export class NexaFulfillmentDeliveryApi {
   private url(path: string): string {
     return `${this.configuration.apiBaseUrl}${path}`;
   }
-}
-
-interface FulfillmentResourceResponseFor<T> {
-  readonly body: T;
-  readonly etag: string | null;
 }

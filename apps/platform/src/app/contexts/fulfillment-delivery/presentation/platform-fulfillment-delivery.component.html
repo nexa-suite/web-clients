@@ -726,7 +726,9 @@
                       dispatchState.status !== "idle" &&
                       dispatchState.id === readiness.fulfillmentId
                         ? "Close"
-                        : "Inspect dispatch"
+                        : readiness.deliveryId
+                          ? "Inspect delivery"
+                          : "Inspect dispatch"
                     }}</nexa-button
                   >
                 </article>
@@ -1018,6 +1020,105 @@
                 fulfillment and physical-allocation version. The command uses
                 those exact snapshots.
               </p>
+            }
+          </section>
+
+          <section class="dispatch-step" aria-labelledby="pod-title">
+            <h4 id="pod-title">Proof of delivery</h4>
+            @if (!dispatch.readiness.deliveryId) {
+              <p class="fulfillment-hint">
+                No Delivery has been created for this fulfillment yet.
+              </p>
+            } @else if (!dispatch.delivery) {
+              <p class="fulfillment-hint" role="status">
+                Loading the current Delivery state…
+              </p>
+            } @else {
+              <dl class="fulfillment-order-facts">
+                <div>
+                  <dt>Delivery ID</dt>
+                  <dd>{{ dispatch.delivery.id }}</dd>
+                </div>
+                <div>
+                  <dt>Delivery status</dt>
+                  <dd>{{ dispatch.delivery.status }} · v{{ dispatch.delivery.version }}</dd>
+                </div>
+              </dl>
+              @if (!dispatch.deliveryEtag) {
+                <p class="fulfillment-hint" role="alert">
+                  The API did not return the current Delivery version. Reload before sealing.
+                </p>
+              }
+              @if (dispatch.pod) {
+                <p>
+                  POD {{ dispatch.pod.status }} · received by
+                  {{ dispatch.pod.receiverName }}
+                  @if (dispatch.pod.capturedAt) {
+                    · captured {{ dispatch.pod.capturedAt }}
+                  }
+                  @if (dispatch.pod.sealedAt) {
+                    · sealed {{ dispatch.pod.sealedAt }}
+                  }
+                </p>
+                @if (dispatch.pod.status === "SEALED") {
+                  <p class="fulfillment-hint" role="status">
+                    The immutable POD is sealed. Document projections update asynchronously.
+                  </p>
+                } @else if (dispatch.pod.status === "CAPTURED") {
+                  @if (dispatchStore.canSealPod(dispatch)) {
+                    <nexa-button
+                      type="button"
+                      variant="primary"
+                      [disabled]="!dispatchStore.canSealPod(dispatch)"
+                      [loading]="dispatch.podCommand.status === 'submitting'"
+                      (click)="sealDeliveryPod()"
+                      >Seal proof of delivery</nexa-button
+                    >
+                  } @else {
+                    <p class="fulfillment-hint">
+                      Sealing requires the current dispatch.read and dispatch.complete permissions,
+                      a DELIVERED Delivery, and this current CAPTURED POD.
+                    </p>
+                  }
+                }
+              } @else {
+                <p class="fulfillment-hint">
+                  No captured POD is available for this Delivery yet.
+                </p>
+              }
+              @if (dispatch.podCommand.status === "preparing") {
+                <p class="fulfillment-hint" role="status">
+                  Preparing a scoped retry key for POD sealing…
+                </p>
+              } @else if (dispatch.podCommand.status === "submitting") {
+                <p class="fulfillment-hint" role="status">
+                  Sending the seal command with the current Delivery version…
+                </p>
+              } @else if (dispatch.podCommand.status === "success") {
+                <p class="fulfillment-message fulfillment-message--success" role="status">
+                  {{ dispatch.podCommand.message }}
+                </p>
+              } @else if (dispatch.podCommand.status === "error") {
+                <div class="fulfillment-message fulfillment-message--error" role="alert">
+                  <p>{{ dispatch.podCommand.message }}</p>
+                  @if (dispatch.podCommand.key && dispatch.podCommand.storageKey) {
+                    <nexa-button
+                      type="button"
+                      variant="quiet"
+                      size="compact"
+                      (click)="retryPodSealCommand()"
+                      >Retry the same seal command</nexa-button
+                    >
+                  }
+                  <nexa-button
+                    type="button"
+                    variant="quiet"
+                    size="compact"
+                    (click)="reloadDispatchInspection()"
+                    >Reload current Delivery and POD</nexa-button
+                  >
+                </div>
+              }
             }
           </section>
         </section>
