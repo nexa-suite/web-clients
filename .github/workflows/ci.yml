@@ -110,7 +110,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: nexa-suite/api
-          ref: 66ef0a32fad3ff3c6530f9a8436ff5b6bdcff480
+          # Published, signed API PR #117 implementation candidate for integration checks.
+          # The PR is still open; this test pin does not claim merge or deployment.
+          ref: 7eaca22609b39ca817beb9c6717e4bf9fef0529f
           path: api
 
       - name: Set up Node.js

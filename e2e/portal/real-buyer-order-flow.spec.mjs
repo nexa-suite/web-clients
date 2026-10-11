@@ -8,7 +8,7 @@ import {
 
 const apiPrefix = '/api/v1';
 const platformOrigin = 'http://localhost:4200';
-const apiOriginPattern = /^http:\/\/(?:localhost|127\.0\.0\.1):(?:4200|4300)\/api\/v1\//;
+const apiOriginPattern = /^http:\/\/(?:localhost|127\.0\.0\.1):(?:4200|4300|8080)\/api\/v1\//;
 const apiResponseCaptures = new WeakMap();
 
 test.beforeEach(async ({ page }) => {
