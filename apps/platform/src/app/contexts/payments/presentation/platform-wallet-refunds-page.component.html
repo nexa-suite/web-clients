@@ -309,6 +309,9 @@
                     [class.wallet-refunds__feedback--error]="
                       message.status === 'error'
                     "
+                    [class.wallet-refunds__feedback--success]="
+                      message.status === 'success'
+                    "
                     [attr.role]="
                       message.status === 'error' ? 'alert' : 'status'
                     "

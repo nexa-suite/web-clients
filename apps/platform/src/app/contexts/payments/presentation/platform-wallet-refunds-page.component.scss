@@ -170,6 +170,7 @@
 
 .wallet-refunds__form :is(input, textarea):focus-visible {
   outline: none;
+  border-color: var(--nexa-color-primary-500);
   box-shadow: var(--nexa-focus-ring);
 }
 
@@ -214,11 +215,34 @@
   color: var(--nexa-color-danger-text);
 }
 
+.wallet-refunds__feedback {
+  border: 1px solid transparent;
+  border-radius: var(--nexa-radius-panel);
+  padding: var(--nexa-space-3);
+}
+
+.wallet-refunds__feedback--error {
+  border-color: var(--nexa-color-danger-subtle-border);
+  background: var(--nexa-surface-danger);
+}
+
+.wallet-refunds__feedback--success {
+  border-color: var(--nexa-color-success-border);
+  background: var(--nexa-surface-success);
+  color: var(--nexa-color-success-700);
+}
+
 .wallet-refunds__uncertain {
   display: grid;
   gap: var(--nexa-space-2);
+  border: 1px solid var(--nexa-color-warning-border);
+  border-radius: var(--nexa-radius-panel);
   padding: var(--nexa-space-3);
-  background: var(--nexa-surface-inset);
+  background: var(--nexa-surface-warning);
+}
+
+.wallet-refunds__uncertain p {
+  color: var(--nexa-color-warning-text);
 }
 
 @media (max-width: 58rem) {
