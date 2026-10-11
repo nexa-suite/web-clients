@@ -84,12 +84,8 @@ export class PlatformShellComponent {
     );
   }
   protected get canManageWalletRefunds(): boolean {
-    const roles = new Set(this.session?.membership?.roles ?? []);
     return (
       this.session?.surface === "PLATFORM" &&
-      ["BUSINESS_OPERATIONS_MANAGER", "COMPANY_OWNER"].some((role) =>
-        roles.has(role),
-      ) &&
       this.hasAnyPermission(new Set(["payment.reconcile"]))
     );
   }

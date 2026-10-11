@@ -176,7 +176,7 @@ describe("PlatformShellComponent", () => {
     expect(link()).toBeNull();
   });
 
-  it("shows wallet refunds only for the Platform refund roles with payment reconciliation permission", () => {
+  it("shows wallet refund navigation only for Platform sessions with reconciliation permission", () => {
     const fixture = TestBed.createComponent(PlatformShellComponent);
     const link = () =>
       fixture.nativeElement.querySelector('a[routerLink="/wallet-refunds"]');
@@ -185,7 +185,7 @@ describe("PlatformShellComponent", () => {
       surface: "PLATFORM",
       membership: {
         roles: ["SALES"],
-        permissions: ["payment.reconcile"],
+        permissions: [],
       },
     } satisfies SessionResponse);
     fixture.detectChanges();
