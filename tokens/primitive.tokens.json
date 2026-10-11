@@ -353,7 +353,7 @@
   },
   "nexa-primitive-font-mono": {
     "$type": "other",
-    "$value": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    "$value": "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
     "$description": "Nexa primitive token nexa-primitive-font-mono."
   }
 }
