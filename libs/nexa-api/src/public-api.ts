@@ -61,6 +61,8 @@ export type {
 } from "./lib/contexts/catalog-commercial-policy/contracts/buyer-catalog.contracts";
 
 export { normalizeNexaApiBaseUrl } from "./lib/http/api-base-url";
+export { NexaWalletRefundsApi } from "./lib/contexts/payments/infrastructure/wallet-refunds-api";
+export type { WalletRefundRequest, WalletRefundResponse, WalletRefundCandidate, WalletRefundCandidatesPage } from "./lib/contexts/payments/contracts/wallet-refund.contracts";
 
 export { NexaReceivablesApi } from "./lib/contexts/credit-receivables/infrastructure/receivables-api";
 export type {

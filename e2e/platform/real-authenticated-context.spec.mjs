@@ -118,6 +118,7 @@ test('uses the live API for preview, sign in, restored session, and sign out', a
 
 const roleExpectations = {
   tenantAdministrator: { apiRole: 'TENANT_ADMIN', actorName: 'Tenant Administrator' },
+  businessOperationsManager: { apiRole: 'BUSINESS_OPERATIONS_MANAGER', actorName: 'Business Operations Manager' },
   salesRepresentative: { apiRole: 'SALES', actorName: 'Sales Representative' },
   warehouseOperator: { apiRole: 'WAREHOUSE', actorName: 'Warehouse Operator' },
   apiLogisticsIdentity: { apiRole: 'LOGISTICS', actorName: null },

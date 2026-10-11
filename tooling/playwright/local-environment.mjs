@@ -18,6 +18,8 @@ const platformEnvironmentKeys = [
   'NEXA_DEV_OWNER_PASSWORD',
   'NEXA_DEV_TENANT_ADMIN_EMAIL',
   'NEXA_DEV_TENANT_ADMIN_PASSWORD',
+  'NEXA_DEV_BOM_EMAIL',
+  'NEXA_DEV_BOM_PASSWORD',
   'NEXA_DEV_SALES_EMAIL',
   'NEXA_DEV_SALES_PASSWORD',
   'NEXA_DEV_WAREHOUSE_EMAIL',
@@ -147,6 +149,12 @@ export const platformAccountDefinitions = [
     label: 'Sales Representative',
     emailVariable: 'NEXA_DEV_SALES_EMAIL',
     passwordVariable: 'NEXA_DEV_SALES_PASSWORD',
+  },
+  {
+    key: 'businessOperationsManager',
+    label: 'Business Operations Manager',
+    emailVariable: 'NEXA_DEV_BOM_EMAIL',
+    passwordVariable: 'NEXA_DEV_BOM_PASSWORD',
   },
   {
     key: 'warehouseOperator',
