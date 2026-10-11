@@ -112,7 +112,7 @@ jobs:
           repository: nexa-suite/api
           # Published, signed API PR #117 implementation candidate for integration checks.
           # The PR is still open; this test pin does not claim merge or deployment.
-          ref: 7eaca22609b39ca817beb9c6717e4bf9fef0529f
+          ref: 7de9f4081a13e512fedf20022f6e92bd9cc75db9
           path: api
 
       - name: Set up Node.js
@@ -160,12 +160,14 @@ jobs:
           reset_key="$(openssl rand -hex 32)"
           outbox_key="$(openssl rand -hex 32)"
           operator_token="$(openssl rand -hex 32)"
+          documents_scope_reader_password="$(openssl rand -hex 32)"
           echo "::add-mask::$database_password"
           echo "::add-mask::$demo_password"
           echo "::add-mask::$minio_password"
           echo "::add-mask::$reset_key"
           echo "::add-mask::$outbox_key"
           echo "::add-mask::$operator_token"
+          echo "::add-mask::$documents_scope_reader_password"
 
           {
             printf 'NEXA_MODERN_POSTGRES_DB=nexa_modern\n'
@@ -174,6 +176,7 @@ jobs:
             printf 'NEXA_PASSWORD_RESET_THROTTLE_KEY=%s\n' "$reset_key"
             printf 'NEXA_NOTIFICATION_OUTBOX_KEY=%s\n' "$outbox_key"
             printf 'NEXA_SYSTEM_OPERATOR_TOKEN=%s\n' "$operator_token"
+            printf 'NEXA_BUSINESS_DOCUMENTS_SCOPE_READER_PASSWORD=%s\n' "$documents_scope_reader_password"
             printf 'NEXA_MINIO_ROOT_USER=nexa_ci\n'
             printf 'NEXA_MINIO_ROOT_PASSWORD=%s\n' "$minio_password"
             printf 'NEXA_DEV_BOOTSTRAP_ENABLED=true\n'
