@@ -109,6 +109,18 @@ describe("NexaCommandRetryStore", () => {
     expect(() => store.write(key.replace(hash, "a".repeat(63)), idempotencyKey)).toThrow();
   });
 
+  it("accepts only hashed wallet-refund retry keys with UUID values", () => {
+    const hash = "d".repeat(64);
+    const key = `nexa:platform:wallet-refund:user:tenant:workspace:member:order:${hash}`;
+    const idempotencyKey = "123e4567-e89b-42d3-a456-426614174002";
+    store.write(key, idempotencyKey);
+
+    expect(store.read(key)).toBe(idempotencyKey);
+    expect(() => store.read(key.replace(hash, "refund-25.00"))).toThrow();
+    expect(() => store.write(key, '{"amountPEN":25}')).toThrow();
+    expect(() => store.write(key.replace(hash, "d".repeat(63)), idempotencyKey)).toThrow();
+  });
+
   it("keeps an idempotency key in memory when session storage is blocked", () => {
     storage.setItem.mockImplementation(() => {
       throw new DOMException("Storage is unavailable", "SecurityError");

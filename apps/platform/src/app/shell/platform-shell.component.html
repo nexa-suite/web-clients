@@ -8,7 +8,7 @@
         canViewOperationsOverview ||
         canViewSalesCommitment ||
         canViewFulfillment ||
-        canViewDocuments || canViewTenantAccess || canViewTenantRoles || canConfigureCredit
+        canViewDocuments || canViewTenantAccess || canViewTenantRoles || canConfigureCredit || canManageWalletRefunds
         || canManageSupportConsents || canManageWarehouseAccessGrants
       ) {
         <nav
@@ -75,6 +75,14 @@
               routerLinkActive="platform-shell__navigation-link--active"
               ariaCurrentWhenActive="page"
             >Credit configuration</a>
+          }
+          @if (canManageWalletRefunds) {
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/wallet-refunds"
+              routerLinkActive="platform-shell__navigation-link--active"
+              ariaCurrentWhenActive="page"
+            >Wallet refunds</a>
           }
         </nav>
       }

@@ -83,6 +83,16 @@ export class PlatformShellComponent {
       this.hasAnyPermission(new Set(["client.credit.configuration.manage"]))
     );
   }
+  protected get canManageWalletRefunds(): boolean {
+    const roles = new Set(this.session?.membership?.roles ?? []);
+    return (
+      this.session?.surface === "PLATFORM" &&
+      ["BUSINESS_OPERATIONS_MANAGER", "COMPANY_OWNER"].some((role) =>
+        roles.has(role),
+      ) &&
+      this.hasAnyPermission(new Set(["payment.reconcile"]))
+    );
+  }
   protected get canViewTenantAccess(): boolean {
     return this.hasAnyPermission(new Set(["tenant.member.read"]));
   }

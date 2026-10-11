@@ -9,6 +9,7 @@ const PLATFORM_FULFILLMENT_COMMAND_PREFIX = "nexa:platform:fulfillment-command:"
 const BUYER_BANK_TRANSFER_PREFIX = "nexa:buyer:bank-transfer:";
 const PLATFORM_MEMBER_INVITATION_PREFIX = "nexa:platform:member-invitation:";
 const PLATFORM_CREDIT_CONFIGURATION_PREFIX = "nexa:platform:credit-configuration:";
+const PLATFORM_WALLET_REFUND_PREFIX = "nexa:platform:wallet-refund:";
 const BUYER_WALLET_RECHARGE_PREFIX = "nexa:buyer:wallet-recharge:";
 const BUYER_WALLET_RECHARGE_PENDING_PREFIX = "nexa:buyer:wallet-recharge-pending:";
 const BUYER_WALLET_RECHARGE_STATUS_PREFIX = "nexa:buyer:wallet-recharge-status:";
@@ -120,6 +121,7 @@ function allowedPrefixFor(key: string): string | null {
     BUYER_BANK_TRANSFER_PREFIX,
     PLATFORM_MEMBER_INVITATION_PREFIX,
     PLATFORM_CREDIT_CONFIGURATION_PREFIX,
+    PLATFORM_WALLET_REFUND_PREFIX,
     BUYER_WALLET_RECHARGE_PREFIX,
     BUYER_WALLET_RECHARGE_PENDING_PREFIX,
     BUYER_WALLET_RECHARGE_STATUS_PREFIX,
@@ -135,6 +137,7 @@ function allowedPrefixFor(key: string): string | null {
     [BUYER_BANK_TRANSFER_PREFIX, 6],
     [PLATFORM_MEMBER_INVITATION_PREFIX, 5],
     [PLATFORM_CREDIT_CONFIGURATION_PREFIX, 7],
+    [PLATFORM_WALLET_REFUND_PREFIX, 6],
     [BUYER_WALLET_RECHARGE_PREFIX, 5],
     [BUYER_WALLET_RECHARGE_PENDING_PREFIX, 4],
     [BUYER_WALLET_RECHARGE_STATUS_PREFIX, 4],
@@ -142,7 +145,7 @@ function allowedPrefixFor(key: string): string | null {
   const segments = key.slice(prefix.length).split(":");
   if (segments.length !== expectedSegments) return null;
   if (
-    (prefix === PLATFORM_FULFILLMENT_COMMAND_PREFIX || prefix === BUYER_BANK_TRANSFER_PREFIX || prefix === PLATFORM_MEMBER_INVITATION_PREFIX || prefix === PLATFORM_CREDIT_CONFIGURATION_PREFIX || prefix === BUYER_WALLET_RECHARGE_PREFIX) &&
+    (prefix === PLATFORM_FULFILLMENT_COMMAND_PREFIX || prefix === BUYER_BANK_TRANSFER_PREFIX || prefix === PLATFORM_MEMBER_INVITATION_PREFIX || prefix === PLATFORM_CREDIT_CONFIGURATION_PREFIX || prefix === PLATFORM_WALLET_REFUND_PREFIX || prefix === BUYER_WALLET_RECHARGE_PREFIX) &&
     !/^[a-f0-9]{64}$/.test(segments.at(-1) ?? "")
   ) return null;
   for (const segment of segments) {
@@ -185,6 +188,7 @@ function isAllowedValue(key: string, value: string): boolean {
     key.startsWith(BUYER_BANK_TRANSFER_PREFIX) ||
     key.startsWith(PLATFORM_MEMBER_INVITATION_PREFIX)
     || key.startsWith(PLATFORM_CREDIT_CONFIGURATION_PREFIX)
+    || key.startsWith(PLATFORM_WALLET_REFUND_PREFIX)
     || key.startsWith(BUYER_WALLET_RECHARGE_PREFIX)
     || key.startsWith(BUYER_WALLET_RECHARGE_STATUS_PREFIX)
   ) {

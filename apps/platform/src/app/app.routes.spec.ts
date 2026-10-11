@@ -9,6 +9,7 @@ function exportedName(value: unknown): string | undefined {
 }
 
 import { PLATFORM_BUSINESS_DOCUMENT_ROUTES } from "./contexts/business-documents/application/public-api";
+import { PLATFORM_WALLET_REFUND_ROUTES } from "./contexts/payments/application/public-api";
 
 describe("Platform root route composition", () => {
   it("keeps sign-in and recovery routes public", () => {
@@ -50,6 +51,7 @@ describe("Platform root route composition", () => {
     for (const route of [
       ...PLATFORM_FULFILLMENT_ROUTES,
       ...PLATFORM_BUSINESS_DOCUMENT_ROUTES,
+      ...PLATFORM_WALLET_REFUND_ROUTES,
     ]) {
       expect(children).toContain(route);
     }

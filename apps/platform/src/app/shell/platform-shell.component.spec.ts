@@ -176,6 +176,42 @@ describe("PlatformShellComponent", () => {
     expect(link()).toBeNull();
   });
 
+  it("shows wallet refunds only for the Platform refund roles with payment reconciliation permission", () => {
+    const fixture = TestBed.createComponent(PlatformShellComponent);
+    const link = () =>
+      fixture.nativeElement.querySelector('a[routerLink="/wallet-refunds"]');
+
+    fixture.componentRef.setInput("session", {
+      surface: "PLATFORM",
+      membership: {
+        roles: ["SALES"],
+        permissions: ["payment.reconcile"],
+      },
+    } satisfies SessionResponse);
+    fixture.detectChanges();
+    expect(link()).toBeNull();
+
+    fixture.componentRef.setInput("session", {
+      surface: "PLATFORM",
+      membership: {
+        roles: ["BUSINESS_OPERATIONS_MANAGER"],
+        permissions: ["payment.reconcile"],
+      },
+    } satisfies SessionResponse);
+    fixture.detectChanges();
+    expect(link()?.textContent).toContain("Wallet refunds");
+
+    fixture.componentRef.setInput("session", {
+      surface: "PORTAL",
+      membership: {
+        roles: ["COMPANY_OWNER"],
+        permissions: ["payment.reconcile"],
+      },
+    } satisfies SessionResponse);
+    fixture.detectChanges();
+    expect(link()).toBeNull();
+  });
+
   it("gates workforce and role navigation independently by returned permissions", () => {
     const fixture = TestBed.createComponent(PlatformShellComponent);
     fixture.componentRef.setInput("session", {
