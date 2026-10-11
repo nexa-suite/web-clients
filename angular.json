@@ -123,6 +123,16 @@
                 "output": "."
               },
               {
+                "glob": "favicon.svg",
+                "input": "apps/portal/public",
+                "output": "."
+              },
+              {
+                "glob": "apple-touch-icon.png",
+                "input": "apps/portal/public",
+                "output": "."
+              },
+              {
                 "glob": "*.svg",
                 "input": "logo-nexa",
                 "output": "brand/canonical"
