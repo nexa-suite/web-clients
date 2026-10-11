@@ -228,14 +228,37 @@ jobs:
           set +a
           docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
             exec -T modern-postgres psql -q -v ON_ERROR_STOP=1 -U "$NEXA_MODERN_POSTGRES_USER" -d "$NEXA_MODERN_POSTGRES_DB" \
-              -v runtime_password="$NEXA_MODERN_POSTGRES_PASSWORD" <<'SQL'
+              -v runtime_password="$NEXA_MODERN_POSTGRES_PASSWORD" \
+              -v business_documents_scope_reader_password="$NEXA_BUSINESS_DOCUMENTS_SCOPE_READER_PASSWORD" <<'SQL'
           SELECT set_config('nexa.runtime_database_password', :'runtime_password', false) AS _runtime_password \gset
+          SELECT set_config('nexa.business_documents_scope_reader_password', :'business_documents_scope_reader_password', false) AS _business_documents_scope_reader_password \gset
           DO $do$
+          DECLARE
+            scope_reader pg_roles%ROWTYPE;
           BEGIN
             IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'nexa_runtime') THEN
               EXECUTE format('CREATE ROLE nexa_runtime LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L', current_setting('nexa.runtime_database_password'));
             ELSE
               EXECUTE format('ALTER ROLE nexa_runtime LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L', current_setting('nexa.runtime_database_password'));
+            END IF;
+
+            SELECT * INTO scope_reader FROM pg_roles WHERE rolname = 'nexa_business_documents_scope_reader';
+            IF FOUND THEN
+              IF NOT scope_reader.rolcanlogin OR scope_reader.rolsuper OR scope_reader.rolcreatedb
+                OR scope_reader.rolcreaterole OR scope_reader.rolreplication OR scope_reader.rolbypassrls
+                OR EXISTS (SELECT 1 FROM pg_auth_members WHERE member = scope_reader.oid OR roleid = scope_reader.oid)
+                OR EXISTS (SELECT 1 FROM pg_database WHERE datdba = scope_reader.oid)
+                OR EXISTS (SELECT 1 FROM pg_namespace WHERE nspowner = scope_reader.oid)
+                OR EXISTS (SELECT 1 FROM pg_class WHERE relowner = scope_reader.oid)
+                OR EXISTS (SELECT 1 FROM pg_proc WHERE proowner = scope_reader.oid)
+                OR EXISTS (SELECT 1 FROM pg_namespace WHERE has_schema_privilege(scope_reader.oid, oid, 'CREATE')) THEN
+                RAISE EXCEPTION 'Existing central Business Documents scope-reader role has unsafe privileges';
+              END IF;
+              EXECUTE format('ALTER ROLE nexa_business_documents_scope_reader LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
+                current_setting('nexa.business_documents_scope_reader_password'));
+            ELSE
+              EXECUTE format('CREATE ROLE nexa_business_documents_scope_reader LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
+                current_setting('nexa.business_documents_scope_reader_password'));
             END IF;
           END
           $do$;
