@@ -1,0 +1,102 @@
+<section class="platform-document-detail-page" aria-labelledby="generation-heading">
+  <a class="back-link" routerLink="/documents/order-summary"
+    >← Confirmed Sales Orders</a
+  >
+  @let state = store.requestState();
+  @switch (state.kind) {
+    @case ("loading") {
+      <nexa-surface tone="inset">
+        <p class="state-message" role="status">Checking Sales Order confirmation…</p>
+      </nexa-surface>
+    }
+    @case ("unavailable") {
+      <nexa-surface tone="inset">
+        <div class="state-message" role="status">
+          <strong>Order summary is unavailable</strong>
+          <p>{{ state.message }}</p>
+        </div>
+      </nexa-surface>
+    }
+    @case ("error") {
+      <nexa-surface tone="inset">
+        <div class="state-message error-state" role="alert">
+          <strong>Order summary request could not be confirmed</strong>
+          <p>{{ state.message }}</p>
+          @if (state.order) {
+            <nexa-button variant="primary" (click)="retry()"
+              >Retry request safely</nexa-button
+            >
+          } @else {
+            <nexa-button variant="secondary" (click)="retry()"
+              >Try again</nexa-button
+            >
+          }
+        </div>
+      </nexa-surface>
+    }
+    @case ("ready") {
+      <article class="document-panel">
+        <header class="document-heading">
+          <div>
+            <p class="page-kicker">ORDER SUMMARY PDF</p>
+            <h1 id="generation-heading">{{ state.order.number }}</h1>
+            <p class="page-intro">
+              This order has a recorded confirmation timestamp. The API will
+              authorize and process the explicit document request.
+            </p>
+          </div>
+          <span class="document-status">{{ orderStatusLabel(state.order.status) }}</span>
+        </header>
+        <nexa-button
+          variant="primary"
+          [disabled]="!store.canGenerate() || !store.canReadSalesOrders()"
+          (click)="store.requestOrderSummaryPdf()"
+          >Request order summary PDF</nexa-button
+        >
+        @if (!store.canGenerate()) {
+          <p class="availability-note">
+            The active Platform membership needs document.generate permission.
+          </p>
+        }
+      </article>
+    }
+    @case ("requesting") {
+      <article class="document-panel" aria-labelledby="generation-heading">
+        <header class="document-heading">
+          <div>
+            <p class="page-kicker">ORDER SUMMARY PDF</p>
+            <h1 id="generation-heading">{{ state.order.number }}</h1>
+          </div>
+        </header>
+        <p class="state-message" role="status">
+          Sending the document request with its saved retry identity…
+        </p>
+      </article>
+    }
+    @case ("submitted") {
+      <article class="document-panel">
+        <header class="document-heading">
+          <div>
+            <p class="page-kicker">ORDER SUMMARY PDF</p>
+            <h1 id="generation-heading">{{ state.order.number }}</h1>
+          </div>
+          <span class="document-status">{{ statusLabel(state.request.status) }}</span>
+        </header>
+        <p class="state-message" role="status">
+          The API accepted the request. The generated file may take time to
+          become available.
+        </p>
+        <a
+          class="document-link"
+          [routerLink]="['/documents', state.request.documentId]"
+          >View order summary document</a
+        >
+      </article>
+    }
+    @default {
+      <nexa-surface tone="inset">
+        <p class="state-message">Select a confirmed Sales Order to continue.</p>
+      </nexa-surface>
+    }
+  }
+</section>

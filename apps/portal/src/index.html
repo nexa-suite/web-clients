@@ -1,10 +1,25 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8">
+    <meta charset="utf-8" />
     <title>Nexa Portal</title>
-    <base href="/">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+    <script id="stripe-return-query-cleanup">
+      (() => {
+        const query = new URLSearchParams(window.location.search);
+        if (!query.has("payment_intent_client_secret") && !query.has("payment_intent")) return;
+        query.delete("payment_intent_client_secret");
+        query.delete("payment_intent");
+        query.delete("redirect_status");
+        const preservedQuery = query.toString();
+        const cleanUrl = `${window.location.pathname}${preservedQuery ? `?${preservedQuery}` : ""}${window.location.hash}`;
+        window.history.replaceState(window.history.state, "", cleanUrl);
+      })();
+    </script>
+    <script src="runtime-config.js"></script>
   </head>
   <body>
     <portal-root></portal-root>

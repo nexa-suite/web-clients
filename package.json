@@ -1,6 +1,6 @@
 {
   "name": "nexa-web-clients",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "packageManager": "npm@11.17.0",
   "engines": {
@@ -21,7 +21,8 @@
     "test:portal": "ng test portal --watch=false",
     "test:e2e": "playwright test",
     "test:shared": "npm run build:shared && npm run test:ui && npm run test:api",
-    "test": "npm run test:shared && npm run test:platform && npm run test:portal",
+    "test:runtime-security": "node --test tooling/scripts/stripe-return-query-cleanup.test.mjs",
+    "test": "npm run test:shared && npm run test:platform && npm run test:portal && npm run test:runtime-security",
     "validate:tokens": "node tooling/scripts/generate-design-tokens.mjs --check && node --no-warnings --experimental-strip-types tooling/scripts/validate-design-tokens.ts",
     "validate:architecture": "node tooling/scripts/validate-foundation.mjs",
     "validate:design": "npm run validate:tokens && npm run validate:architecture"
@@ -35,6 +36,7 @@
     "@angular/material": "22.1.2",
     "@angular/platform-browser": "22.1.2",
     "@angular/router": "22.1.2",
+    "@stripe/stripe-js": "10.0.0",
     "primeicons": "8.0.0",
     "rxjs": "7.8.2",
     "tslib": "2.8.1"

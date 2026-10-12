@@ -1,11 +1,11 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import {
   HttpTestingController,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { NexaAccessTokenStore } from './access-token.store';
-import { provideNexaHttp } from './nexa-http';
+import { provideNexaHttp, NEXA_REQUEST_POLICY } from './nexa-http';
 
 describe('provideNexaHttp', () => {
   let http: HttpClient;
@@ -27,7 +27,7 @@ describe('provideNexaHttp', () => {
   it('keeps the bearer off refresh while adding its surface marker and browser cookie transport', () => {
     TestBed.inject(NexaAccessTokenStore).set('memory-only-token');
 
-    http.post('/api/v1/authentication/refresh', null).subscribe();
+    http.post('/api/v1/authentication/refresh', null, { context: new HttpContext().set(NEXA_REQUEST_POLICY, { omitBearer: true, withCredentials: true, headers: { 'X-Nexa-Surface': 'PORTAL' } }) }).subscribe();
 
     const request = controller.expectOne('/api/v1/authentication/refresh');
     expect(request.request.headers.has('Authorization')).toBe(false);
@@ -44,7 +44,7 @@ describe('provideNexaHttp', () => {
       password: 'not-a-real-password',
       workspaceSlug: 'workspace',
       surface: 'PORTAL',
-    }).subscribe();
+    }, { context: new HttpContext().set(NEXA_REQUEST_POLICY, { omitBearer: true, withCredentials: true }) }).subscribe();
 
     const request = controller.expectOne('/api/v1/authentication/sign-in');
     expect(request.request.headers.has('Authorization')).toBe(false);
@@ -63,7 +63,7 @@ describe('provideNexaHttp', () => {
     expect(session.request.withCredentials).toBe(false);
     session.flush({});
 
-    http.post('/api/v1/authentication/sign-out', null).subscribe();
+    http.post('/api/v1/authentication/sign-out', null, { context: new HttpContext().set(NEXA_REQUEST_POLICY, { withCredentials: true, headers: { 'X-Nexa-Surface': 'PORTAL' } }) }).subscribe();
 
     const signOut = controller.expectOne('/api/v1/authentication/sign-out');
     expect(signOut.request.headers.get('Authorization')).toBe('Bearer memory-only-token');
@@ -83,4 +83,29 @@ describe('provideNexaHttp', () => {
     expect(request.request.withCredentials).toBe(false);
     request.flush({});
   });
+  it('does not infer authentication policy from a business route name', () => {
+    TestBed.inject(NexaAccessTokenStore).set('memory-only-token');
+    http.post('/api/v1/authentication/refresh', null).subscribe();
+    const request = controller.expectOne('/api/v1/authentication/refresh');
+    expect(request.request.headers.get('Authorization')).toBe('Bearer memory-only-token');
+    expect(request.request.headers.has('X-Nexa-Surface')).toBe(false);
+    expect(request.request.withCredentials).toBe(false);
+    request.flush({});
+  });
+
+  it('never sends request policy or bearer to a similar path outside the configured API base', () => {
+    TestBed.inject(NexaAccessTokenStore).set('memory-only-token');
+    http.get('/api/v10/session', {
+      context: new HttpContext().set(NEXA_REQUEST_POLICY, {
+        withCredentials: true,
+        headers: { 'X-Nexa-Surface': 'PORTAL' },
+      }),
+    }).subscribe();
+    const request = controller.expectOne('/api/v10/session');
+    expect(request.request.headers.has('Authorization')).toBe(false);
+    expect(request.request.headers.has('X-Nexa-Surface')).toBe(false);
+    expect(request.request.withCredentials).toBe(false);
+    request.flush({});
+  });
+
 });

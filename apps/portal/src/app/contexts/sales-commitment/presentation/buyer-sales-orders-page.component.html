@@ -1,0 +1,27 @@
+<section class="sales-commitment-page" aria-labelledby="buyer-orders-title">
+  <a class="sales-commitment-page__back" routerLink="/requests">← My requests</a>
+  <header class="sales-commitment-page__heading"><div><p class="sales-commitment-page__eyebrow">BUYER PORTAL</p><h1 id="buyer-orders-title">My orders</h1><p>Orders created from your purchase requests.</p></div><nexa-button variant="secondary" size="compact" (click)="refresh()">Refresh</nexa-button></header>
+  @switch (state().status) {
+    @case ('loading') { <p role="status" aria-live="polite">Loading orders…</p> }
+    @case ('error') { <nexa-surface tone="inset"><div role="alert"><p>{{ state().message }}</p><nexa-button variant="secondary" (click)="refresh()">Try again</nexa-button></div></nexa-surface> }
+    @case ('ready') {
+      @let page = state().page;
+      @if (page) {
+        <nexa-surface tone="default">
+          @if (page.items.length) {
+            <div class="sales-commitment-page__table-wrap"><table><thead><tr><th>Order</th><th>Status</th><th>Delivery date</th><th>Total</th><th></th></tr></thead><tbody>
+              @for (order of page.items; track order.id) { <tr><td class="sales-commitment-page__code">{{ order.number || order.id }}</td><td>{{ order.status.replaceAll('_', ' ') }}</td><td>{{ order.requestedDeliveryDate }}</td><td>{{ order.currency }} {{ order.total }}</td><td><a [routerLink]="['/orders', order.id]">View order</a></td></tr> }
+            </tbody></table></div>
+          } @else { <p>No sales orders are available for this account.</p> }
+          @if (pageCount(page.total, page.size) > 1) {
+            <nav class="sales-commitment-page__actions" aria-label="Order pages">
+              <nexa-button variant="secondary" size="compact" [disabled]="page.page === 0" (click)="changePage(-1)">Previous orders</nexa-button>
+              <span>Page {{ page.page + 1 }} of {{ pageCount(page.total, page.size) }}</span>
+              <nexa-button variant="secondary" size="compact" [disabled]="(page.page + 1) * page.size >= page.total" (click)="changePage(1)">Next orders</nexa-button>
+            </nav>
+          }
+        </nexa-surface>
+      }
+    }
+  }
+</section>

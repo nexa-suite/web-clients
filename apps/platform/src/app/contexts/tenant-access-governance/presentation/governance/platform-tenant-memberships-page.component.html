@@ -1,0 +1,129 @@
+<section class="platform-governance-page" aria-labelledby="tenant-memberships-title" data-testid="platform-tenant-memberships">
+  <header class="platform-governance-page__heading">
+    <div>
+      <p class="platform-governance-page__eyebrow">TENANT ACCESS GOVERNANCE</p>
+      <h1 id="tenant-memberships-title">Workforce access</h1>
+      <p>Review memberships and invitations in the active workspace.</p>
+    </div>
+    <nexa-button variant="secondary" size="compact" (click)="refresh()">Refresh</nexa-button>
+  </header>
+
+  @if (store.isCompanyOwner()) {
+    <nexa-surface tone="inset">
+      <p class="platform-governance-page__notice">Company Owner oversight view. Tenant Administrators manage invitations, memberships, and role assignments.</p>
+    </nexa-surface>
+  }
+
+  @if (!store.canReadMembers()) {
+    <nexa-surface tone="inset"><p role="alert">The active membership cannot read workspace memberships.</p></nexa-surface>
+  } @else {
+    @let view = state();
+    @if (view.message) { <p class="platform-governance-page__error" role="alert">{{ view.message }}</p> }
+    @if (view.notice) { <p class="platform-governance-page__notice" role="status" aria-live="polite">{{ view.notice }}</p> }
+
+    @if (view.status === 'loading') {
+      <p role="status" aria-live="polite">Loading workspace access…</p>
+    } @else if (view.status === 'error') {
+      <nexa-surface tone="inset"><nexa-button variant="secondary" (click)="refresh()">Try again</nexa-button></nexa-surface>
+    } @else if (view.status === 'ready') {
+      @if (store.canInviteMembers()) {
+        <nexa-surface tone="default">
+          <section class="platform-governance-page__form" aria-labelledby="invite-member-title">
+            <h2 id="invite-member-title">Invite a teammate</h2>
+            <div class="platform-governance-page__fields">
+              <label>Email address
+                <input type="email" autocomplete="email" [value]="invitationEmail()" (input)="setInvitationEmail($event)" required>
+              </label>
+              <label>Display name
+                <input type="text" autocomplete="name" [value]="invitationName()" (input)="setInvitationName($event)" required maxlength="120">
+              </label>
+            </div>
+            <fieldset>
+              <legend>Internal roles</legend>
+              <div class="platform-governance-page__role-options">
+                @for (role of roles; track role) {
+                  <label><input type="checkbox" [checked]="invitationRoles().includes(role)" (change)="toggleInvitationRole(role, $event)"> {{ role.replaceAll('_', ' ') }}</label>
+                }
+              </div>
+            </fieldset>
+            <nexa-button [disabled]="store.busy() || !invitationEmail().trim() || !invitationName().trim() || !invitationRoles().length" (click)="invite()">Send invitation</nexa-button>
+          </section>
+        </nexa-surface>
+      }
+
+      <nexa-surface tone="default">
+        <div class="platform-governance-page__section-heading">
+          <div><h2>Workspace memberships</h2><p>{{ view.memberships.length }} membership(s) in this workspace</p></div>
+        </div>
+        @if (view.memberships.length) {
+          <div class="platform-governance-page__table-wrap">
+            <table>
+              <thead><tr><th>Person</th><th>Status</th><th>Roles</th><th>Permissions</th><th>Membership actions</th></tr></thead>
+              <tbody>
+                @for (membership of view.memberships; track membership.id) {
+                  <tr>
+                    <td><strong>{{ membership.displayName }}</strong><br><span>{{ membership.email }}</span></td>
+                    <td>{{ membership.status.replaceAll('_', ' ') }}</td>
+                    <td>
+                      @if (canEditRoles(membership)) {
+                        <label class="platform-governance-page__visually-hidden" [for]="'roles-' + membership.id">Roles for {{ membership.displayName }}</label>
+                        <select multiple [id]="'roles-' + membership.id" (change)="updateRoleDraft(membership.id, $event)" [disabled]="store.busy()">
+                          @for (role of assignableRoles(); track role.id) { <option [value]="role.id" [selected]="roleIdsFor(membership).includes(role.id)">{{ role.name }} ({{ role.code }})</option> }
+                        </select>
+                        <nexa-button size="compact" variant="secondary" [disabled]="store.busy() || !roleIdsFor(membership).length || !hasRoleChanges(membership)" (click)="saveRoles(membership)">Save roles</nexa-button>
+                      } @else {
+                        @for (role of membership.roleDefinitionIds; track role) { <span class="platform-governance-page__tag">{{ roleName(role) }}</span> }
+                        @if (!membership.roleDefinitionIds.length) { <span>{{ membership.roles.join(', ') }}</span> }
+                      }
+                    </td>
+                    <td><details><summary>View {{ membership.permissionCodes.length }} permissions</summary><ul>@for (permission of membership.permissionCodes; track permission) { <li>{{ permission }}</li> }</ul></details></td>
+                    <td>
+                      @if (store.canManageMemberships() && isActive(membership.status)) {
+                        <nexa-button size="compact" variant="secondary" [disabled]="store.busy()" (click)="changeMembershipStatus('suspend', membership)">Suspend</nexa-button>
+                        <nexa-button size="compact" variant="danger" [disabled]="store.busy()" (click)="changeMembershipStatus('revoke', membership)">Revoke</nexa-button>
+                      } @else if (store.canManageMemberships() && isSuspended(membership.status)) {
+                        <nexa-button size="compact" variant="secondary" [disabled]="store.busy()" (click)="changeMembershipStatus('reactivate', membership)">Reactivate</nexa-button>
+                        <nexa-button size="compact" variant="danger" [disabled]="store.busy()" (click)="changeMembershipStatus('revoke', membership)">Revoke</nexa-button>
+                      } @else { <span>—</span> }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else { <p>No memberships were returned for this workspace.</p> }
+      </nexa-surface>
+
+      <nexa-surface tone="default">
+        <div class="platform-governance-page__section-heading"><div><h2>Invitations</h2><p>Page {{ (view.invitations?.page ?? 0) + 1 }}</p></div></div>
+        @if (view.invitations?.items?.length) {
+          <div class="platform-governance-page__table-wrap">
+            <table><thead><tr><th>Invitee</th><th>Roles</th><th>Status</th><th>Expires</th><th>Actions</th></tr></thead><tbody>
+              @for (invitation of view.invitations!.items; track invitation.id) {
+                <tr>
+                  <td><strong>{{ invitation.displayName }}</strong><br><span>{{ invitation.email }}</span></td>
+                  <td>{{ invitation.roles.join(', ') }}</td>
+                  <td>{{ invitation.status.replaceAll('_', ' ') }}</td>
+                  <td>{{ invitation.expiresAt | date:'mediumDate' }}</td>
+                  <td>
+                    @if (store.canManageMemberships() && invitation.status.toUpperCase() === 'PENDING') {
+                      <nexa-button size="compact" variant="secondary" [disabled]="store.busy()" (click)="changeInvitationStatus('resend', invitation)">Resend</nexa-button>
+                      <nexa-button size="compact" variant="danger" [disabled]="store.busy()" (click)="changeInvitationStatus('revoke', invitation)">Revoke</nexa-button>
+                    } @else { <span>—</span> }
+                  </td>
+                </tr>
+              }
+            </tbody></table>
+          </div>
+        } @else { <p>No invitations were returned for this page.</p> }
+        @if (view.invitations) {
+          <nav class="platform-governance-page__pagination" aria-label="Invitation pages">
+            <nexa-button size="compact" variant="secondary" [disabled]="store.busy() || view.invitations.page === 0" (click)="changeInvitationPage(-1)">Previous</nexa-button>
+            <span>Page {{ view.invitations.page + 1 }}</span>
+            <nexa-button size="compact" variant="secondary" [disabled]="store.busy() || !view.invitations.hasNext" (click)="changeInvitationPage(1)">Next</nexa-button>
+          </nav>
+        }
+      </nexa-surface>
+    }
+  }
+</section>

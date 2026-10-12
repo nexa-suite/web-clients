@@ -1,0 +1,88 @@
+<section class="sales-commitment-page" aria-labelledby="buyer-requests-title">
+  <header class="sales-commitment-page__heading">
+    <div>
+      <p class="sales-commitment-page__eyebrow">BUYER PORTAL</p>
+      <h1 id="buyer-requests-title">My requests</h1>
+      <p>Continue a saved draft or follow submitted purchase requests.</p>
+    </div>
+    <div class="sales-commitment-page__actions">
+      <nexa-button variant="secondary" size="compact" (click)="refresh()">Refresh</nexa-button>
+      <nexa-button routerLink="/requests/new">Start a request</nexa-button>
+    </div>
+  </header>
+
+  @switch (state().status) {
+    @case ('loading') { <p role="status" aria-live="polite">Loading requests…</p> }
+    @case ('error') {
+      <nexa-surface tone="inset"><div role="alert"><p>{{ state().message }}</p><nexa-button variant="secondary" (click)="refresh()">Try again</nexa-button></div></nexa-surface>
+    }
+    @case ('ready') {
+      @let page = state();
+      @if (page.status === 'ready') {
+        <nexa-surface tone="default">
+          <section aria-labelledby="buyer-drafts-title">
+            <div class="sales-commitment-page__section-heading"><div><h2 id="buyer-drafts-title">Drafts</h2><p>Drafts have not been sent to Sales yet.</p></div></div>
+            @if (page.drafts.items.length) {
+              <div class="sales-commitment-page__table-wrap">
+                <table>
+                  <thead><tr><th>Draft</th><th>Status</th><th>Items</th><th>Requested date</th><th></th></tr></thead>
+                  <tbody>
+                    @for (draft of page.drafts.items; track draft.id) {
+                      @if (draft.status !== 'SUBMITTED') {
+                        <tr>
+                          <td><span class="sales-commitment-page__code">{{ draft.id }}</span></td>
+                          <td>{{ draft.status.replaceAll('_', ' ') }}</td>
+                          <td>{{ draft.lineCount }}</td>
+                          <td>{{ draft.requestedDeliveryDate }}</td>
+                          <td><a [routerLink]="['/requests/new']" [queryParams]="{ draftId: draft.id }">Continue draft</a></td>
+                        </tr>
+                      }
+                    }
+                  </tbody>
+                </table>
+              </div>
+              @if (page.drafts.totalPages > 1) {
+                <nav class="sales-commitment-page__actions" aria-label="Draft pages">
+                  <nexa-button variant="secondary" size="compact" [disabled]="page.drafts.page === 0" (click)="changeDraftPage(-1)">Previous drafts</nexa-button>
+                  <span>Page {{ page.drafts.page + 1 }} of {{ page.drafts.totalPages }}</span>
+                  <nexa-button variant="secondary" size="compact" [disabled]="page.drafts.page + 1 >= page.drafts.totalPages" (click)="changeDraftPage(1)">Next drafts</nexa-button>
+                </nav>
+              }
+            } @else { <p>No open drafts yet.</p> }
+          </section>
+        </nexa-surface>
+
+        <nexa-surface tone="default">
+          <section aria-labelledby="buyer-submitted-requests-title">
+            <div class="sales-commitment-page__section-heading"><div><h2 id="buyer-submitted-requests-title">Purchase requests</h2><p>Sales will review submitted requests and update their status here.</p></div></div>
+            @if (page.requests.items.length) {
+              <div class="sales-commitment-page__table-wrap">
+                <table>
+                  <thead><tr><th>Request</th><th>Status</th><th>Items</th><th>Requested date</th><th></th></tr></thead>
+                  <tbody>
+                    @for (request of page.requests.items; track request.id) {
+                      <tr>
+                        <td><span class="sales-commitment-page__code">{{ request.code || request.id }}</span></td>
+                        <td>{{ request.status.replaceAll('_', ' ') }}</td>
+                        <td>{{ request.lineCount }}</td>
+                        <td>{{ request.requestedDeliveryDate }}</td>
+                        <td><a [routerLink]="['/requests', request.id]">View request</a></td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              @if (requestPageCount(page.requests.total, page.requests.size) > 1) {
+                <nav class="sales-commitment-page__actions" aria-label="Purchase request pages">
+                  <nexa-button variant="secondary" size="compact" [disabled]="page.requests.page === 0" (click)="changeRequestPage(-1)">Previous requests</nexa-button>
+                  <span>Page {{ page.requests.page + 1 }} of {{ requestPageCount(page.requests.total, page.requests.size) }}</span>
+                  <nexa-button variant="secondary" size="compact" [disabled]="(page.requests.page + 1) * page.requests.size >= page.requests.total" (click)="changeRequestPage(1)">Next requests</nexa-button>
+                </nav>
+              }
+            } @else { <p>No submitted requests yet.</p> }
+          </section>
+        </nexa-surface>
+      }
+    }
+  }
+</section>

@@ -1,28 +1,30 @@
 export {
   NEXA_API_HTTP_CONFIGURATION,
+  NEXA_REQUEST_POLICY,
   provideNexaHttp,
+  type NexaRequestPolicy,
   type NexaApiHttpConfiguration,
-} from './lib/http/nexa-http';
-export { NexaAuthenticationApi } from './lib/auth/authentication-api';
-export { NexaLogisticsApi } from './lib/logistics/logistics-api';
-export { NexaAccessTokenStore } from './lib/http/access-token.store';
+} from "./lib/http/nexa-http";
+export { NexaAuthenticationApi } from "./lib/contexts/tenant-access-governance/infrastructure/authentication-api";
+export { NexaLogisticsApi } from "./lib/queries/operations/infrastructure/logistics-api";
+export { NexaAccessTokenStore } from "./lib/http/access-token.store";
 export {
   NexaApiError,
   mapNexaApiError,
   type NexaApiErrorKind,
   type SupportedProblemDetails,
-} from './lib/http/api-error';
+} from "./lib/http/api-error";
 export {
   NEXA_AUTH_API_PATHS,
-  type ApiProblemDetails,
+  type AccessContextsResponse,
+  type AccessContextResponse,
+  type SelectAccessContextRequest,
   type AuthenticationResponse,
   type MembershipContext,
-  type NexaProblemDetail,
   type NexaSurface,
   type PasswordResetRequest,
   type PasswordResetResponse,
   type PasswordResetSubmission,
-  type ProblemDetail,
   type RefreshRequestHeaders,
   type SessionContext,
   type SessionRequestHeaders,
@@ -34,8 +36,75 @@ export {
   type WorkspaceContext,
   type WorkspacePreviewRequest,
   type WorkspacePreviewResponse,
-} from './lib/contracts/authentication.contracts';
+} from "./lib/contexts/tenant-access-governance/contracts/authentication.contracts";
 export {
   NEXA_LOGISTICS_API_PATHS,
   type LogisticsOperationsDashboardResponse,
-} from './lib/contracts/logistics.contracts';
+} from "./lib/queries/operations/contracts/logistics.contracts";
+export type {
+  ApiProblemDetails,
+  NexaProblemDetail,
+  ProblemDetail,
+} from "./lib/http/problem-details";
+export { NexaBuyerRelationshipsApi } from "./lib/contexts/customer-buyer-relationships/infrastructure/buyer-relationships-api";
+export type {
+  CurrentBuyerAccountResponse,
+  BuyerAddressResponse,
+} from "./lib/contexts/customer-buyer-relationships/contracts/buyer-account.contracts";
+export { NexaBuyerCatalogApi } from "./lib/contexts/catalog-commercial-policy/infrastructure/buyer-catalog-api";
+export type {
+  BuyerCatalogQuery,
+  BuyerCatalogPageResponse,
+  BuyerCatalogItemSummaryResponse,
+  BuyerCatalogItemDetailResponse,
+  CatalogMoneyResponse,
+} from "./lib/contexts/catalog-commercial-policy/contracts/buyer-catalog.contracts";
+
+export { normalizeNexaApiBaseUrl } from "./lib/http/api-base-url";
+export { NexaWalletRefundsApi } from "./lib/contexts/payments/infrastructure/wallet-refunds-api";
+export type { WalletRefundRequest, WalletRefundResponse, WalletRefundCandidate, WalletRefundCandidatesPage } from "./lib/contexts/payments/contracts/wallet-refund.contracts";
+
+export { NexaReceivablesApi } from "./lib/contexts/credit-receivables/infrastructure/receivables-api";
+export type {
+  BuyerCreditExposureResponse,
+  ReceivableResponse,
+  ReceivablesPageResponse,
+} from "./lib/contexts/credit-receivables/contracts/receivables.contracts";
+export { NexaCreditAccountConfigurationApi, NEXA_CREDIT_ACCOUNT_CONFIGURATION_PATHS } from "./lib/contexts/credit-receivables/infrastructure/credit-account-configuration-api";
+export type {
+  ConfigureCreditAccountRequest,
+  ConfiguredCreditAccount,
+  CreditAccountConfigurationResponse,
+  CreditConfigurationCustomerAccount,
+  CreditConfigurationCustomerAccountPage,
+  NotConfiguredCreditAccount,
+} from "./lib/contexts/credit-receivables/contracts/credit-account-configuration.contracts";
+export { NexaPaymentHistoryApi } from "./lib/contexts/payments/infrastructure/payment-history-api";
+export { NexaBuyerWalletApi } from "./lib/contexts/payments/infrastructure/buyer-wallet-api";
+export { NexaPaymentCommandsApi } from "./lib/contexts/payments/infrastructure/payment-commands-api";
+export type { BankTransferReportRequest, PaymentResponse } from "./lib/contexts/payments/contracts/payment-command.contracts";
+export type {
+  BuyerWalletActiveResponse,
+  BuyerWalletMovementPageResponse,
+  BuyerWalletMovementResponse,
+  BuyerWalletNotInitializedResponse,
+  BuyerWalletResponse,
+  BuyerWalletCapabilitiesResponse,
+  BuyerWalletRechargeCreatedResponse,
+  BuyerWalletRechargeStatusResponse,
+  BuyerWalletRechargeStatus,
+} from "./lib/contexts/payments/contracts/buyer-wallet.contracts";
+export type {
+  PaymentHistoryResponse,
+  PaymentHistoryPageResponse,
+} from "./lib/contexts/payments/contracts/payment-history.contracts";
+
+export * from "./lib/contexts/business-documents/public-api";
+export * from "./lib/contexts/sales-commitment/public-api";
+export * from "./lib/contexts/tenant-access-governance/public-api";
+
+export * from "./lib/queries/fulfillment-readiness/public-api";
+export * from "./lib/contexts/fulfillment-delivery/public-api";
+export { NexaCommandRetryStore } from "./lib/http/command-retry-store";
+export { NexaBuyerDeliveriesApi } from "./lib/contexts/fulfillment-delivery/infrastructure/buyer-deliveries-api";
+export type { BuyerDeliveryResponse, BuyerDeliveryPageResponse, BuyerDeliveryEventResponse } from "./lib/contexts/fulfillment-delivery/contracts/buyer-delivery.contracts";

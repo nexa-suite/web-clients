@@ -1,0 +1,408 @@
+<section
+  class="credit-configuration"
+  aria-labelledby="credit-configuration-title"
+>
+  <header class="credit-configuration__heading">
+    <div>
+      <h1 id="credit-configuration-title">Client credit configuration</h1>
+      <p>
+        Review the server’s current credit buckets and configure a bounded
+        credit line for an account in this business context.
+      </p>
+    </div>
+    @if (canConfigure()) {
+      <button
+        type="button"
+        class="credit-configuration__button credit-configuration__button--secondary"
+        (click)="loadCustomerAccounts()"
+      >
+        Refresh accounts
+      </button>
+    }
+  </header>
+
+  @if (!canConfigure()) {
+    <section class="credit-configuration__notice" role="alert">
+      <h2>Credit configuration is unavailable</h2>
+      <p>
+        This Platform membership needs the Business Operations Manager or
+        Company Owner role and the dedicated credit-configuration capability.
+        Financial adjustment access alone does not grant this command.
+      </p>
+    </section>
+  } @else {
+    <div class="credit-configuration__layout">
+      <section
+        class="credit-configuration__panel"
+        aria-labelledby="account-directory-title"
+      >
+        <div class="credit-configuration__panel-heading">
+          <div>
+            <h2 id="account-directory-title">Customer accounts</h2>
+            <p>Only account ID, commercial name, and status are returned.</p>
+          </div>
+        </div>
+
+        <form
+          class="credit-configuration__filters"
+          (submit)="$event.preventDefault(); searchAccounts()"
+        >
+          <label>
+            Search account
+            <input
+              type="search"
+              [value]="search()"
+              (input)="setSearch($event)"
+              maxlength="120"
+              autocomplete="off"
+            />
+          </label>
+          <label>
+            Account status
+            <select
+              [value]="accountStatus()"
+              (change)="setAccountStatus($event)"
+            >
+              <option value="ACTIVE">Active</option>
+              <option value="SUSPENDED">Suspended</option>
+            </select>
+          </label>
+          <button
+            type="submit"
+            class="credit-configuration__button credit-configuration__button--secondary"
+          >
+            Search
+          </button>
+        </form>
+
+        @let accountPage = directory();
+        @switch (accountPage.status) {
+          @case ("idle") {
+            <p class="credit-configuration__state">
+              Choose a search to load accounts.
+            </p>
+          }
+          @case ("loading") {
+            <p class="credit-configuration__state" role="status">
+              Loading customer accounts…
+            </p>
+          }
+          @case ("error") {
+            <div
+              class="credit-configuration__state credit-configuration__state--error"
+              role="alert"
+            >
+              <p>{{ accountPage.message }}</p>
+              @if (accountPage.retryable) {
+                <button
+                  type="button"
+                  class="credit-configuration__button credit-configuration__button--quiet"
+                  (click)="loadCustomerAccounts()"
+                >
+                  Try again
+                </button>
+              }
+            </div>
+          }
+          @case ("ready") {
+            @if (accountPage.page.items.length === 0) {
+              <p class="credit-configuration__state">
+                No accounts match this filter in the active business context.
+              </p>
+            } @else {
+              <div
+                class="credit-configuration__accounts"
+                role="list"
+                aria-label="Customer account results"
+              >
+                @for (account of accountPage.page.items; track account.id) {
+                  <button
+                    type="button"
+                    role="listitem"
+                    class="credit-configuration__account"
+                    [class.credit-configuration__account--selected]="
+                      selectedAccount()?.id === account.id
+                    "
+                    [disabled]="hasAmbiguousCommand() || saving()"
+                    (click)="selectAccount(account)"
+                  >
+                    <span
+                      ><strong>{{ account.commercialName }}</strong
+                      ><small
+                        >{{ account.status }} · {{ account.id }}</small
+                      ></span
+                    >
+                    <span aria-hidden="true">›</span>
+                  </button>
+                }
+              </div>
+            }
+            <nav
+              class="credit-configuration__pagination"
+              aria-label="Customer account pages"
+            >
+              <button
+                type="button"
+                class="credit-configuration__button credit-configuration__button--quiet"
+                [disabled]="accountPage.page.page <= 0"
+                (click)="changePage(-1)"
+              >
+                Previous
+              </button>
+              <span
+                >Page {{ accountPage.page.page + 1 }} of
+                {{ totalPages(accountPage.page) }} ·
+                {{ accountPage.page.total }} accounts</span
+              >
+              <button
+                type="button"
+                class="credit-configuration__button credit-configuration__button--quiet"
+                [disabled]="
+                  accountPage.page.page + 1 >= totalPages(accountPage.page)
+                "
+                (click)="changePage(1)"
+              >
+                Next
+              </button>
+            </nav>
+          }
+        }
+      </section>
+
+      <section
+        class="credit-configuration__panel"
+        aria-labelledby="selected-account-title"
+      >
+        <div class="credit-configuration__panel-heading">
+          <div>
+            <h2 id="selected-account-title">Credit line</h2>
+            @if (selectedAccount(); as account) {
+              <p>{{ account.commercialName }} · {{ account.id }}</p>
+            } @else {
+              <p>Select an account to inspect its credit configuration.</p>
+            }
+          </div>
+        </div>
+
+        @if (selectedAccount()) {
+          <div class="credit-configuration__load-row">
+            <label>
+              Currency
+              <input
+                type="text"
+                [value]="currency()"
+                (input)="setCurrency($event)"
+                maxlength="3"
+                minlength="3"
+                pattern="[A-Za-z]{3}"
+                autocapitalize="characters"
+                autocomplete="off"
+                [disabled]="
+                  hasAmbiguousCommand() || configuration().status === 'ready'
+                "
+              />
+            </label>
+            @if (configuration().status !== "ready") {
+              <button
+                type="button"
+                class="credit-configuration__button credit-configuration__button--secondary"
+                [disabled]="
+                  !selectedAccount() ||
+                  hasAmbiguousCommand() ||
+                  currency().trim().length !== 3
+                "
+                (click)="loadConfiguration()"
+              >
+                Load configuration
+              </button>
+            }
+          </div>
+        }
+
+        @let config = configuration();
+        @switch (config.status) {
+          @case ("idle") {
+            <p class="credit-configuration__state">
+              Enter a currency and load the server snapshot.
+            </p>
+          }
+          @case ("loading") {
+            <p class="credit-configuration__state" role="status">
+              Loading the current Tenant credit configuration…
+            </p>
+          }
+          @case ("error") {
+            <div
+              class="credit-configuration__state credit-configuration__state--error"
+              role="alert"
+            >
+              <p>{{ config.message }}</p>
+              @if (config.retryable) {
+                <button
+                  type="button"
+                  class="credit-configuration__button credit-configuration__button--quiet"
+                  (click)="loadConfiguration()"
+                >
+                  Reload
+                </button>
+              }
+            </div>
+          }
+          @case ("not-configured") {
+            <p class="credit-configuration__notice">
+              No credit account is configured for {{ config.value.currency }}.
+              The first configuration requires an explicit limit, activation
+              choice, and server precondition.
+            </p>
+            <ng-container *ngTemplateOutlet="configurationForm"></ng-container>
+          }
+          @case ("ready") {
+            <dl class="credit-configuration__buckets">
+              <div>
+                <dt>Status</dt>
+                <dd>{{ config.value.status }}</dd>
+              </div>
+              <div>
+                <dt>Credit limit</dt>
+                <dd>
+                  {{
+                    formatAmount(
+                      config.value.creditLimit,
+                      config.value.currency
+                    )
+                  }}
+                </dd>
+              </div>
+              <div>
+                <dt>Financed exposure</dt>
+                <dd>
+                  {{
+                    formatAmount(
+                      config.value.financedExposure,
+                      config.value.currency
+                    )
+                  }}
+                </dd>
+              </div>
+              <div>
+                <dt>Outstanding receivables</dt>
+                <dd>
+                  {{
+                    formatAmount(
+                      config.value.outstandingReceivables,
+                      config.value.currency
+                    )
+                  }}
+                </dd>
+              </div>
+              <div>
+                <dt>Active reservations</dt>
+                <dd>
+                  {{
+                    formatAmount(
+                      config.value.reservedExposure,
+                      config.value.currency
+                    )
+                  }}
+                </dd>
+              </div>
+              <div>
+                <dt>Total used</dt>
+                <dd>
+                  {{ formatAmount(config.value.used, config.value.currency) }}
+                </dd>
+              </div>
+              <div>
+                <dt>Available credit</dt>
+                <dd>
+                  {{
+                    formatAmount(
+                      config.value.availableCredit,
+                      config.value.currency
+                    )
+                  }}
+                </dd>
+              </div>
+              <div>
+                <dt>Server version</dt>
+                <dd>{{ config.value.version }}</dd>
+              </div>
+            </dl>
+            @if (config.value.status === "CLOSED") {
+              <p class="credit-configuration__notice">
+                This credit account is closed and cannot be reconfigured.
+              </p>
+            } @else {
+              <ng-container
+                *ngTemplateOutlet="configurationForm"
+              ></ng-container>
+            }
+          }
+        }
+
+        @if (commandMessage()) {
+          <p class="credit-configuration__command-message" role="status">
+            {{ commandMessage() }}
+          </p>
+        }
+        @if (hasAmbiguousCommand()) {
+          <button
+            type="button"
+            class="credit-configuration__button credit-configuration__button--primary"
+            [disabled]="saving() || !canConfigure()"
+            (click)="retrySameCommand()"
+          >
+            {{ saving() ? "Checking command…" : "Retry same command" }}
+          </button>
+        }
+
+        <ng-template #configurationForm>
+          <form
+            class="credit-configuration__form"
+            (submit)="$event.preventDefault(); save()"
+          >
+            <label>
+              Credit limit ({{ currency() }})
+              <input
+                type="text"
+                inputmode="decimal"
+                [value]="creditLimit()"
+                (input)="setCreditLimit($event)"
+                pattern="[0-9]{1,15}(\.[0-9]{1,4})?"
+                maxlength="20"
+                autocomplete="off"
+                [disabled]="hasAmbiguousCommand() || saving()"
+              />
+            </label>
+            <label class="credit-configuration__checkbox">
+              <input
+                type="checkbox"
+                [checked]="active()"
+                (change)="setActive($event)"
+                [disabled]="hasAmbiguousCommand() || saving()"
+              />
+              <span>Credit line active</span>
+            </label>
+            <p class="credit-configuration__hint">
+              The API enforces the minimum limit from financed exposure,
+              outstanding receivables, and active reservations.
+            </p>
+            <button
+              type="submit"
+              class="credit-configuration__button credit-configuration__button--primary"
+              [disabled]="!canSave()"
+            >
+              {{
+                saving()
+                  ? "Saving…"
+                  : config.status === "not-configured"
+                    ? "Create credit configuration"
+                    : "Save configuration"
+              }}
+            </button>
+          </form>
+        </ng-template>
+      </section>
+    </div>
+  }
+</section>

@@ -1,22 +1,39 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import type { SessionResponse } from '@nexa/api';
-import { NexaButton, NexaLogo } from 'nexa-ui';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  EventEmitter,
+  Input,
+  Output,
+} from "@angular/core";
+import { RouterLink, RouterLinkActive, RouterOutlet } from "@angular/router";
+import type { SessionResponse } from "@nexa/api";
+import { NexaButton, NexaLogo } from "nexa-ui";
 
 @Component({
-  selector: 'platform-shell',
+  selector: "platform-shell",
   standalone: true,
   imports: [NexaButton, NexaLogo, RouterLink, RouterLinkActive, RouterOutlet],
-  templateUrl: './platform-shell.component.html',
-  styleUrl: './platform-shell.component.scss',
+  templateUrl: "./platform-shell.component.html",
+  styleUrl: "./platform-shell.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlatformShellComponent {
   private readonly operationsOverviewPermissions = new Set([
-    'logistics.read',
-    'dispatch.read',
-    'logistics.analytics.read',
-    'logistics:read',
+    "logistics.read",
+    "dispatch.read",
+    "logistics.analytics.read",
+    "logistics:read",
+  ]);
+  private readonly salesCommitmentPermissions = new Set([
+    "sales.purchase_request.read",
+  ]);
+  private readonly fulfillmentPermissions = new Set([
+    "fulfillment.read",
+    "fulfillment:read",
+    "logistics.read",
+    "dispatch.read",
+    "logistics.analytics.read",
+    "logistics:read",
   ]);
 
   @Input() session: SessionResponse | null = null;
@@ -42,16 +59,67 @@ export class PlatformShellComponent {
     if (tenantLabel) contextParts.push(`Tenant: ${tenantLabel}`);
     if (workspaceLabel) contextParts.push(`Workspace: ${workspaceLabel}`);
 
-    return contextParts.length > 0 ? contextParts.join(' · ') : null;
+    return contextParts.length > 0 ? contextParts.join(" · ") : null;
   }
 
   protected get canViewOperationsOverview(): boolean {
-    return this.session?.membership?.permissions?.some((permission) =>
-      this.operationsOverviewPermissions.has(permission),
-    ) ?? false;
+    return this.hasAnyPermission(this.operationsOverviewPermissions);
   }
 
-  private namedContextLabel(name: string | undefined, slug: string | undefined): string | null {
+  protected get canViewSalesCommitment(): boolean {
+    return this.hasAnyPermission(this.salesCommitmentPermissions);
+  }
+
+  protected get canViewFulfillment(): boolean {
+    return this.hasAnyPermission(this.fulfillmentPermissions);
+  }
+
+  protected get canViewDocuments(): boolean {
+    return this.hasAnyPermission(new Set(["document.read", "document:read"]));
+  }
+  protected get canConfigureCredit(): boolean {
+    return (
+      this.session?.surface === "PLATFORM" &&
+      this.hasAnyPermission(new Set(["client.credit.configuration.manage"]))
+    );
+  }
+  protected get canManageWalletRefunds(): boolean {
+    return (
+      this.session?.surface === "PLATFORM" &&
+      this.hasAnyPermission(new Set(["payment.reconcile"]))
+    );
+  }
+  protected get canViewTenantAccess(): boolean {
+    return this.hasAnyPermission(new Set(["tenant.member.read"]));
+  }
+  protected get canViewTenantRoles(): boolean {
+    return this.hasAnyPermission(new Set(["tenant.role.read"]));
+  }
+
+  protected get canManageSupportConsents(): boolean {
+    return (
+      this.session?.surface === "PLATFORM" &&
+      this.hasAnyPermission(new Set(["tenant:read", "tenant.organization.read"]))
+    );
+  }
+
+  protected get canManageWarehouseAccessGrants(): boolean {
+    return this.session?.surface === "PLATFORM" &&
+      this.hasAnyPermission(new Set(["tenant.role.assign"]));
+  }
+
+  private hasAnyPermission(allowed: ReadonlySet<string>): boolean {
+    return (
+      this.session?.membership?.permissions?.some((permission) =>
+        allowed.has(permission),
+      ) ?? false
+    );
+  }
+
+  private namedContextLabel(
+    name: string | undefined,
+    slug: string | undefined,
+  ): string | null {
     if (name && slug && name !== slug) return `${name} (${slug})`;
     return name || slug || null;
   }
