@@ -112,7 +112,7 @@ jobs:
           repository: nexa-suite/api
           # Signed API PR #117 head; includes browser CSRF and Tenant PostgreSQL readiness fixes.
           # The PR is still open; this test pin does not claim merge or deployment.
-          ref: 46d8766d6bdbe5331c41eb9a7caa43244a0264ec
+          ref: 84b5d93d5275cf216d889dd42cdd41dc44fb4637
           path: api
 
       - name: Set up Node.js
