@@ -99,7 +99,7 @@ jobs:
   api-integration:
     name: Real API and Platform browser integration
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 60
     env:
       NEXA_API_REPOSITORY_PATH: ${{ github.workspace }}/api
     steps:
@@ -111,6 +111,7 @@ jobs:
         with:
           repository: nexa-suite/api
           # Published, signed API PR #117 implementation candidate for integration checks.
+          # This pin includes the isolated Tenant provisioning and fixture helper used below.
           # The PR is still open; this test pin does not claim merge or deployment.
           ref: 9679cb093a386891a4995bd47421b243447cb087
           path: api
@@ -133,147 +134,9 @@ jobs:
       - name: Install Chromium and system dependencies
         run: npx playwright install --with-deps chromium
 
-      - name: Generate ephemeral API keys and seeded integration identities
-        shell: bash
-        run: |
-          set -euo pipefail
-          umask 077
-          # Keep generated document artifacts in the ephemeral local filesystem adapter.
-          cat > "$RUNNER_TEMP/nexa-api-access.override.yml" <<'YAML'
-          services:
-            modern-api:
-              environment:
-                SPRING_PROFILES_ACTIVE: local
-                NEXA_OBJECT_STORAGE_ROOT: /tmp/nexa-ci-object-storage
-          YAML
-
-          mkdir -p api/.local-keys
-          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out api/.local-keys/access-token-private.pem
-          openssl pkey -in api/.local-keys/access-token-private.pem -pubout -out api/.local-keys/access-token-public.pem
-          sudo chown 10001:10001 api/.local-keys/access-token-private.pem api/.local-keys/access-token-public.pem
-          sudo chmod 0400 api/.local-keys/access-token-private.pem
-          sudo chmod 0444 api/.local-keys/access-token-public.pem
-
-          database_password="$(openssl rand -hex 32)"
-          demo_password="$(openssl rand -hex 32)"
-          minio_password="$(openssl rand -hex 32)"
-          reset_key="$(openssl rand -hex 32)"
-          outbox_key="$(openssl rand -hex 32)"
-          operator_token="$(openssl rand -hex 32)"
-          documents_scope_reader_password="$(openssl rand -hex 32)"
-          echo "::add-mask::$database_password"
-          echo "::add-mask::$demo_password"
-          echo "::add-mask::$minio_password"
-          echo "::add-mask::$reset_key"
-          echo "::add-mask::$outbox_key"
-          echo "::add-mask::$operator_token"
-          echo "::add-mask::$documents_scope_reader_password"
-
-          {
-            printf 'NEXA_MODERN_POSTGRES_DB=nexa_modern\n'
-            printf 'NEXA_MODERN_POSTGRES_USER=nexa_migrator\n'
-            printf 'NEXA_MODERN_POSTGRES_PASSWORD=%s\n' "$database_password"
-            printf 'NEXA_PASSWORD_RESET_THROTTLE_KEY=%s\n' "$reset_key"
-            printf 'NEXA_NOTIFICATION_OUTBOX_KEY=%s\n' "$outbox_key"
-            printf 'NEXA_SYSTEM_OPERATOR_TOKEN=%s\n' "$operator_token"
-            printf 'NEXA_BUSINESS_DOCUMENTS_SCOPE_READER_PASSWORD=%s\n' "$documents_scope_reader_password"
-            printf 'NEXA_MINIO_ROOT_USER=nexa_ci\n'
-            printf 'NEXA_MINIO_ROOT_PASSWORD=%s\n' "$minio_password"
-            printf 'NEXA_DEV_BOOTSTRAP_ENABLED=true\n'
-            printf 'NEXA_DEV_WORKSPACE_SLUG=icisa\n'
-            printf 'NEXA_DEV_OWNER_EMAIL=owner@icisa.test\n'
-            printf 'NEXA_DEV_OWNER_PASSWORD=%s\n' "$demo_password"
-            printf 'NEXA_DEV_TENANT_ADMIN_EMAIL=tenant.admin@icisa.test\n'
-            printf 'NEXA_DEV_TENANT_ADMIN_PASSWORD=%s\n' "$demo_password"
-            printf 'NEXA_DEV_SALES_EMAIL=sales@icisa.test\n'
-            printf 'NEXA_DEV_SALES_PASSWORD=%s\n' "$demo_password"
-            printf 'NEXA_DEV_WAREHOUSE_EMAIL=warehouse@icisa.test\n'
-            printf 'NEXA_DEV_WAREHOUSE_PASSWORD=%s\n' "$demo_password"
-            printf 'NEXA_DEV_LOGISTICS_EMAIL=logistics@icisa.test\n'
-            printf 'NEXA_DEV_LOGISTICS_PASSWORD=%s\n' "$demo_password"
-            printf 'NEXA_DEV_BUYER_EMAIL=buyer@icisa.test\n'
-            printf 'NEXA_DEV_BUYER_PASSWORD=%s\n' "$demo_password"
-            printf 'NEXA_DEV_DEMO_PASSWORD=%s\n' "$demo_password"
-          } > api/.env.local
-
-          {
-            printf 'NEXA_DEV_WORKSPACE_SLUG=icisa\n'
-            printf 'NEXA_DEV_OWNER_EMAIL=owner@icisa.test\n'
-            printf 'NEXA_DEV_OWNER_PASSWORD=%s\n' "$demo_password"
-            printf 'NEXA_DEV_TENANT_ADMIN_EMAIL=tenant.admin@icisa.test\n'
-            printf 'NEXA_DEV_TENANT_ADMIN_PASSWORD=%s\n' "$demo_password"
-            printf 'NEXA_DEV_SALES_EMAIL=sales@icisa.test\n'
-            printf 'NEXA_DEV_SALES_PASSWORD=%s\n' "$demo_password"
-            printf 'NEXA_DEV_WAREHOUSE_EMAIL=warehouse@icisa.test\n'
-            printf 'NEXA_DEV_WAREHOUSE_PASSWORD=%s\n' "$demo_password"
-            printf 'NEXA_DEV_LOGISTICS_EMAIL=logistics@icisa.test\n'
-            printf 'NEXA_DEV_LOGISTICS_PASSWORD=%s\n' "$demo_password"
-            printf 'NEXA_DEV_BUYER_EMAIL=buyer@icisa.test\n'
-            printf 'NEXA_DEV_BUYER_PASSWORD=%s\n' "$demo_password"
-          } >> "$GITHUB_ENV"
-
-      - name: Start API dependencies
+      - name: Start API and prepare isolated Tenant Buyer fixtures
         working-directory: api
-        run: |
-          docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
-            up -d --wait --wait-timeout 600 modern-postgres modern-mailpit modern-clamav modern-stripe-mock
-
-      - name: Provision the least-privilege API runtime database role
-        working-directory: api
-        shell: bash
-        run: |
-          set -euo pipefail
-          set -a
-          . .env.local
-          set +a
-          docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
-            exec -T modern-postgres psql -q -v ON_ERROR_STOP=1 -U "$NEXA_MODERN_POSTGRES_USER" -d "$NEXA_MODERN_POSTGRES_DB" \
-              -v runtime_password="$NEXA_MODERN_POSTGRES_PASSWORD" \
-              -v business_documents_scope_reader_password="$NEXA_BUSINESS_DOCUMENTS_SCOPE_READER_PASSWORD" <<'SQL'
-          SELECT set_config('nexa.runtime_database_password', :'runtime_password', false) AS _runtime_password \gset
-          SELECT set_config('nexa.business_documents_scope_reader_password', :'business_documents_scope_reader_password', false) AS _business_documents_scope_reader_password \gset
-          DO $do$
-          DECLARE
-            scope_reader pg_roles%ROWTYPE;
-          BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'nexa_runtime') THEN
-              EXECUTE format('CREATE ROLE nexa_runtime LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L', current_setting('nexa.runtime_database_password'));
-            ELSE
-              EXECUTE format('ALTER ROLE nexa_runtime LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L', current_setting('nexa.runtime_database_password'));
-            END IF;
-
-            SELECT * INTO scope_reader FROM pg_roles WHERE rolname = 'nexa_business_documents_scope_reader';
-            IF FOUND THEN
-              IF NOT scope_reader.rolcanlogin OR scope_reader.rolsuper OR scope_reader.rolcreatedb
-                OR scope_reader.rolcreaterole OR scope_reader.rolreplication OR scope_reader.rolbypassrls
-                OR EXISTS (SELECT 1 FROM pg_auth_members WHERE member = scope_reader.oid OR roleid = scope_reader.oid)
-                OR EXISTS (SELECT 1 FROM pg_database WHERE datdba = scope_reader.oid)
-                OR EXISTS (SELECT 1 FROM pg_namespace WHERE nspowner = scope_reader.oid)
-                OR EXISTS (SELECT 1 FROM pg_class WHERE relowner = scope_reader.oid)
-                OR EXISTS (SELECT 1 FROM pg_proc WHERE proowner = scope_reader.oid)
-                OR EXISTS (SELECT 1 FROM pg_namespace WHERE has_schema_privilege(scope_reader.oid, oid, 'CREATE')) THEN
-                RAISE EXCEPTION 'Existing central Business Documents scope-reader role has unsafe privileges';
-              END IF;
-              EXECUTE format('ALTER ROLE nexa_business_documents_scope_reader LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
-                current_setting('nexa.business_documents_scope_reader_password'));
-            ELSE
-              EXECUTE format('CREATE ROLE nexa_business_documents_scope_reader LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
-                current_setting('nexa.business_documents_scope_reader_password'));
-            END IF;
-          END
-          $do$;
-          SQL
-
-      - name: Start the real API Docker container
-        working-directory: api
-        run: |
-          if ! docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
-            up -d --no-deps --wait --wait-timeout 600 modern-api; then
-            docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" ps --all
-            docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" \
-              logs --no-color --tail=120 modern-api
-            exit 1
-          fi
+        run: GITHUB_WORKSPACE="$GITHUB_WORKSPACE/api" ./ops/scripts/prepare-security-load-compose-fixture.sh
 
       - name: Wait for the real API OpenAPI endpoint
         run: >-
@@ -281,12 +144,13 @@ jobs:
           http://127.0.0.1:8080/v3/api-docs -o /dev/null
 
       - name: Run Platform and Portal E2E against the real API
+        env:
+          NEXA_DEV_WORKSPACE_SLUG: icisa
         run: npm run test:e2e
 
-      - name: Stop API services and remove ephemeral volumes
-        if: always()
+      - name: Stop API worker and remove ephemeral volumes
+        if: always() && env.NEXA_SECURITY_LOAD_COMPOSE_STARTED == 'true'
         working-directory: api
         run: |
-          if [ -f .env.local ]; then
-            docker compose --env-file .env.local -f ops/compose/modern.compose.yml -f "$RUNNER_TEMP/nexa-api-access.override.yml" down --volumes --remove-orphans
-          fi
+          ./ops/compose/scripts/modern-down.sh
+          docker compose --env-file .env.local -f ops/compose/modern.compose.yml down --volumes --remove-orphans
