@@ -112,7 +112,7 @@ jobs:
           repository: nexa-suite/api
           # Signed API PR #117 head; includes local rootless MinIO and Tenant fixture setup.
           # The PR is still open; this test pin does not claim merge or deployment.
-          ref: 5d11b41d1b9a3d896d6c7e1ebf38911d2b0ff868
+          ref: 0137f3def7545036dae70d31d3bfa9a7a17b6b3b
           path: api
 
       - name: Set up Node.js
