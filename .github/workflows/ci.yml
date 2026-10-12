@@ -110,10 +110,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: nexa-suite/api
-          # Published, signed API PR #117 implementation candidate for integration checks.
-          # This pin includes the isolated Tenant provisioning and fixture helper used below.
+          # Signed API PR #117 head; includes local rootless MinIO and Tenant fixture setup.
           # The PR is still open; this test pin does not claim merge or deployment.
-          ref: 9679cb093a386891a4995bd47421b243447cb087
+          ref: 5d11b41d1b9a3d896d6c7e1ebf38911d2b0ff868
           path: api
 
       - name: Set up Node.js
