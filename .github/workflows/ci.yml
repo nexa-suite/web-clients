@@ -112,7 +112,7 @@ jobs:
           repository: nexa-suite/api
           # Signed API PR #117 head; includes browser CSRF, BC04-owned reads, and Compose readiness fixes.
           # The PR is still open; this test pin does not claim merge or deployment.
-          ref: b9983b58161f75f1c0952337a6fb8b82e1daa60c
+          ref: 3b9989487800893d83367c4207fa7635de4afe5a
           path: api
 
       - name: Set up Node.js
