@@ -110,9 +110,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: nexa-suite/api
-          # Signed API PR #117 head; includes browser CSRF and Tenant PostgreSQL readiness fixes.
+          # Signed API PR #117 head; includes browser CSRF and local Tenant provisioning fixes.
           # The PR is still open; this test pin does not claim merge or deployment.
-          ref: 84b5d93d5275cf216d889dd42cdd41dc44fb4637
+          ref: 8334ed87e6f20c98ecd83d4354df222cfd443242
           path: api
 
       - name: Set up Node.js
