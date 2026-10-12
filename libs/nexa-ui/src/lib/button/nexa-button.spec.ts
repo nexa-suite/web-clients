@@ -66,6 +66,18 @@ describe('NexaButton', () => {
     expect(router.url).toBe('/');
   });
 
+  it('preserves query parameters separately from the routed path', () => {
+    const fixture = TestBed.createComponent(NexaButton);
+    fixture.componentRef.setInput('routerLink', '/requests/new');
+    fixture.componentRef.setInput('queryParams', { skuId: 'sku-123' });
+    fixture.detectChanges();
+    const link = fixture.nativeElement.querySelector('a') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/requests/new?skuId=sku-123');
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    expect(link.getAttribute('href')).toBeNull();
+  });
+
   it('blocks keyboard activation of a disabled link-style action', async () => {
     const router = TestBed.inject(Router);
     await router.navigateByUrl('/');

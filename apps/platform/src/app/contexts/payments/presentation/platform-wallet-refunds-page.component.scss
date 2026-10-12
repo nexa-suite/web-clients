@@ -1,0 +1,267 @@
+:host {
+  display: block;
+}
+
+.wallet-refunds {
+  display: grid;
+  gap: var(--nexa-space-5);
+  width: min(100%, var(--nexa-layout-content-max));
+  margin-inline: auto;
+}
+
+.wallet-refunds__heading,
+.wallet-refunds__panel-heading,
+.wallet-refunds__candidate-heading,
+.wallet-refunds__pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--nexa-space-3);
+}
+
+.wallet-refunds__heading h1,
+.wallet-refunds__panel-heading h2,
+.wallet-refunds__candidate-heading h3,
+.wallet-refunds__notice h2 {
+  margin: 0;
+  color: var(--nexa-color-text-primary);
+  font-family: var(--nexa-font-family-display);
+}
+
+.wallet-refunds__heading h1 {
+  font-size: var(--nexa-font-size-2xl);
+}
+
+.wallet-refunds__panel-heading h2,
+.wallet-refunds__notice h2 {
+  font-size: var(--nexa-font-size-lg);
+}
+
+.wallet-refunds__candidate-heading h3 {
+  font-size: var(--nexa-font-size-base);
+}
+
+.wallet-refunds__heading p,
+.wallet-refunds__panel-heading p,
+.wallet-refunds__candidate-heading p,
+.wallet-refunds__state,
+.wallet-refunds__hint,
+.wallet-refunds__authority-note,
+.wallet-refunds__notice p,
+.wallet-refunds__uncertain p,
+.wallet-refunds__feedback {
+  margin: var(--nexa-space-2) 0 0;
+  color: var(--nexa-color-text-secondary);
+  line-height: var(--nexa-line-height-relaxed);
+}
+
+.wallet-refunds__authority-note {
+  margin: 0;
+  padding: var(--nexa-space-3) var(--nexa-space-4);
+  border-inline-start: 1px solid var(--nexa-color-primary-600);
+  background: var(--nexa-surface-info);
+}
+
+.wallet-refunds__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  align-items: start;
+  gap: var(--nexa-space-4);
+}
+
+.wallet-refunds__panel {
+  display: grid;
+  min-width: 0;
+  gap: var(--nexa-space-4);
+  padding: var(--nexa-card-padding, var(--nexa-space-4));
+}
+
+.wallet-refunds__panel-heading > span {
+  color: var(--nexa-color-text-secondary);
+  font-size: var(--nexa-font-size-sm);
+}
+
+.wallet-refunds__candidate-list {
+  display: grid;
+  gap: var(--nexa-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wallet-refunds__candidate {
+  display: grid;
+  gap: var(--nexa-space-3);
+  min-width: 0;
+  padding: var(--nexa-space-3);
+}
+
+.wallet-refunds__candidate-heading p {
+  overflow-wrap: anywhere;
+  font-size: var(--nexa-font-size-xs);
+}
+
+.wallet-refunds__amounts,
+.wallet-refunds__receipt {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--nexa-space-2);
+  margin: 0;
+}
+
+.wallet-refunds__amounts div,
+.wallet-refunds__receipt div {
+  min-width: 0;
+}
+
+.wallet-refunds__amounts dt,
+.wallet-refunds__receipt dt {
+  color: var(--nexa-color-text-secondary);
+  font-size: var(--nexa-font-size-xs);
+}
+
+.wallet-refunds__amounts dd,
+.wallet-refunds__receipt dd {
+  margin: var(--nexa-space-1) 0 0;
+  overflow-wrap: anywhere;
+  color: var(--nexa-color-text-primary);
+  font-size: var(--nexa-font-size-sm);
+  font-weight: var(--nexa-font-weight-semibold);
+}
+
+.wallet-refunds__amounts-emphasis dd {
+  color: var(--nexa-color-primary-700);
+}
+
+.wallet-refunds__pagination {
+  justify-content: center;
+  color: var(--nexa-color-text-secondary);
+  font-size: var(--nexa-font-size-xs);
+}
+
+.wallet-refunds__form {
+  display: grid;
+  gap: var(--nexa-space-2);
+}
+
+.wallet-refunds__form label {
+  margin-top: var(--nexa-space-2);
+  color: var(--nexa-color-text-primary);
+  font-size: var(--nexa-font-size-sm);
+  font-weight: var(--nexa-font-weight-semibold);
+}
+
+.wallet-refunds__form input,
+.wallet-refunds__form textarea {
+  width: 100%;
+  min-height: var(--nexa-control-height-lg);
+  padding: var(--nexa-space-2) var(--nexa-space-3);
+  border: 1px solid var(--nexa-color-border-interactive);
+  border-radius: var(--nexa-radius-control);
+  background: var(--nexa-surface-card);
+  color: var(--nexa-color-text-primary);
+  font: inherit;
+}
+
+.wallet-refunds__form textarea {
+  resize: vertical;
+}
+
+.wallet-refunds__form :is(input, textarea):focus-visible {
+  outline: none;
+  border-color: var(--nexa-color-primary-500);
+  box-shadow: var(--nexa-focus-ring);
+}
+
+.wallet-refunds__form :is(input, textarea):disabled {
+  background: var(--nexa-surface-inset);
+  color: var(--nexa-color-text-secondary);
+}
+
+.wallet-refunds__hint {
+  font-size: var(--nexa-font-size-sm);
+}
+
+.wallet-refunds__field-help {
+  margin: 0;
+  color: var(--nexa-color-text-secondary);
+  font-size: var(--nexa-font-size-xs);
+  line-height: var(--nexa-line-height-normal);
+}
+
+.wallet-refunds__field-help--error {
+  color: var(--nexa-color-danger-text);
+}
+
+.wallet-refunds__notice {
+  display: grid;
+  gap: var(--nexa-space-2);
+  padding: var(--nexa-panel-padding);
+}
+
+.wallet-refunds__notice h2 {
+  margin: 0;
+}
+
+.wallet-refunds__surface-content {
+  display: grid;
+  gap: var(--nexa-space-3);
+  padding: var(--nexa-panel-padding);
+}
+
+.wallet-refunds__state--error,
+.wallet-refunds__feedback--error {
+  color: var(--nexa-color-danger-text);
+}
+
+.wallet-refunds__feedback {
+  border: 1px solid transparent;
+  border-radius: var(--nexa-radius-panel);
+  padding: var(--nexa-space-3);
+}
+
+.wallet-refunds__feedback--error {
+  border-color: var(--nexa-color-danger-subtle-border);
+  background: var(--nexa-surface-danger);
+}
+
+.wallet-refunds__feedback--success {
+  border-color: var(--nexa-color-success-border);
+  background: var(--nexa-surface-success);
+  color: var(--nexa-color-success-700);
+}
+
+.wallet-refunds__uncertain {
+  display: grid;
+  gap: var(--nexa-space-2);
+  border: 1px solid var(--nexa-color-warning-border);
+  border-radius: var(--nexa-radius-panel);
+  padding: var(--nexa-space-3);
+  background: var(--nexa-surface-warning);
+}
+
+.wallet-refunds__uncertain p {
+  color: var(--nexa-color-warning-text);
+}
+
+@media (max-width: 58rem) {
+  .wallet-refunds__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 38rem) {
+  .wallet-refunds__amounts,
+  .wallet-refunds__receipt {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .wallet-refunds__amounts div,
+  .wallet-refunds__receipt div {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--nexa-space-2);
+  }
+}

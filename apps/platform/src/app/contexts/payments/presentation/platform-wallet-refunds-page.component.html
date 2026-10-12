@@ -1,0 +1,346 @@
+<section class="wallet-refunds" aria-labelledby="wallet-refunds-title">
+  <header class="wallet-refunds__heading">
+    <div>
+      <h1 id="wallet-refunds-title">Wallet refunds</h1>
+      <p>
+        Review server-returned sales-order amounts and post an authorized PEN
+        refund to the wallet ledger.
+      </p>
+    </div>
+    @if (canRefund()) {
+      <nexa-button
+        type="button"
+        variant="secondary"
+        size="compact"
+        [disabled]="candidates().status === 'loading' || formLocked()"
+        (click)="loadCandidates()"
+      >
+        Refresh candidates
+      </nexa-button>
+    }
+  </header>
+
+  @if (!canRefund()) {
+    <nexa-surface tone="inset">
+      <section class="wallet-refunds__notice" role="alert">
+        <h2>Wallet refunds are unavailable</h2>
+        <p>
+          Use an authenticated Platform Company Owner or Business Operations
+          Manager membership with the <code>payment.reconcile</code> permission.
+          The API remains authoritative for every candidate and refund command.
+        </p>
+      </section>
+    </nexa-surface>
+  } @else {
+    <p class="wallet-refunds__authority-note">
+      Amounts below come from the API. The API checks current refund eligibility
+      and posts the ledger entry; this page does not calculate wallet balances.
+    </p>
+
+    @let candidateState = candidates();
+    @switch (candidateState.status) {
+      @case ("idle") {
+        <p class="wallet-refunds__state">
+          Refund candidates have not been loaded.
+        </p>
+      }
+      @case ("loading") {
+        <p class="wallet-refunds__state" role="status">
+          Loading wallet-refund candidates…
+        </p>
+      }
+      @case ("error") {
+        <nexa-surface tone="inset">
+          <div
+            class="wallet-refunds__surface-content wallet-refunds__state wallet-refunds__state--error"
+            role="alert"
+          >
+            <p>{{ candidateState.message }}</p>
+            @if (candidateState.retryable) {
+              <nexa-button
+                type="button"
+                variant="secondary"
+                size="compact"
+                (click)="loadCandidates()"
+              >
+                Try again
+              </nexa-button>
+            }
+          </div>
+        </nexa-surface>
+      }
+      @case ("ready") {
+        <div class="wallet-refunds__layout">
+          <section aria-labelledby="refund-candidates-title">
+            <nexa-surface>
+              <div class="wallet-refunds__panel">
+                <div class="wallet-refunds__panel-heading">
+                  <div>
+                    <h2 id="refund-candidates-title">Refund candidates</h2>
+                    <p>
+                      Sales orders returned for this active business context.
+                    </p>
+                  </div>
+                  <span>{{ candidateState.page.total }} orders</span>
+                </div>
+
+                @if (candidateState.page.items.length === 0) {
+                  <p class="wallet-refunds__state">
+                    The API returned no refundable sales orders for this
+                    context.
+                  </p>
+                } @else {
+                  <ol class="wallet-refunds__candidate-list">
+                    @for (
+                      candidate of candidateState.page.items;
+                      track candidate.salesOrderId
+                    ) {
+                      <li>
+                        <nexa-surface
+                          [tone]="
+                            selectedCandidate()?.salesOrderId ===
+                            candidate.salesOrderId
+                              ? 'soft'
+                              : 'default'
+                          "
+                        >
+                          <article class="wallet-refunds__candidate">
+                            <div class="wallet-refunds__candidate-heading">
+                              <div>
+                                <h3>{{ candidate.orderNumber }}</h3>
+                                <p>Sales order {{ candidate.salesOrderId }}</p>
+                              </div>
+                              <nexa-button
+                                type="button"
+                                variant="quiet"
+                                size="compact"
+                                [disabled]="formLocked()"
+                                (click)="selectCandidate(candidate)"
+                              >
+                                {{
+                                  selectedCandidate()?.salesOrderId ===
+                                  candidate.salesOrderId
+                                    ? "Selected"
+                                    : "Select"
+                                }}
+                              </nexa-button>
+                            </div>
+                            <dl class="wallet-refunds__amounts">
+                              <div>
+                                <dt>Consumed</dt>
+                                <dd>{{ formatPEN(candidate.consumedPEN) }}</dd>
+                              </div>
+                              <div>
+                                <dt>Refunded</dt>
+                                <dd>{{ formatPEN(candidate.refundedPEN) }}</dd>
+                              </div>
+                              <div class="wallet-refunds__amounts-emphasis">
+                                <dt>Refundable per API</dt>
+                                <dd>
+                                  {{ formatPEN(candidate.refundablePEN) }}
+                                </dd>
+                              </div>
+                            </dl>
+                          </article>
+                        </nexa-surface>
+                      </li>
+                    }
+                  </ol>
+                  <nav
+                    class="wallet-refunds__pagination"
+                    aria-label="Refund candidate pages"
+                  >
+                    <nexa-button
+                      type="button"
+                      variant="secondary"
+                      size="compact"
+                      [disabled]="candidateState.page.page <= 0 || formLocked()"
+                      (click)="changePage(-1)"
+                    >
+                      Previous
+                    </nexa-button>
+                    <span>
+                      Page {{ candidateState.page.page + 1 }} of
+                      {{ totalPages(candidateState.page) }}
+                    </span>
+                    <nexa-button
+                      type="button"
+                      variant="secondary"
+                      size="compact"
+                      [disabled]="
+                        candidateState.page.page + 1 >=
+                          totalPages(candidateState.page) || formLocked()
+                      "
+                      (click)="changePage(1)"
+                    >
+                      Next
+                    </nexa-button>
+                  </nav>
+                }
+              </div>
+            </nexa-surface>
+          </section>
+
+          <section aria-labelledby="refund-command-title">
+            <nexa-surface>
+              <div class="wallet-refunds__panel">
+                <div class="wallet-refunds__panel-heading">
+                  <div>
+                    <h2 id="refund-command-title">Post a refund</h2>
+                    @if (selectedCandidate(); as selected) {
+                      <p>
+                        {{ selected.orderNumber }} · {{ selected.salesOrderId }}
+                      </p>
+                    } @else {
+                      <p>Select an order to enter the refund details.</p>
+                    }
+                  </div>
+                </div>
+
+                @if (selectedCandidate(); as selected) {
+                  @if (selected.refundablePEN <= 0) {
+                    <p class="wallet-refunds__state">
+                      The API currently reports no refundable amount for this
+                      order.
+                    </p>
+                  } @else {
+                    <p class="wallet-refunds__hint">
+                      The API currently reports up to
+                      <strong>{{ formatPEN(selected.refundablePEN) }}</strong>
+                      refundable. It will verify the amount again when you post.
+                    </p>
+                    <form
+                      class="wallet-refunds__form"
+                      (submit)="$event.preventDefault(); submitRefund()"
+                    >
+                      <label for="wallet-refund-amount">Amount (PEN)</label>
+                      <input
+                        id="wallet-refund-amount"
+                        type="text"
+                        inputmode="decimal"
+                        autocomplete="off"
+                        maxlength="20"
+                        pattern="[0-9]{1,15}(\.[0-9]{1,4})?"
+                        required
+                        placeholder="0.00"
+                        [value]="amount()"
+                        [disabled]="formLocked()"
+                        aria-describedby="wallet-refund-amount-help"
+                        [attr.aria-invalid]="amountIsInvalid() ? 'true' : null"
+                        (input)="setAmount($event)"
+                      />
+                      <nexa-button
+                        variant="secondary"
+                        [disabled]="formLocked()"
+                        (click)="useFullRefund()"
+                      >Use full refundable amount</nexa-button>
+                      <p
+                        id="wallet-refund-amount-help"
+                        class="wallet-refunds__field-help"
+                        [class.wallet-refunds__field-help--error]="
+                          amountIsInvalid()
+                        "
+                        aria-live="polite"
+                      >
+                        {{ amountHint() }}
+                      </p>
+                      <label for="wallet-refund-reason">Reason</label>
+                      <textarea
+                        id="wallet-refund-reason"
+                        rows="4"
+                        maxlength="500"
+                        required
+                        aria-describedby="wallet-refund-reason-help"
+                        [value]="reason()"
+                        [disabled]="formLocked()"
+                        (input)="setReason($event)"
+                      ></textarea>
+                      <p
+                        id="wallet-refund-reason-help"
+                        class="wallet-refunds__field-help"
+                      >
+                        A reason is required. The trimmed text is sent to the
+                        API.
+                      </p>
+                      <p class="wallet-refunds__hint">
+                        This command posts the specified refund to the wallet
+                        ledger. The API records the reason and final amount.
+                      </p>
+                      <nexa-button
+                        type="submit"
+                        variant="primary"
+                        [disabled]="!canSubmit()"
+                        [loading]="preparing() || saving()"
+                      >
+                        {{
+                          preparing()
+                            ? "Preparing secure command…"
+                            : saving()
+                              ? "Posting refund…"
+                              : "Post refund"
+                        }}
+                      </nexa-button>
+                    </form>
+                  }
+                }
+
+                @if (pending()) {
+                  <div class="wallet-refunds__uncertain" role="alert">
+                    <p>
+                      The last result is uncertain. Retry the same amount and
+                      reason with the saved command key before changing this
+                      refund.
+                    </p>
+                    <nexa-button
+                      type="button"
+                      variant="secondary"
+                      [loading]="saving()"
+                      [disabled]="!canRetry()"
+                      (click)="retrySameRefund()"
+                    >
+                      Retry this refund
+                    </nexa-button>
+                  </div>
+                }
+
+                @if (feedback(); as message) {
+                  <p
+                    class="wallet-refunds__feedback"
+                    [class.wallet-refunds__feedback--error]="
+                      message.status === 'error'
+                    "
+                    [class.wallet-refunds__feedback--success]="
+                      message.status === 'success'
+                    "
+                    [attr.role]="
+                      message.status === 'error' ? 'alert' : 'status'
+                    "
+                  >
+                    {{ message.message }}
+                  </p>
+                }
+
+                @if (lastRefund(); as refund) {
+                  <dl class="wallet-refunds__receipt">
+                    <div>
+                      <dt>Posted amount</dt>
+                      <dd>{{ formatPEN(refund.amountPEN) }}</dd>
+                    </div>
+                    <div>
+                      <dt>Refund ID</dt>
+                      <dd>{{ refund.refundId }}</dd>
+                    </div>
+                    <div>
+                      <dt>Ledger entry</dt>
+                      <dd>{{ refund.ledgerEntryId }}</dd>
+                    </div>
+                  </dl>
+                }
+              </div>
+            </nexa-surface>
+          </section>
+        </div>
+      }
+    }
+  }
+</section>

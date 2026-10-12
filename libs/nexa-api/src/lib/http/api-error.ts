@@ -4,7 +4,7 @@ import {
   ApiProblemDetails,
   NexaProblemDetail,
   ProblemDetail,
-} from '../contracts/authentication.contracts';
+} from './problem-details';
 
 export type NexaApiErrorKind =
   | 'network'

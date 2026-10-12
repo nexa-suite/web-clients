@@ -1,0 +1,32 @@
+<section class="sales-commitment-page" aria-labelledby="buyer-request-detail-title">
+  <a class="sales-commitment-page__back" routerLink="/requests">← My requests</a>
+  @switch (state().status) {
+    @case ('loading') { <p role="status" aria-live="polite">Loading purchase request…</p> }
+    @case ('error') { <nexa-surface tone="inset"><div role="alert"><h1 id="buyer-request-detail-title">Request unavailable</h1><p>{{ state().message }}</p><nexa-button variant="secondary" (click)="refresh()">Try again</nexa-button></div></nexa-surface> }
+    @case ('ready') {
+      @let request = state().request;
+      @if (request) {
+        <header class="sales-commitment-page__heading"><div><p class="sales-commitment-page__eyebrow">PURCHASE REQUEST</p><h1 id="buyer-request-detail-title">{{ request.code || request.id }}</h1><p>Current status: <strong>{{ request.status.replaceAll('_', ' ') }}</strong></p></div><nexa-button variant="secondary" size="compact" (click)="refresh()">Refresh</nexa-button></header>
+        <nexa-surface tone="default">
+          <dl class="sales-commitment-page__facts">
+            <div><dt>Requested delivery</dt><dd>{{ request.requestedDeliveryDate }}</dd></div>
+            <div><dt>Payment preference</dt><dd>{{ request.paymentOption || 'Not provided' }}</dd></div>
+            <div><dt>Review note</dt><dd>{{ request.reviewNote || 'No Sales note' }}</dd></div>
+            @if (request.expiresAt) { <div><dt>Request expires</dt><dd><time [attr.datetime]="request.expiresAt">{{ request.expiresAt }}</time></dd></div> }
+          </dl>
+        </nexa-surface>
+        <nexa-surface tone="default">
+          <h2>Requested items</h2>
+          @if (request.lines.length) {
+            <div class="sales-commitment-page__table-wrap"><table><thead><tr><th>Item</th><th>Catalog item</th><th>Quantity</th><th>Unit price</th><th>Notes</th></tr></thead><tbody>
+              @for (line of request.lines; track line.id || $index) { <tr><td>{{ line.itemName || line.presentation || 'Catalog item' }}</td><td>{{ line.catalogItemId || '—' }}</td><td>{{ line.quantity }} {{ line.unit || '' }}</td><td>{{ line.unitPriceCurrency || '' }} {{ line.unitPriceAmount ?? '—' }}</td><td>{{ line.notes || '—' }}</td></tr> }
+            </tbody></table></div>
+          } @else { <p>Item details are unavailable.</p> }
+        </nexa-surface>
+        @if (request.status === 'CONVERTED') { <p class="sales-commitment-page__notice">Sales created an order from this request. Check My orders for its current status.</p> }
+        @if (request.status === 'REJECTED') { <p class="sales-commitment-page__notice">Sales rejected this request. Review the note above for more information.</p> }
+        <a class="sales-commitment-page__button-link" routerLink="/orders">View my orders</a>
+      }
+    }
+  }
+</section>

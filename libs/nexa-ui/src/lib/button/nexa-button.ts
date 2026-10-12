@@ -1,6 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import type { Params } from '@angular/router';
 
 export type NexaButtonVariant = 'primary' | 'secondary' | 'quiet' | 'danger';
 export type NexaButtonSize = 'compact' | 'standard' | 'large';
@@ -20,6 +21,7 @@ export class NexaButton {
   readonly loading = input(false);
   readonly fullWidth = input(false);
   readonly routerLink = input<string | undefined>(undefined);
+  readonly queryParams = input<Params | null>(null);
   readonly ariaLabel = input<string | undefined>(undefined);
 
   protected classes(): string { return `${this.variant()} ${this.size()}${this.fullWidth() ? ' full-width' : ''}`; }

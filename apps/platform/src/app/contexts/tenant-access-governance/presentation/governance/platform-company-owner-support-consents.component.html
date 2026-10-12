@@ -1,0 +1,55 @@
+<section class="platform-governance-page platform-support-consents" aria-labelledby="support-consents-title">
+	<header class="platform-governance-page__heading">
+		<div>
+			<p class="platform-governance-page__eyebrow">Company Owner</p>
+			<h1 id="support-consents-title">Temporary support consent</h1>
+			<p>Review the exact Tenant, Workspace, Sales Order, and expiry before allowing an internal operator to read a minimized order status.</p>
+		</div>
+		@if (canManage()) {
+			<button type="button" class="platform-governance-page__button platform-governance-page__button--secondary" [disabled]="loading() || !!busyRequestId()" (click)="refresh()">Refresh</button>
+		}
+	</header>
+
+	@if (!canManage()) {
+		<div class="platform-governance-page__notice" role="alert">
+			<h2>Owner consent is unavailable</h2>
+			<p>Use an authenticated Platform Company Owner context. This decision is checked again by the API for the current Tenant and Workspace.</p>
+		</div>
+	} @else {
+		@if (message()) {
+			<p class="platform-governance-page__notice" role="status" aria-live="polite">{{ message() }}</p>
+		}
+		@if (loading()) {
+			<p class="platform-governance-page__state" role="status">Loading support requests for this scope…</p>
+		} @else if (requests().length === 0) {
+			<p class="platform-governance-page__state">There are no active temporary support requests in this Workspace.</p>
+		} @else {
+			<div class="platform-support-consents__list">
+				@for (request of requests(); track request.id) {
+					<article class="platform-support-consents__card">
+						<div class="platform-support-consents__card-heading">
+							<div>
+								<h2>{{ request.status.replaceAll("_", " ") }}</h2>
+								<p>Sales Order <code>{{ request.resourceId }}</code></p>
+							</div>
+							<p>Expires {{ request.expiresAt }}</p>
+						</div>
+						<dl class="platform-support-consents__scope">
+							<div><dt>Tenant</dt><dd><code>{{ request.tenantId }}</code></dd></div>
+							<div><dt>Workspace</dt><dd><code>{{ request.workspaceId }}</code></dd></div>
+							<div><dt>Requester operator</dt><dd><code>{{ request.requestedByOperatorId }}</code></dd></div>
+						</dl>
+						<div class="platform-governance-page__actions">
+							@if (canConsent(request)) {
+								<button type="button" class="platform-governance-page__button" [disabled]="!!busyRequestId() || needsRefresh()" (click)="consent(request)">Consent to this exact scope</button>
+							}
+							@if (canRevoke(request)) {
+								<button type="button" class="platform-governance-page__button platform-governance-page__button--secondary" [disabled]="!!busyRequestId() || needsRefresh()" (click)="revoke(request)">Revoke immediately</button>
+							}
+						</div>
+					</article>
+				}
+			</div>
+		}
+	}
+</section>

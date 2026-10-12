@@ -1,0 +1,15 @@
+<section class="sales-commitment-page" aria-labelledby="buyer-order-detail-title">
+  <a class="sales-commitment-page__back" routerLink="/orders">← My orders</a>
+  @switch (state().status) {
+    @case ('loading') { <p role="status" aria-live="polite">Loading sales order…</p> }
+    @case ('error') { <nexa-surface tone="inset"><div role="alert"><h1 id="buyer-order-detail-title">Order unavailable</h1><p>{{ state().message }}</p><nexa-button variant="secondary" (click)="refresh()">Try again</nexa-button></div></nexa-surface> }
+    @case ('ready') {
+      @let order = state().order;
+      @if (order) {
+        <header class="sales-commitment-page__heading"><div><p class="sales-commitment-page__eyebrow">SALES ORDER</p><h1 id="buyer-order-detail-title">{{ order.number || order.id }}</h1><p>Current status: <strong>{{ order.status.replaceAll('_', ' ') }}</strong></p></div><nexa-button variant="secondary" size="compact" (click)="refresh()">Refresh</nexa-button></header>
+        <nexa-surface tone="default"><dl class="sales-commitment-page__facts"><div><dt>Requested delivery</dt><dd>{{ order.requestedDeliveryDate }}</dd></div><div><dt>Payment preference</dt><dd>{{ order.paymentOption || 'Not provided' }}</dd></div><div><dt>Order total</dt><dd>{{ order.currency }} {{ order.total }}</dd></div><div><dt>Purchase request</dt><dd>{{ order.sourcePurchaseRequestId || 'Not linked' }}</dd></div></dl></nexa-surface>
+        <nexa-surface tone="default"><h2>Order items</h2><div class="sales-commitment-page__table-wrap"><table><thead><tr><th>Item</th><th>SKU</th><th>Quantity</th><th>Unit price</th><th>Subtotal</th></tr></thead><tbody>@for (line of order.lines; track $index) { <tr><td>{{ line.itemName || line.presentation || 'Catalog item' }}</td><td>{{ line.skuCode || line.skuId || '—' }}</td><td>{{ line.quantity }} {{ line.unit || '' }}</td><td>{{ line.unitPriceCurrency || '' }} {{ line.unitPriceAmount ?? '—' }}</td><td>{{ line.unitPriceCurrency || '' }} {{ line.lineSubtotal ?? '—' }}</td></tr> }</tbody></table></div></nexa-surface>
+      }
+    }
+  }
+</section>

@@ -1,0 +1,264 @@
+<section aria-labelledby="wallet-heading" data-testid="buyer-wallet-page">
+  <h1 id="wallet-heading">My wallet</h1>
+  <p>Your receivables and payment history with this supplier.</p>
+  <nexa-button
+    variant="secondary"
+    (click)="refresh()"
+    >Refresh</nexa-button
+  >
+  <section aria-labelledby="wallet-balance-heading" data-testid="buyer-wallet-balance">
+    <h2 id="wallet-balance-heading">Wallet balance</h2>
+    <p>Wallet funds are separate from credit, receivables, and reported transfers.</p>
+    @if (!wallet.canRead()) {
+      <p role="status">Wallet balance requires the payment.read permission for the active membership.</p>
+    } @else if (wallet.state(); as walletState) {
+      @if (walletState.status === "loading") {
+        <p role="status">Loading wallet balance…</p>
+      } @else if (walletState.status === "unavailable") {
+        <p role="alert">{{ walletState.message }}</p>
+      } @else if (walletState.status === "error") {
+        <p role="alert">{{ walletState.message }}</p>
+      } @else if (walletState.wallet.status === "NOT_INITIALIZED") {
+        <nexa-surface>
+          <p>This wallet is not initialized.</p>
+          <p>No wallet balance is available for this account.</p>
+        </nexa-surface>
+      } @else {
+        <nexa-surface>
+          <dl>
+            <dt>Posted balance</dt>
+            <dd>{{ walletState.wallet.currency }} {{ walletState.wallet.postedBalance | number: "1.2-2" }}</dd>
+            <dt>Reserved balance</dt>
+            <dd>{{ walletState.wallet.currency }} {{ walletState.wallet.reservedBalance | number: "1.2-2" }}</dd>
+            <dt>Available balance</dt>
+            <dd>{{ walletState.wallet.currency }} {{ walletState.wallet.availableBalance | number: "1.2-2" }}</dd>
+          </dl>
+          <h3>Wallet movements</h3>
+          @if (walletState.wallet.movements.items.length === 0) {
+            <p>No wallet movements.</p>
+          } @else {
+            <ol>
+              @for (movement of walletState.wallet.movements.items; track $index) {
+                <li>
+                  {{ movement.type }} · {{ movement.amountDelta | number: "1.2-2" }} {{ walletState.wallet.currency }}
+                  · {{ movement.occurredAt | date: "medium" }}
+                </li>
+              }
+            </ol>
+          }
+          @if (walletState.wallet.movements.total > 0) {
+            <nav aria-label="Wallet movement pages">
+              <nexa-button
+                [disabled]="walletState.wallet.movements.page === 0"
+                (click)="walletPageBy(-1)"
+                >Previous movements</nexa-button
+              >
+              <span>Page {{ walletState.wallet.movements.page + 1 }}</span>
+              <nexa-button
+                [disabled]="(walletState.wallet.movements.page + 1) * walletState.wallet.movements.size >= walletState.wallet.movements.total"
+                (click)="walletPageBy(1)"
+                >Next movements</nexa-button
+              >
+            </nav>
+          }
+        </nexa-surface>
+      }
+    } @else {
+      <p role="status">Wallet balance has not been loaded.</p>
+    }
+  </section>
+  <section aria-labelledby="wallet-recharge-heading" data-testid="buyer-wallet-recharge">
+    <h2 id="wallet-recharge-heading">Add funds</h2>
+    <p>Recharge this supplier wallet in PEN. Commercial credit and receivables stay separate.</p>
+    @if (!wallet.canRecharge()) {
+      <p role="status">Wallet recharges require the payment.create permission for the active Buyer membership.</p>
+    } @else {
+      @let rechargeState = wallet.rechargeState();
+      <label for="wallet-recharge-amount">Amount (PEN)</label>
+      <input
+        id="wallet-recharge-amount"
+        type="number"
+        min="0.01"
+        step="0.01"
+        inputmode="decimal"
+        autocomplete="off"
+        [value]="rechargeAmount()"
+        [disabled]="rechargeState?.status === 'creating' || rechargeState?.status === 'pending' || (rechargeState?.status === 'error' && rechargeState.operation === 'create' && rechargeState.retryAllowed)"
+        (input)="rechargeAmount.set($any($event.target).value)"
+      />
+      <nexa-button
+        [disabled]="rechargeState?.status === 'creating' || rechargeState?.status === 'pending' || (rechargeState?.status === 'error' && (rechargeState.operation === 'read' || rechargeState.retryAllowed))"
+        (click)="createRecharge()"
+      >{{ wallet.rechargeState()?.status === "creating" ? "Starting recharge…" : "Start recharge" }}</nexa-button>
+      @if (wallet.rechargeState(); as recharge) {
+        @if (recharge.status === "error") {
+          <p role="alert">{{ recharge.message }}</p>
+          @if (recharge.operation === "create" && recharge.retryAllowed) {
+            <p>Retry amount: {{ recharge.amount | number: "1.2-2" }} PEN.</p>
+            <nexa-button variant="secondary" (click)="wallet.retryRecharge()">Retry this recharge</nexa-button>
+          } @else if (recharge.operation === "read" && wallet.canRead()) {
+            <nexa-button variant="secondary" (click)="wallet.readRechargeStatus()">Check recharge status</nexa-button>
+          }
+        } @else if (recharge.status === "pending" || recharge.status === "final") {
+          <nexa-surface>
+            <p role="status">{{ statusLabel(recharge.recharge.status) }}</p>
+            <p>{{ recharge.recharge.currency }} {{ recharge.recharge.amount | number: "1.2-2" }} · {{ recharge.recharge.createdAt | date: "medium" }}</p>
+            <p>Recharge reference: {{ recharge.recharge.id }}</p>
+            @if (wallet.canRead()) {
+              <nexa-button variant="secondary" (click)="wallet.readRechargeStatus(recharge.recharge.id)">Check recharge status</nexa-button>
+            } @else {
+              <p>Status refresh requires the payment.read permission. This page will not infer payment completion.</p>
+            }
+            @if (recharge.status === "pending" && recharge.recharge.provider.toLowerCase() !== "stripe") {
+              <p>The local provider does not start browser checkout. Use the API host's signed callback harness, then refresh this status. The recharge stays pending until the provider callback confirms it.</p>
+            } @else if (recharge.status === "pending" && recharge.recharge.provider.toLowerCase() === "stripe" && !stripeCheckout()) {
+              <p>Stripe checkout is unavailable because valid browser checkout configuration or the one-time client secret is missing. This recharge stays pending.</p>
+            }
+          </nexa-surface>
+        }
+      }
+      @if (stripeCheckout(); as checkout) {
+        @if (wallet.rechargeState(); as checkoutState) {
+          @if (wallet.canRecharge() && checkoutState.status === "pending" && checkoutState.recharge.id === checkout.rechargeId) {
+            <portal-wallet-stripe-checkout
+              [publishableKey]="checkout.publishableKey"
+              [clientSecret]="checkout.clientSecret"
+              (paymentSubmitted)="paymentSubmitted()"
+            />
+          }
+        }
+      }
+    }
+  </section>
+  @if (credit.state(); as state) {
+    @if (state.loading) {
+      <p role="status">Loading credit…</p>
+    }
+    @if (state.error) {
+      <p role="alert">{{ state.error }}</p>
+    }
+    @if (state.data; as value) {
+      <nexa-surface
+        ><h2>Credit with this supplier</h2>
+        <dl>
+          <dt>Credit account</dt>
+          <dd>{{ value.active ? "Active" : "Inactive" }}</dd>
+          <dt>Credit limit</dt>
+          <dd>{{ value.currency }} {{ value.creditLimit }}</dd>
+          <dt>Available credit</dt>
+          <dd>{{ value.currency }} {{ value.availableCredit }}</dd>
+          <dt>Reserved exposure</dt>
+          <dd>{{ value.currency }} {{ value.reservedExposure }}</dd>
+          <dt>Outstanding receivables</dt>
+          <dd>{{ value.currency }} {{ value.outstandingReceivables }}</dd>
+          <dt>As of</dt>
+          <dd>{{ value.asOf | date: "medium" }}</dd>
+        </dl>
+      </nexa-surface>
+    }
+  }
+  @if (receivables.state(); as state) {
+    @if (state.loading) {
+      <p role="status">Loading receivables…</p>
+    }
+    @if (state.error) {
+      <p role="alert">{{ state.error }}</p>
+    }
+    @if (state.data; as page) {
+      @if (!page.items.length) {
+        <p>No receivables for this account.</p>
+      }
+      @for (item of page.items; track item.id) {
+        <nexa-surface
+          ><h2>{{ item.number }}</h2>
+          <dl>
+            <dt>Status</dt>
+            <dd>{{ item.status }}</dd>
+            <dt>Amount</dt>
+            <dd>{{ item.currency }} {{ item.amount }}</dd>
+            <dt>Paid</dt>
+            <dd>{{ item.currency }} {{ item.amountPaid }}</dd>
+            <dt>Remaining</dt>
+            <dd>{{ item.currency }} {{ item.remaining }}</dd>
+            <dt>Due</dt>
+            <dd>
+              {{
+                item.dueAt ? (item.dueAt | date: "mediumDate") : "No due date"
+              }}
+            </dd>
+          </dl>
+          <nexa-button variant="secondary" (click)="payments.load(item.id)"
+            >Payment history for {{ item.number }}</nexa-button
+          >
+          @if (transfer.canReport() && item.remaining > 0 && ["OPEN", "PARTIALLY_PAID", "OVERDUE"].includes(item.status)) {
+            <nexa-button variant="secondary" [disabled]="transfer.state()?.busy ?? false" (click)="transfer.select(item.id)">Report bank transfer for {{ item.number }}</nexa-button>
+          }
+          </nexa-surface
+        >
+      }
+      <nav aria-label="Receivables pages">
+        <nexa-button [disabled]="page.page === 0" (click)="pageBy(-1)"
+          >Previous</nexa-button
+        >
+        <span>Page {{ page.page + 1 }}</span
+        ><nexa-button
+          [disabled]="(page.page + 1) * page.size >= page.total"
+          (click)="pageBy(1)"
+          >Next</nexa-button
+        >
+      </nav>
+    }
+  }
+  @if (transfer.state(); as report) {
+    <section aria-labelledby="transfer-heading">
+      <h2 id="transfer-heading">Report a bank transfer</h2>
+      <p>Report a transfer you have already made for this receivable. The supplier must verify it before your debt changes.</p>
+      @if (report.payment; as payment) {
+        <p role="status">Transfer reported. Status: {{ payment.status }} · {{ payment.currency }} {{ payment.amount }}.</p>
+        <nexa-button variant="secondary" (click)="payments.load(payment.receivableId)">Check payment history</nexa-button>
+      } @else {
+        <label for="transfer-reference">Transfer reference</label>
+        <input id="transfer-reference" maxlength="160" autocomplete="off" [value]="report.reference" [disabled]="report.busy" (input)="transfer.editReference($any($event.target).value)" />
+        <nexa-button [disabled]="report.busy || !report.reference.trim()" (click)="transfer.submit()">{{ report.busy ? "Reporting…" : "Report transfer" }}</nexa-button>
+      }
+      @if (report.error) { <p role="alert">{{ report.error }}</p> }
+      <nexa-button variant="secondary" [disabled]="report.busy" (click)="transfer.clear()">Close transfer report</nexa-button>
+    </section>
+  }
+  @if (payments.state(); as state) {
+    <section aria-labelledby="payment-heading">
+      <h2 id="payment-heading">Payment history</h2>
+      @if (state.loading) {
+        <p role="status">Loading payments…</p>
+      }
+      @if (state.error) {
+        <p role="alert">{{ state.error }}</p>
+      }
+      @if (state.data; as page) {
+        @if (!page.items.length) {
+          <p>No payments for this receivable.</p>
+        }
+        @for (payment of page.items; track payment.id) {
+          <nexa-surface
+            ><h3>{{ payment.method }}</h3>
+            <p>
+              {{ payment.status }} · {{ payment.currency }} {{ payment.amount }}
+            </p>
+            <p>{{ payment.createdAt | date: "medium" }}</p></nexa-surface
+          >
+        }
+        <nav aria-label="Payment history pages">
+          <nexa-button [disabled]="page.page === 0" (click)="paymentPageBy(-1)"
+            >Previous payments</nexa-button
+          >
+          <span>Page {{ page.page + 1 }}</span>
+          <nexa-button
+            [disabled]="(page.page + 1) * page.size >= page.total"
+            (click)="paymentPageBy(1)"
+            >Next payments</nexa-button
+          >
+        </nav>
+      }
+    </section>
+  }
+</section>
