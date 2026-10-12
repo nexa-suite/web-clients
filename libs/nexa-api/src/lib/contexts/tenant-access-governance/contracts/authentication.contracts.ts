@@ -4,6 +4,7 @@ export const NEXA_AUTH_API_PATHS = {
   workspacePreview: '/auth/workspace-previews',
   passwordResetRequest: '/auth/password-reset-requests',
   passwordReset: '/auth/password-resets',
+  csrfToken: '/authentication/csrf',
   signIn: '/authentication/sign-in',
   refresh: '/authentication/refresh',
   signOut: '/authentication/sign-out',
@@ -11,6 +12,10 @@ export const NEXA_AUTH_API_PATHS = {
   accessContexts: '/me/access-contexts',
   accessContextSelections: '/me/access-context-selections',
 } as const;
+
+export interface CsrfTokenResponse {
+  token: string;
+}
 
 export interface WorkspacePreviewRequest {
   workspaceSlug: string;

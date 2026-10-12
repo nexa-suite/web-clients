@@ -95,6 +95,12 @@ describe('NexaAuthenticationApi', () => {
       })
       .subscribe();
 
+    const csrf = controller.expectOne('http://localhost:8080/api/v1/authentication/csrf');
+    expect(csrf.request.method).toBe('GET');
+    expect(csrf.request.headers.has('Authorization')).toBe(false);
+    expect(csrf.request.withCredentials).toBe(true);
+    csrf.flush({ token: 'browser-csrf-token' });
+
     const request = controller.expectOne(
       'http://localhost:8080/api/v1/authentication/sign-in',
     );
@@ -106,6 +112,7 @@ describe('NexaAuthenticationApi', () => {
     });
     expect(request.request.headers.has('Authorization')).toBe(false);
     expect(request.request.headers.has('X-Nexa-Surface')).toBe(false);
+    expect(request.request.headers.get('X-Nexa-CSRF')).toBe('browser-csrf-token');
     expect(request.request.withCredentials).toBe(true);
     request.flush({ accessToken: 'new-memory-token' });
   });
@@ -115,6 +122,11 @@ describe('NexaAuthenticationApi', () => {
 
     api.refresh().subscribe();
 
+    const csrf = controller.expectOne('http://localhost:8080/api/v1/authentication/csrf');
+    expect(csrf.request.method).toBe('GET');
+    expect(csrf.request.withCredentials).toBe(true);
+    csrf.flush({ token: 'browser-csrf-token' });
+
     const request = controller.expectOne(
       'http://localhost:8080/api/v1/authentication/refresh',
     );
@@ -123,6 +135,7 @@ describe('NexaAuthenticationApi', () => {
     expect(request.request.headers.get('X-Nexa-Surface')).toBe('PLATFORM');
     expect(request.request.headers.has('Authorization')).toBe(false);
     expect(request.request.headers.has('X-Nexa-Refresh-Token')).toBe(false);
+    expect(request.request.headers.get('X-Nexa-CSRF')).toBe('browser-csrf-token');
     expect(request.request.withCredentials).toBe(true);
     request.flush({ accessToken: 'rotated-memory-token' });
   });
@@ -153,6 +166,11 @@ describe('NexaAuthenticationApi', () => {
 
     api.signOut().subscribe();
 
+    const csrf = controller.expectOne('http://localhost:8080/api/v1/authentication/csrf');
+    expect(csrf.request.method).toBe('GET');
+    expect(csrf.request.withCredentials).toBe(true);
+    csrf.flush({ token: 'browser-csrf-token' });
+
     const request = controller.expectOne(
       'http://localhost:8080/api/v1/authentication/sign-out',
     );
@@ -161,6 +179,7 @@ describe('NexaAuthenticationApi', () => {
       'Bearer memory-only-token',
     );
     expect(request.request.headers.get('X-Nexa-Surface')).toBe('PLATFORM');
+    expect(request.request.headers.get('X-Nexa-CSRF')).toBe('browser-csrf-token');
     expect(request.request.withCredentials).toBe(true);
     request.flush(null, { status: 204, statusText: 'No Content' });
   });

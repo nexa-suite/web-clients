@@ -1,9 +1,10 @@
-import { HttpClient, HttpContext } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, switchMap } from 'rxjs';
 import {
   AuthenticationResponse,
   AccessContextsResponse,
+  CsrfTokenResponse,
   SelectAccessContextRequest,
   NEXA_AUTH_API_PATHS,
   PasswordResetRequest,
@@ -47,19 +48,19 @@ export class NexaAuthenticationApi {
   }
 
   signIn(request: SignInRequest): Observable<AuthenticationResponse> {
-    return this.http.post<AuthenticationResponse>(
+    return this.withBrowserCsrfToken((token) => this.http.post<AuthenticationResponse>(
       this.url(NEXA_AUTH_API_PATHS.signIn),
       request,
-      { context: this.policy(true, true) },
-    );
+      { headers: this.csrfHeaders(token), context: this.policy(true, true) },
+    ));
   }
 
   refresh(): Observable<AuthenticationResponse> {
-    return this.http.post<AuthenticationResponse>(
+    return this.withBrowserCsrfToken((token) => this.http.post<AuthenticationResponse>(
       this.url(NEXA_AUTH_API_PATHS.refresh),
       null,
-      { context: this.policy(true, true, true) },
-    );
+      { headers: this.csrfHeaders(token), context: this.policy(true, true, true) },
+    ));
   }
 
   getCurrentSession(): Observable<SessionResponse> {
@@ -67,7 +68,11 @@ export class NexaAuthenticationApi {
   }
 
   signOut(): Observable<void> {
-    return this.http.post<void>(this.url(NEXA_AUTH_API_PATHS.signOut), null, { context: this.policy(false, true, true) });
+    return this.withBrowserCsrfToken((token) => this.http.post<void>(
+      this.url(NEXA_AUTH_API_PATHS.signOut),
+      null,
+      { headers: this.csrfHeaders(token), context: this.policy(false, true, true) },
+    ));
   }
 
   listAccessContexts(): Observable<AccessContextsResponse> {
@@ -88,6 +93,16 @@ export class NexaAuthenticationApi {
       withCredentials,
       headers: surface ? { 'X-Nexa-Surface': this.configuration.surface } : {},
     });
+  }
+
+  private withBrowserCsrfToken<T>(send: (token: string) => Observable<T>): Observable<T> {
+    return this.http.get<CsrfTokenResponse>(this.url(NEXA_AUTH_API_PATHS.csrfToken), {
+      context: this.policy(true, true),
+    }).pipe(switchMap(({ token }) => send(token)));
+  }
+
+  private csrfHeaders(token: string): HttpHeaders {
+    return new HttpHeaders({ 'X-Nexa-CSRF': token });
   }
 
   private url(path: string): string {
