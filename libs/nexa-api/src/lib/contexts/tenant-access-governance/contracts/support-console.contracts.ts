@@ -33,19 +33,3 @@ export interface SupportSalesOrderProjection {
   readonly currency: string;
   readonly version: number;
 }
-
-export interface InternalConsoleOnboardingHealth {
-  readonly registrationId: string | null;
-  readonly registrationStatus: string | null;
-  readonly tenantId: string | null;
-  readonly workspaceId: string | null;
-  readonly provisioningStatus: "PENDING" | "LEASED" | "FAILED" | "READY" | null;
-  readonly attemptCount: number | null;
-  readonly registryLifecycleState: "UNBOUND" | "PROVISIONING" | "READY" | "SUSPENDED" | "FAILED" | null;
-  readonly updatedAt: string;
-}
-
-export interface InternalOperatorCredential {
-  readonly operatorId: string;
-  readonly token: string;
-}

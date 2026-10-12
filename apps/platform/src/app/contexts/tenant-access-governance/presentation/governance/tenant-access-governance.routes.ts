@@ -1,17 +1,5 @@
 import { Routes } from "@angular/router";
 
-/** Internal support workflow uses its own operator credential, outside tenant sessions. */
-export const PLATFORM_INTERNAL_CONSOLE_ROUTES: Routes = [
-  {
-    path: "internal-console",
-    loadComponent: () =>
-      import("./internal-console/internal-console-page.component").then(
-        (module) => module.InternalConsolePageComponent,
-      ),
-    title: "Internal console | Nexa",
-  },
-];
-
 /** Protected routes mounted inside the authenticated Platform shell. */
 export const PLATFORM_TENANT_GOVERNANCE_ROUTES: Routes = [
   {

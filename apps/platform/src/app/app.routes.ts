@@ -3,7 +3,6 @@ import {
   PlatformActiveContextComponent,
   PlatformShellSessionWrapperComponent,
   PLATFORM_ACCESS_ROUTES,
-  PLATFORM_INTERNAL_CONSOLE_ROUTES,
   PLATFORM_TENANT_GOVERNANCE_ROUTES,
   requirePlatformAuthentication,
   requirePlatformAuthenticationForChild,
@@ -17,7 +16,6 @@ import { PLATFORM_WALLET_REFUND_ROUTES } from "./contexts/payments/application/p
 
 export const routes: Routes = [
   ...PLATFORM_ACCESS_ROUTES,
-  ...PLATFORM_INTERNAL_CONSOLE_ROUTES,
   {
     path: "",
     canActivate: [requirePlatformAuthentication],

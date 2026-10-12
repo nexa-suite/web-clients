@@ -1,13 +1,7 @@
 export { NexaTenantAccessGovernanceApi } from "./infrastructure/tenant-access-governance-api";
 export { NexaWarehouseAccessGrantsApi } from "./infrastructure/warehouse-access-grants-api";
-export {
-  NexaCompanyOwnerSupportConsentApi,
-  NexaInternalSupportConsoleApi,
-} from "./infrastructure/support-console-api";
+export { NexaCompanyOwnerSupportConsentApi } from "./infrastructure/support-console-api";
 export type {
-  CreateSupportRequest,
-  InternalConsoleOnboardingHealth,
-  InternalOperatorCredential,
   SupportRequestStatus,
   SupportRequestView,
   SupportSalesOrderProjection,
