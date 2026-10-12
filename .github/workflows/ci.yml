@@ -112,7 +112,7 @@ jobs:
           repository: nexa-suite/api
           # Signed API PR #117 head; includes CSRF harness and deterministic local Buyer route coordinates.
           # The PR is still open; this test pin does not claim merge or deployment.
-          ref: a31ca02c68933cdfa62290eef8d3e3d8340ba012
+          ref: 29c73173696bbc4784dd9d58fb1d78885bd8daed
           path: api
 
       - name: Set up Node.js
