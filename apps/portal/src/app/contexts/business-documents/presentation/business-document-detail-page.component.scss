@@ -62,12 +62,14 @@
 nexa-surface {
   width: 100%;
 }
+.document-panel > nexa-surface {
+  --nexa-surface-padding: var(--nexa-panel-padding, var(--nexa-space-4));
+}
 .document-facts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--nexa-space-4);
   margin: 0;
-  padding: var(--nexa-panel-padding);
 }
 .document-facts > div {
   display: grid;

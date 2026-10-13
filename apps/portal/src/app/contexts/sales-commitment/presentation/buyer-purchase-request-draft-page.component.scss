@@ -1,4 +1,5 @@
-.request-builder { display: grid; gap: 1.25rem; max-width: 76rem; margin: 0 auto; padding: 1.5rem; }
+.request-builder { display: grid; min-width: 0; gap: 1.25rem; max-width: 76rem; margin: 0 auto; }
+.request-builder > nexa-surface { --nexa-surface-padding: var(--nexa-panel-padding, var(--nexa-space-4)); }
 .request-builder__header, .request-builder__section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .request-builder__header h1 { margin: .25rem 0; }
 .request-builder__header p { max-width: 52rem; color: var(--nexa-color-text-secondary, #5b6472); }
@@ -20,4 +21,4 @@
 .request-builder__checks { display: grid; grid-template-columns: repeat(2, minmax(12rem, 1fr)); gap: .5rem 1.5rem; padding-left: 1.25rem; }
 .request-builder__check--complete { color: var(--nexa-color-success, #267a48); }
 @media (max-width: 900px) { .request-builder__line { grid-template-columns: repeat(2, minmax(0, 1fr)); } .request-builder__notes { grid-column: 1 / -1; } }
-@media (max-width: 620px) { .request-builder { padding: 1rem; } .request-builder__header, .request-builder__section-heading { flex-direction: column; } .request-builder__line, .request-builder__delivery-grid, .request-builder__checks { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .request-builder__header, .request-builder__section-heading { flex-direction: column; } .request-builder__line, .request-builder__delivery-grid, .request-builder__checks { grid-template-columns: 1fr; } }

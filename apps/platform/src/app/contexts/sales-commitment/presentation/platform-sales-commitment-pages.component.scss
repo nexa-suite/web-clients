@@ -1,4 +1,5 @@
-.platform-sales-page { display: grid; gap: 1.15rem; max-width: 78rem; margin: 0 auto; padding: 1.5rem; }
+.platform-sales-page { display: grid; min-width: 0; gap: 1.15rem; max-width: 78rem; margin: 0 auto; }
+.platform-sales-page > nexa-surface { --nexa-surface-padding: var(--nexa-panel-padding, var(--nexa-space-4)); }
 .platform-sales-page__heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
 .platform-sales-page__heading h1 { margin: .25rem 0; }
 .platform-sales-page__heading p { color: var(--nexa-color-text-secondary, #5b6472); }
@@ -18,4 +19,4 @@
 .platform-sales-page__actions { display: flex; align-items: flex-end; flex-wrap: wrap; gap: .75rem; }
 .platform-sales-page__review-note { display: grid; min-width: min(100%, 26rem); gap: .45rem; }
 .platform-sales-page textarea { width: 100%; padding: .65rem; border: 1px solid var(--nexa-color-border-default, #aeb7c4); border-radius: .45rem; background: var(--nexa-color-surface, #fff); color: inherit; font: inherit; resize: vertical; }
-@media (max-width: 620px) { .platform-sales-page { padding: 1rem; } .platform-sales-page__heading { flex-direction: column; } .platform-sales-page__facts { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .platform-sales-page__heading { flex-direction: column; } .platform-sales-page__facts { grid-template-columns: 1fr; } }

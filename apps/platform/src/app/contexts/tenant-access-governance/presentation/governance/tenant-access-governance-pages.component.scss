@@ -3,7 +3,19 @@
   gap: 1rem;
   max-width: 82rem;
   margin: 0 auto;
-  padding: 1.5rem;
+  min-width: 0;
+}
+
+.platform-governance-page > nexa-surface.platform-governance-page__panel {
+  --nexa-surface-padding: var(--nexa-panel-padding, var(--nexa-space-4));
+}
+
+.platform-governance-page > nexa-surface {
+  min-width: 0;
+}
+
+.platform-governance-page__heading > div {
+  min-width: 0;
 }
 
 .platform-governance-page__heading,
@@ -145,6 +157,7 @@
   margin: 0;
   padding: 0.75rem 1rem;
   border-radius: 0.4rem;
+  overflow-wrap: anywhere;
 }
 
 .platform-governance-page__notice {
@@ -242,10 +255,6 @@
 }
 
 @media (max-width: 48rem) {
-  .platform-governance-page {
-    padding: 1rem;
-  }
-
   .platform-governance-page__heading,
   .platform-governance-page__section-heading,
   .platform-support-consents__card-heading {

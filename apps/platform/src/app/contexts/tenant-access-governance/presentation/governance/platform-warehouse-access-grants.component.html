@@ -37,7 +37,7 @@
         Loading exact Workspace actor and Warehouses…
       </p>
     } @else if (view.status === "error") {
-      <nexa-surface tone="inset">
+      <nexa-surface class="platform-governance-page__panel" tone="inset">
         <p class="platform-governance-page__error" role="alert">
           {{ view.message }}
         </p>
@@ -95,7 +95,7 @@
         </dl>
       </nexa-surface>
 
-      <nexa-surface tone="default">
+      <nexa-surface class="platform-governance-page__panel" tone="default">
         <div class="platform-governance-page__section-heading">
           <div>
             <h2>Warehouse grants</h2>
