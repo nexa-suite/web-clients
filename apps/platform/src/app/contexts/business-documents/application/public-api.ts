@@ -1,4 +1,6 @@
 import type { Routes } from "@angular/router";
+import { PLATFORM_ACCESS_RULES } from "../../../core/platform-access-policy";
+import { requirePlatformCapability } from "../../../core/platform-capability.guard";
 
 /** Platform entry point for the authorized business document workbench. */
 export const PLATFORM_BUSINESS_DOCUMENT_ROUTES: Routes = [
@@ -7,6 +9,8 @@ export const PLATFORM_BUSINESS_DOCUMENT_ROUTES: Routes = [
     children: [
       {
         path: "",
+        canActivate: [requirePlatformCapability],
+        data: { platformAccessRule: PLATFORM_ACCESS_RULES.documents },
         loadComponent: () =>
           import("../presentation/platform-business-documents-page.component").then(
             (module) => module.PlatformBusinessDocumentsPageComponent,
@@ -15,6 +19,8 @@ export const PLATFORM_BUSINESS_DOCUMENT_ROUTES: Routes = [
       },
       {
         path: "order-summary",
+        canActivate: [requirePlatformCapability],
+        data: { platformAccessRule: PLATFORM_ACCESS_RULES.orderSummaryGeneration },
         loadComponent: () =>
           import("../presentation/platform-order-summary-candidates-page.component").then(
             (module) => module.PlatformOrderSummaryCandidatesPageComponent,
@@ -23,6 +29,8 @@ export const PLATFORM_BUSINESS_DOCUMENT_ROUTES: Routes = [
       },
       {
         path: "order-summary/:salesOrderId",
+        canActivate: [requirePlatformCapability],
+        data: { platformAccessRule: PLATFORM_ACCESS_RULES.orderSummaryGeneration },
         loadComponent: () =>
           import("../presentation/platform-order-summary-generation-page.component").then(
             (module) => module.PlatformOrderSummaryGenerationPageComponent,
@@ -31,6 +39,8 @@ export const PLATFORM_BUSINESS_DOCUMENT_ROUTES: Routes = [
       },
       {
         path: ":documentId",
+        canActivate: [requirePlatformCapability],
+        data: { platformAccessRule: PLATFORM_ACCESS_RULES.documents },
         loadComponent: () =>
           import("../presentation/platform-business-document-detail-page.component").then(
             (module) => module.PlatformBusinessDocumentDetailPageComponent,

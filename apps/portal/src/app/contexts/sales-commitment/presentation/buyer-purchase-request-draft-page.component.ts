@@ -8,6 +8,10 @@ import { BuyerPurchaseRequestDraftStore } from "../application/buyer-purchase-re
 import type { PurchaseRequestDraftLineInput, SetPurchaseRequestDraftPreferencesRequest } from "@nexa/api";
 import { PortalSessionStore, type PortalSessionLease } from "../../tenant-access-governance/application/public-api";
 import { BUYER_WALLET_CAPABILITIES_PORT } from "../../payments/application/public-api";
+import {
+  canAccessPortalFeature,
+  PORTAL_ACCESS_RULES,
+} from "../../../core/portal-access-policy";
 
 interface DraftLineForm {
   readonly skuId: string;
@@ -44,6 +48,21 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
   protected readonly contextIsCurrent = computed(() => {
     const lease = this.formLease();
     return lease !== null && this.sessions.isSessionLeaseCurrent(lease);
+  });
+  protected readonly canWriteRequests = computed(() => {
+    const current = this.sessions.state();
+    return current.status === "authenticated" &&
+      canAccessPortalFeature(current.session, PORTAL_ACCESS_RULES.purchaseRequestWrite);
+  });
+  protected readonly canReadRequests = computed(() => {
+    const current = this.sessions.state();
+    return current.status === "authenticated" &&
+      canAccessPortalFeature(current.session, PORTAL_ACCESS_RULES.purchaseRequests);
+  });
+  protected readonly canReadCatalog = computed(() => {
+    const current = this.sessions.state();
+    return current.status === "authenticated" &&
+      canAccessPortalFeature(current.session, PORTAL_ACCESS_RULES.catalog);
   });
   protected readonly catalog = inject(CatalogStore);
   protected readonly catalogSkuOptions = computed(() => {
@@ -267,7 +286,7 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
   protected async submit(): Promise<void> {
     await this.store.submit();
     const draft = this.workflow().draft;
-    if (this.workflow().status === "submitted" && draft) {
+    if (this.canReadRequests() && this.workflow().status === "submitted" && draft) {
       await this.router.navigate(["/requests", draft.id]);
     }
   }

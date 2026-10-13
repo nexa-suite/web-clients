@@ -5,12 +5,18 @@
       <h1 id="request-builder-title">Build your request</h1>
       <p>Choose the items, where and when to receive them, and how you prefer to pay.</p>
     </div>
-    <a routerLink="/requests">My requests</a>
+    @if (canReadRequests()) {
+      <a routerLink="/requests">My requests</a>
+    }
   </header>
 
   @if (!contextIsCurrent()) {
     <nexa-surface tone="inset">
       <p class="request-builder__notice" role="alert">Your Buyer context changed. Refresh after signing in to continue.</p>
+    </nexa-surface>
+  } @else if (!canWriteRequests()) {
+    <nexa-surface tone="inset">
+      <p class="request-builder__notice" role="alert">The active membership cannot edit purchase requests.</p>
     </nexa-surface>
   } @else {
   @if (localError) {
@@ -73,7 +79,10 @@
         }
       </div>
       @if (!catalogSkuOptions().length) {
-        <p class="request-builder__notice">Choose a sellable SKU from the <a routerLink="/catalog">current catalog</a>. Catalog pages show the available choices.</p>
+        <p class="request-builder__notice">
+          Choose a sellable SKU from the current catalog.
+          @if (canReadCatalog()) { <a routerLink="/catalog">Open catalog</a>. }
+        </p>
       }
       @if (!workflow().draft) {
         <label class="request-builder__date">
@@ -92,7 +101,9 @@
       <nexa-surface tone="inset">
         <h2>Request submitted</h2>
         <p>Sales will review your request. Follow its status in My requests.</p>
-        <a [routerLink]="['/requests', draft.id]">View request {{ draft.id }}</a>
+        @if (canReadRequests()) {
+          <a [routerLink]="['/requests', draft.id]">View request {{ draft.id }}</a>
+        }
       </nexa-surface>
     } @else {
       <nexa-surface tone="default">

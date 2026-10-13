@@ -22,13 +22,24 @@ export class BuyerPaymentHistoryStore {
   private readonly session = inject(PortalSessionStore);
   private readonly snapshot = signal<Snapshot | null>(null);
   private revision = 0;
+  readonly canRead = computed(() => {
+    const current = this.session.state();
+    return current.status === "authenticated" &&
+      current.session.surface === "PORTAL" &&
+      this.session.captureSessionLease() !== null &&
+      current.session.membership?.permissions?.includes("payment.read") === true;
+  });
   readonly state = computed(() => {
     const value = this.snapshot();
-    return value && this.session.isSessionLeaseCurrent(value.lease)
+    return value && this.canRead() && this.session.isSessionLeaseCurrent(value.lease)
       ? value
       : null;
   });
   async load(receivableId: string, page = 0): Promise<void> {
+    if (!this.canRead()) {
+      this.snapshot.set(null);
+      return;
+    }
     const lease = this.session.captureSessionLease();
     const revision = ++this.revision;
     if (!lease) {

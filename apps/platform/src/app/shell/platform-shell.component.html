@@ -9,7 +9,7 @@
         canViewSalesCommitment ||
         canViewFulfillment ||
         canViewDocuments || canViewTenantAccess || canViewTenantRoles || canConfigureCredit || canManageWalletRefunds
-        || canManageSupportConsents || canManageWarehouseAccessGrants
+        || canManageSupportConsents || canManageWarehouseAccessGrants || canGenerateOrderSummary
       ) {
         <nav
           class="platform-shell__navigation"
@@ -66,6 +66,15 @@
               routerLinkActive="platform-shell__navigation-link--active"
               ariaCurrentWhenActive="page"
               >Documents</a
+            >
+          }
+          @if (canGenerateOrderSummary) {
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/documents/order-summary"
+              routerLinkActive="platform-shell__navigation-link--active"
+              ariaCurrentWhenActive="page"
+              >Generate order summary</a
             >
           }
           @if (canConfigureCredit) {

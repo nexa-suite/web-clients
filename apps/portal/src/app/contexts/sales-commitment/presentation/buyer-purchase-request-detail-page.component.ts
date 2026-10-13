@@ -5,6 +5,10 @@ import type { PurchaseRequestDetail } from "@nexa/api";
 import { NexaButton, NexaSurface } from "nexa-ui";
 import { firstValueFrom } from "rxjs";
 import { PortalSessionStore } from "../../tenant-access-governance/application/public-api";
+import {
+  canAccessPortalFeature,
+  PORTAL_ACCESS_RULES,
+} from "../../../core/portal-access-policy";
 
 type PurchaseRequestDetailState =
   | { readonly status: "loading"; readonly request: null; readonly message: null }
@@ -27,6 +31,20 @@ export class BuyerPurchaseRequestDetailPageComponent implements OnInit {
   private readonly api = inject(NexaSalesCommitmentApi);
   private readonly sessions = inject(PortalSessionStore);
   private readonly route = inject(ActivatedRoute);
+  protected readonly canReadRequests = computed(() => {
+    const current = this.sessions.state();
+    return current.status === "authenticated" && canAccessPortalFeature(
+      current.session,
+      PORTAL_ACCESS_RULES.purchaseRequests,
+    );
+  });
+  protected readonly canReadOrders = computed(() => {
+    const current = this.sessions.state();
+    return current.status === "authenticated" && canAccessPortalFeature(
+      current.session,
+      PORTAL_ACCESS_RULES.orders,
+    );
+  });
   private revision = 0;
   private readonly snapshot = signal<{ readonly state: PurchaseRequestDetailState; readonly lease: PortalLease | null }>({ state: LOADING_STATE, lease: null });
   protected readonly state = computed(() => {

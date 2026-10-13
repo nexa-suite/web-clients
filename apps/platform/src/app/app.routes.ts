@@ -7,6 +7,8 @@ import {
   requirePlatformAuthentication,
   requirePlatformAuthenticationForChild,
 } from "./contexts/tenant-access-governance/presentation/public-api";
+import { PLATFORM_ACCESS_RULES } from "./core/platform-access-policy";
+import { requirePlatformCapability } from "./core/platform-capability.guard";
 import { PLATFORM_FULFILLMENT_ROUTES } from "./contexts/fulfillment-delivery/application/public-api";
 import { PLATFORM_SALES_COMMITMENT_ROUTES } from "./contexts/sales-commitment/application/public-api";
 
@@ -31,6 +33,8 @@ export const routes: Routes = [
       },
       {
         path: "operations/overview",
+        canActivate: [requirePlatformCapability],
+        data: { platformAccessRule: PLATFORM_ACCESS_RULES.operationsOverview },
         loadComponent: () =>
           import("./features/operations/operations-overview.component").then(
             (module) => module.PlatformOperationsOverviewComponent,

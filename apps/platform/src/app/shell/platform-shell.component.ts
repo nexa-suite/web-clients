@@ -8,6 +8,10 @@ import {
 import { RouterLink, RouterLinkActive, RouterOutlet } from "@angular/router";
 import type { SessionResponse } from "@nexa/api";
 import { NexaButton, NexaLogo } from "nexa-ui";
+import {
+  canAccessPlatformFeature,
+  PLATFORM_ACCESS_RULES,
+} from "../core/platform-access-policy";
 
 @Component({
   selector: "platform-shell",
@@ -18,24 +22,6 @@ import { NexaButton, NexaLogo } from "nexa-ui";
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlatformShellComponent {
-  private readonly operationsOverviewPermissions = new Set([
-    "logistics.read",
-    "dispatch.read",
-    "logistics.analytics.read",
-    "logistics:read",
-  ]);
-  private readonly salesCommitmentPermissions = new Set([
-    "sales.purchase_request.read",
-  ]);
-  private readonly fulfillmentPermissions = new Set([
-    "fulfillment.read",
-    "fulfillment:read",
-    "logistics.read",
-    "dispatch.read",
-    "logistics.analytics.read",
-    "logistics:read",
-  ]);
-
   @Input() session: SessionResponse | null = null;
 
   @Output() readonly signOut = new EventEmitter<void>();
@@ -63,56 +49,75 @@ export class PlatformShellComponent {
   }
 
   protected get canViewOperationsOverview(): boolean {
-    return this.hasAnyPermission(this.operationsOverviewPermissions);
+    return canAccessPlatformFeature(
+      this.session,
+      PLATFORM_ACCESS_RULES.operationsOverview,
+    );
   }
 
   protected get canViewSalesCommitment(): boolean {
-    return this.hasAnyPermission(this.salesCommitmentPermissions);
+    return canAccessPlatformFeature(
+      this.session,
+      PLATFORM_ACCESS_RULES.purchaseRequests,
+    );
   }
 
   protected get canViewFulfillment(): boolean {
-    return this.hasAnyPermission(this.fulfillmentPermissions);
+    return canAccessPlatformFeature(
+      this.session,
+      PLATFORM_ACCESS_RULES.fulfillment,
+    );
   }
 
   protected get canViewDocuments(): boolean {
-    return this.hasAnyPermission(new Set(["document.read", "document:read"]));
+    return canAccessPlatformFeature(
+      this.session,
+      PLATFORM_ACCESS_RULES.documents,
+    );
+  }
+
+  protected get canGenerateOrderSummary(): boolean {
+    return canAccessPlatformFeature(
+      this.session,
+      PLATFORM_ACCESS_RULES.orderSummaryGeneration,
+    );
   }
   protected get canConfigureCredit(): boolean {
-    return (
-      this.session?.surface === "PLATFORM" &&
-      this.hasAnyPermission(new Set(["client.credit.configuration.manage"]))
+    return canAccessPlatformFeature(
+      this.session,
+      PLATFORM_ACCESS_RULES.creditConfiguration,
     );
   }
   protected get canManageWalletRefunds(): boolean {
-    return (
-      this.session?.surface === "PLATFORM" &&
-      this.hasAnyPermission(new Set(["payment.reconcile"]))
+    return canAccessPlatformFeature(
+      this.session,
+      PLATFORM_ACCESS_RULES.walletRefunds,
     );
   }
   protected get canViewTenantAccess(): boolean {
-    return this.hasAnyPermission(new Set(["tenant.member.read"]));
+    return canAccessPlatformFeature(
+      this.session,
+      PLATFORM_ACCESS_RULES.workforceAccess,
+    );
   }
   protected get canViewTenantRoles(): boolean {
-    return this.hasAnyPermission(new Set(["tenant.role.read"]));
+    return canAccessPlatformFeature(
+      this.session,
+      PLATFORM_ACCESS_RULES.rolesAndPermissions,
+    );
   }
 
   protected get canManageSupportConsents(): boolean {
-    return (
-      this.session?.surface === "PLATFORM" &&
-      this.hasAnyPermission(new Set(["tenant:read", "tenant.organization.read"]))
+    return canAccessPlatformFeature(
+      this.session,
+      PLATFORM_ACCESS_RULES.supportConsent,
     );
   }
 
   protected get canManageWarehouseAccessGrants(): boolean {
-    return this.session?.surface === "PLATFORM" &&
-      this.hasAnyPermission(new Set(["tenant.role.assign"]));
-  }
-
-  private hasAnyPermission(allowed: ReadonlySet<string>): boolean {
-    return (
-      this.session?.membership?.permissions?.some((permission) =>
-        allowed.has(permission),
-      ) ?? false
+    return canAccessPlatformFeature(
+      this.session,
+      PLATFORM_ACCESS_RULES.warehouseAccess,
     );
   }
 

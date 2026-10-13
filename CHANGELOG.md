@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-- Planned changes for the next release will be recorded here.
+- Project navigation, direct-route guards and actionable links from the current
+  scoped API membership permissions, retaining endpoint-specific Buyer and
+  workforce role constraints.
+- Correct responsive shell spacing and shared content gutters without changing
+  the visual design. Keep access projection logic independent and testable.
 
 ## [0.2.0] - 2026-10-12
 

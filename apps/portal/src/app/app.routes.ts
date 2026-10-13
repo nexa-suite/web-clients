@@ -4,6 +4,8 @@ import {
   requirePortalBuyerChild,
 } from "./contexts/customer-buyer-relationships/presentation/public-api";
 import { PORTAL_ACCESS_ROUTES } from "./contexts/tenant-access-governance/presentation/public-api";
+import { requirePortalCapability } from "./core/portal-capability.guard";
+import { PORTAL_ACCESS_RULES } from "./core/portal-access-policy";
 
 export const routes: Routes = [
   {
@@ -39,6 +41,8 @@ export const routes: Routes = [
       },
       {
         path: "wallet",
+        canActivate: [requirePortalCapability],
+        data: { portalAccessRule: PORTAL_ACCESS_RULES.wallet },
         loadComponent: () =>
           import("./compositions/wallet/buyer-wallet-page.component").then(
             (module) => module.BuyerWalletPageComponent,

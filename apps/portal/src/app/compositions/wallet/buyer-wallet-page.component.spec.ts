@@ -13,7 +13,12 @@ import {
 import { BuyerWalletPageComponent } from "./buyer-wallet-page.component";
 
 describe("BuyerWalletPageComponent", () => {
-  function setup(options: { canRead?: boolean; walletState?: unknown } = {}) {
+  function setup(options: {
+    canRead?: boolean;
+    canReport?: boolean;
+    transferState?: unknown;
+    walletState?: unknown;
+  } = {}) {
     const wallet = {
       canRead: signal(options.canRead ?? true),
       canRecharge: signal(false),
@@ -28,7 +33,11 @@ describe("BuyerWalletPageComponent", () => {
     const credit = { load: vi.fn(), state: signal(null) };
     const receivables = { load: vi.fn(), state: signal(null) };
     const payments = { clear: vi.fn(), state: signal(null) };
-    const transfer = { clear: vi.fn(), state: signal(null) };
+    const transfer = {
+      canReport: signal(options.canReport ?? false),
+      clear: vi.fn(),
+      state: signal(options.transferState ?? null),
+    };
     TestBed.configureTestingModule({
       imports: [BuyerWalletPageComponent],
       providers: [
@@ -42,7 +51,7 @@ describe("BuyerWalletPageComponent", () => {
     });
     const fixture = TestBed.createComponent(BuyerWalletPageComponent);
     fixture.detectChanges();
-    return { fixture, wallet };
+    return { fixture, transfer, wallet };
   }
 
   it("shows that the membership needs payment.read and does not request wallet data", () => {
@@ -123,5 +132,25 @@ describe("BuyerWalletPageComponent", () => {
       "Wallet reading is currently unavailable",
     );
     expect(fixture.nativeElement.textContent).not.toContain("Available balance");
+  });
+
+  it("hides bank transfer reporting when payment.create is revoked", () => {
+    const { fixture, transfer } = setup({
+      canReport: true,
+      transferState: {
+        receivableId: "receivable-1",
+        reference: "",
+        busy: false,
+        error: null,
+        payment: null,
+      },
+    });
+
+    expect(fixture.nativeElement.textContent).toContain("Report a bank transfer");
+    transfer.canReport.set(false);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain("Report a bank transfer");
+    expect(fixture.nativeElement.querySelector("#transfer-reference")).toBeNull();
   });
 });

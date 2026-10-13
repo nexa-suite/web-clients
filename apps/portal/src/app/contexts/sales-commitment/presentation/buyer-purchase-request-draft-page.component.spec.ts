@@ -106,7 +106,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
         {
           provide: PortalSessionStore,
           useValue: {
-            state: signal({ status: "authenticated", session: { surface: "PORTAL", membership: { roles: ["BUYER"], permissions: ["buyer.sales.write"] } } }),
+            state: signal({ status: "authenticated", session: scopedBuyerSession(["buyer.sales.write"]) }),
             captureSessionLease: vi.fn(() => lease),
             isSessionLeaseCurrent: vi.fn(() => true),
           },
@@ -142,8 +142,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
       state: signal({
         status: "authenticated",
         session: {
-          surface: "PORTAL",
-          membership: { roles: ["BUYER"], permissions: ["payment.read", "buyer.sales.write"] },
+          ...scopedBuyerSession(["payment.read", "buyer.sales.write"]),
         },
       }),
       captureSessionLease: vi.fn(() => currentLease()),
@@ -240,7 +239,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
         {
           provide: PortalSessionStore,
           useValue: {
-            state: signal({ status: "authenticated", session: { surface: "PORTAL", membership: { roles: ["BUYER"], permissions: ["buyer.sales.write"] } } }),
+            state: signal({ status: "authenticated", session: scopedBuyerSession(["buyer.sales.write"]) }),
             captureSessionLease: vi.fn(() => lease),
             isSessionLeaseCurrent: vi.fn(() => true),
           },
@@ -267,10 +266,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
   it("offers WALLET only with the API capability and Buyer read/write grants, then clears stale selection", async () => {
     const currentSession = signal({
       status: "authenticated",
-      session: {
-        surface: "PORTAL",
-        membership: { roles: ["BUYER"], permissions: ["payment.read", "buyer.sales.write"] },
-      },
+      session: scopedBuyerSession(["payment.read", "buyer.sales.write"]),
     });
     const walletSupported = signal(false);
     const currentAccount = signal({ id: "account-1" });
@@ -353,7 +349,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
 
     currentSession.set({
       status: "authenticated",
-      session: { surface: "PORTAL", membership: { roles: ["BUYER"], permissions: ["payment.read"] } },
+      session: scopedBuyerSession(["payment.read"]),
     });
     fixture.detectChanges();
     expect(page.paymentPreferences()).not.toContain("WALLET");
@@ -369,5 +365,15 @@ function emptyWorkflow(): BuyerDraftWorkflowState {
     addresses: [],
     submissionKeyPending: false,
     errorMessage: null,
+  };
+}
+
+function scopedBuyerSession(permissions: readonly string[]) {
+  return {
+    surface: "PORTAL",
+    user: { userId: "buyer-user" },
+    tenant: { tenantId: "tenant-1" },
+    workspace: { workspaceId: "workspace-1" },
+    membership: { membershipId: "buyer-membership-1", roles: ["BUYER"], permissions },
   };
 }

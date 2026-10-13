@@ -1,5 +1,7 @@
 <section class="sales-commitment-page" aria-labelledby="buyer-request-detail-title">
-  <a class="sales-commitment-page__back" routerLink="/requests">← My requests</a>
+  @if (canReadRequests()) {
+    <a class="sales-commitment-page__back" routerLink="/requests">← My requests</a>
+  }
   @switch (state().status) {
     @case ('loading') { <p role="status" aria-live="polite">Loading purchase request…</p> }
     @case ('error') { <nexa-surface tone="inset"><div role="alert"><h1 id="buyer-request-detail-title">Request unavailable</h1><p>{{ state().message }}</p><nexa-button variant="secondary" (click)="refresh()">Try again</nexa-button></div></nexa-surface> }
@@ -25,7 +27,9 @@
         </nexa-surface>
         @if (request.status === 'CONVERTED') { <p class="sales-commitment-page__notice">Sales created an order from this request. Check My orders for its current status.</p> }
         @if (request.status === 'REJECTED') { <p class="sales-commitment-page__notice">Sales rejected this request. Review the note above for more information.</p> }
-        <a class="sales-commitment-page__button-link" routerLink="/orders">View my orders</a>
+        @if (canReadOrders()) {
+          <a class="sales-commitment-page__button-link" routerLink="/orders">View my orders</a>
+        }
       }
     }
   }
