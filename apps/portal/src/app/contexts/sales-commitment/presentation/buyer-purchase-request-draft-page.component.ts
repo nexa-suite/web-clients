@@ -151,17 +151,17 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
     this.catalogBrandSearch = catalogSearch.brand;
     this.catalogCategorySearch = catalogSearch.category;
     this.catalogColdChain = catalogSearch.coldChain;
+    const draftId = this.route.snapshot.queryParamMap.get("draftId");
+    if (!draftId) {
+      const skuId = this.route.snapshot.queryParamMap.get("skuId") ?? "";
+      if (skuId) this.lines = [{ skuId, quantity: "1", unit: "", notes: "" }];
+    }
     if (this.canReadCatalog()) {
       await Promise.all([
         this.catalog.load(),
         this.catalog.loadFilterOptions(),
       ]);
       if (!this.sessions.isSessionLeaseCurrent(lease)) return;
-    }
-    const draftId = this.route.snapshot.queryParamMap.get("draftId");
-    if (!draftId) {
-      const skuId = this.route.snapshot.queryParamMap.get("skuId") ?? "";
-      if (skuId) this.lines = [{ skuId, quantity: "1", unit: "", notes: "" }];
     }
     const account = this.eligibility.currentAccount();
     if (account) await this.store.loadAddresses(account.id);

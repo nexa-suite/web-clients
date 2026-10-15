@@ -185,6 +185,10 @@ async function runFulfillmentCommand(page, buttonName, path, ifMatch, expectedSt
 
 test('fulfills a real Buyer order through dispatch, refreshes Buyer tracking, and issues its order summary', async ({ page }) => {
   test.setTimeout(180_000);
+  const requestedQuantity = Number(process.env.NEXA_E2E_REQUEST_QUANTITY ?? 1);
+  if (!Number.isSafeInteger(requestedQuantity) || requestedQuantity < 1 || requestedQuantity > 10) {
+    throw new Error('Local E2E fixture quantity must be an integer between one and ten.');
+  }
   const companyOwnerDefinition = platformAccountDefinitions.find((account) => account.key === 'companyOwner');
   const salesDefinition = platformAccountDefinitions.find((account) => account.key === 'salesRepresentative');
   const warehouseDefinition = platformAccountDefinitions.find((account) => account.key === 'warehouseOperator');
@@ -205,8 +209,8 @@ test('fulfills a real Buyer order through dispatch, refreshes Buyer tracking, an
   const candidateIndex = catalog.items.findIndex((item) =>
     typeof item.sellableSkuId === 'string'
       && item.sellableSkuId.length > 0
-      && Number(item.sellableAvailability) >= 1);
-  expect(candidateIndex, 'Seeded Buyer catalog needs an active sellable SKU with at least one available unit.').toBeGreaterThanOrEqual(0);
+      && Number(item.sellableAvailability) >= requestedQuantity);
+  expect(candidateIndex, 'Seeded Buyer catalog needs an active SKU with enough availability for the fixture quantity.').toBeGreaterThanOrEqual(0);
   const catalogItem = catalog.items[candidateIndex];
   const catalogDetailResponse = waitForApiResponse(page, 'GET', `/catalog-items/${catalogItem.catalogItemId}`);
   await page.getByTestId('catalog-item-link').nth(candidateIndex).click();
@@ -214,7 +218,7 @@ test('fulfills a real Buyer order through dispatch, refreshes Buyer tracking, an
   expect(catalogDetail.status).toBe(200);
   const sellableItem = catalogDetail.body;
   expect(sellableItem.sellableSkuId).toBe(catalogItem.sellableSkuId);
-  expect(Number(sellableItem.sellableAvailability)).toBeGreaterThanOrEqual(1);
+  expect(Number(sellableItem.sellableAvailability)).toBeGreaterThanOrEqual(requestedQuantity);
   const requestSkuLink = page.getByRole('link', { name: 'Request this SKU', exact: true });
   await expect(requestSkuLink).toBeVisible();
   await expect(requestSkuLink).toHaveAttribute(
@@ -225,6 +229,7 @@ test('fulfills a real Buyer order through dispatch, refreshes Buyer tracking, an
   const addressesResponse = waitForApiResponse(page, 'GET', `/client-accounts/${account.id}/addresses`);
   await requestSkuLink.click();
   await expect(page.getByRole('heading', { name: 'Build your request' })).toBeVisible();
+  await page.getByLabel('Quantity', { exact: true }).first().fill(String(requestedQuantity));
   const addressesResult = await addressesResponse;
   expect(addressesResult.status).toBe(200);
   const addresses = addressesResult.body.filter((address) => address.active);
@@ -252,6 +257,7 @@ test('fulfills a real Buyer order through dispatch, refreshes Buyer tracking, an
   const draft = createdResponse.body;
   expect(linesResponse.body.lines).toHaveLength(1);
   expect(linesResponse.body.lines[0].skuId).toBe(sellableItem.sellableSkuId);
+  expect(Number(linesResponse.body.lines[0].quantity)).toBe(requestedQuantity);
 
   const destinationResponse = waitForApiResponse(page, 'PUT', `/buyer/purchase-request-drafts/${draft.id}/destination`);
   await page.getByLabel('Delivery destination').selectOption(address.id);

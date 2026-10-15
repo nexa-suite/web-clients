@@ -86,16 +86,19 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
     itemName: "Private catalog item",
   } as BuyerCatalogItem;
 
-  it("selects the requested catalog SKU before asynchronous address loading completes", async () => {
+  it("prefills the requested SKU before catalog loading and preserves quantity edits", async () => {
     const state = signal<BuyerDraftWorkflowState>(emptyWorkflow());
     let finishAddressLoading!: () => void;
     const addressLoading = new Promise<void>((resolve) => { finishAddressLoading = resolve; });
+    let finishCatalogLoading!: () => void;
+    const catalogLoading = new Promise<void>((resolve) => { finishCatalogLoading = resolve; });
     const store = {
       state,
       clear: vi.fn(() => state.set(emptyWorkflow())),
       loadAddresses: vi.fn(() => addressLoading),
     };
     const catalog = createCatalogStoreMock({ kind: "results", page: { items: [catalogItem], page: 0, size: 50, totalItems: 1, totalPages: 1 }, errorMessage: null });
+    catalog.load.mockImplementation(() => catalogLoading.then(() => undefined));
     TestBed.configureTestingModule({
       imports: [BuyerPurchaseRequestDraftPageComponent],
       providers: [
@@ -104,7 +107,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
         {
           provide: PortalSessionStore,
           useValue: {
-            state: signal({ status: "authenticated", session: scopedBuyerSession(["buyer.sales.write"]) }),
+            state: signal({ status: "authenticated", session: scopedBuyerSession(["buyer.sales.write", "catalog.read"]) }),
             captureSessionLease: vi.fn(() => lease),
             isSessionLeaseCurrent: vi.fn(() => true),
           },
@@ -121,10 +124,17 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
     await Promise.resolve();
     fixture.detectChanges();
     const select = fixture.nativeElement.querySelector(".request-builder__line select") as HTMLSelectElement;
-    expect(store.loadAddresses).toHaveBeenCalledWith("account-1");
+    expect(store.loadAddresses).not.toHaveBeenCalled();
     expect((fixture.componentInstance as unknown as { lines: readonly { skuId: string }[] }).lines[0]?.skuId).toBe(catalogItem.sellableSkuId);
     expect(select.value).toBe(catalogItem.sellableSkuId);
     expect(select.selectedOptions[0]?.textContent).toContain("SKU-001");
+
+    const quantity = fixture.nativeElement.querySelector('.request-builder__line input[type="number"]') as HTMLInputElement;
+    quantity.value = "2";
+    quantity.dispatchEvent(new Event("input"));
+    finishCatalogLoading();
+    for (let turn = 0; turn < 8; turn += 1) await Promise.resolve();
+    expect(store.loadAddresses).toHaveBeenCalledWith("account-1");
 
     finishAddressLoading();
     await fixture.whenStable();
@@ -132,6 +142,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
 
     expect(select.value).toBe(catalogItem.sellableSkuId);
     expect(select.selectedOptions[0]?.textContent).toContain("SKU-001");
+    expect((fixture.componentInstance as unknown as { lines: readonly { quantity: string }[] }).lines[0]?.quantity).toBe("2");
   });
 
   it("loads filtered catalog pages for SKU selection and retains a selected SKU across pages", async () => {
