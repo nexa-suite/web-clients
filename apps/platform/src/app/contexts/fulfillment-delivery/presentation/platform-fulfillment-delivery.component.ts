@@ -1,10 +1,14 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject } from "@angular/core";
+import { DOCUMENT } from "@angular/common";
+import { ChangeDetectionStrategy, Component, DestroyRef, Injector, OnInit, inject } from "@angular/core";
+import { toObservable } from "@angular/core/rxjs-interop";
+import { filter, take } from "rxjs";
 import type {
   DispatchReadinessResponse,
   FulfillmentCandidateResponse,
   FulfillmentWorkItemResponse,
 } from "@nexa/api";
-import { NexaButton } from "nexa-ui";
+import { NexaButton, startForegroundRefresh } from "nexa-ui";
+import { PlatformSessionStore } from "../../tenant-access-governance/application/public-api";
 import { PlatformDispatchPlannerStore } from "../application/platform-dispatch-planner.store";
 import { PlatformFulfillmentWorkbenchStore } from "../application/platform-fulfillment-workbench.store";
 import { PlatformWarehouseLifecycleStore } from "../application/platform-warehouse-lifecycle.store";
@@ -26,12 +30,17 @@ export class PlatformFulfillmentDeliveryComponent implements OnInit {
   protected readonly workbench = inject(PlatformFulfillmentWorkbenchStore);
   protected readonly warehouseStore = inject(PlatformWarehouseLifecycleStore);
   protected readonly dispatchStore = inject(PlatformDispatchPlannerStore);
+  private readonly sessions = inject(PlatformSessionStore);
+  private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly document = inject(DOCUMENT);
 
   protected readonly state = this.workbench.state;
   protected readonly hasFulfillmentManage = this.workbench.hasFulfillmentManage;
 
   ngOnInit(): void {
     this.refresh();
+    this.startPolling();
   }
 
   protected refresh(): void {
@@ -175,6 +184,21 @@ export class PlatformFulfillmentDeliveryComponent implements OnInit {
     if (current.status !== "ready") return;
     void action().then((succeeded) => {
       if (succeeded) this.workbench.refreshBoards(current.lease);
+    });
+  }
+
+  private startPolling(): void {
+    const lease = this.workbench.state().lease;
+    if (!lease) return;
+    const stopWhen = toObservable(this.sessions.state, { injector: this.injector }).pipe(
+      filter(() => !this.sessions.isSessionLeaseCurrent(lease)),
+      take(1),
+    );
+    startForegroundRefresh({
+      document: this.document,
+      destroyRef: this.destroyRef,
+      stopWhen,
+      refresh: () => this.workbench.refreshBoardsForPolling(lease),
     });
   }
 }

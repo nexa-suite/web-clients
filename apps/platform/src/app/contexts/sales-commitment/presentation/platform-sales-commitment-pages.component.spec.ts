@@ -2,9 +2,13 @@ import { TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
 import { signal } from "@angular/core";
 import { NexaSalesCommitmentApi } from "@nexa/api";
-import type { PurchaseRequestDetail, PurchaseRequestPage } from "@nexa/api";
+import type { PurchaseRequestDetail, PurchaseRequestPage, SessionResponse } from "@nexa/api";
 import { of, Subject } from "rxjs";
-import { PlatformSessionStore } from "../../tenant-access-governance/application/public-api";
+import {
+  PlatformSessionStore,
+  type PlatformSessionLease,
+  type PlatformSessionState,
+} from "../../tenant-access-governance/application/public-api";
 import { PlatformPurchaseRequestReviewStore } from "../application/platform-purchase-request-review.store";
 import { PlatformPurchaseRequestInboxPageComponent } from "./platform-purchase-request-inbox-page.component";
 import { PlatformPurchaseRequestReviewPageComponent } from "./platform-purchase-request-review-page.component";
@@ -41,6 +45,32 @@ describe("Platform Sales commitment pages", () => {
     size: 1,
     total: 2,
   };
+
+  function reviewSessionStore(
+    lease: PlatformSessionLease | null,
+    isSessionLeaseCurrent: () => boolean,
+  ) {
+    const session: SessionResponse = {
+      surface: "PLATFORM",
+      user: { userId: "user-1" },
+      tenant: { tenantId: "tenant-1" },
+      workspace: { workspaceId: "workspace-1" },
+      membership: {
+        membershipId: "membership-1",
+        roles: ["SALES"],
+        permissions: ["sales.order.read", "client.read"],
+      },
+    };
+    const state = signal<PlatformSessionState>({
+      status: "authenticated",
+      session,
+    });
+    return {
+      state,
+      captureSessionLease: vi.fn(() => lease),
+      isSessionLeaseCurrent: vi.fn(isSessionLeaseCurrent),
+    };
+  }
 
   function inboxSetup(responses: readonly (PurchaseRequestPage | Subject<PurchaseRequestPage>)[]) {
     const leaseCurrent = signal(true);
@@ -175,12 +205,13 @@ describe("Platform Sales commitment pages", () => {
       convert: vi.fn().mockResolvedValue(undefined),
       reject: vi.fn().mockResolvedValue(undefined),
     };
+    const sessions = reviewSessionStore(lease, () => leaseCurrent());
     TestBed.configureTestingModule({
       imports: [PlatformPurchaseRequestReviewPageComponent],
       providers: [
         provideRouter([]),
         { provide: PlatformPurchaseRequestReviewStore, useValue: store },
-        { provide: PlatformSessionStore, useValue: { captureSessionLease: () => lease, isSessionLeaseCurrent: () => leaseCurrent() } },
+        { provide: PlatformSessionStore, useValue: sessions },
       ],
     });
     const fixture = TestBed.createComponent(PlatformPurchaseRequestReviewPageComponent);
@@ -224,12 +255,13 @@ describe("Platform Sales commitment pages", () => {
       convert: vi.fn().mockResolvedValue(undefined),
       reject: vi.fn().mockResolvedValue(undefined),
     };
+    const sessions = reviewSessionStore(null, () => false);
     TestBed.configureTestingModule({
       imports: [PlatformPurchaseRequestReviewPageComponent],
       providers: [
         provideRouter([]),
         { provide: PlatformPurchaseRequestReviewStore, useValue: store },
-        { provide: PlatformSessionStore, useValue: { captureSessionLease: () => null, isSessionLeaseCurrent: () => false } },
+        { provide: PlatformSessionStore, useValue: sessions },
       ],
     });
     const fixture = TestBed.createComponent(PlatformPurchaseRequestReviewPageComponent);
@@ -257,12 +289,13 @@ describe("Platform Sales commitment pages", () => {
       convert: vi.fn().mockResolvedValue(undefined),
       reject: vi.fn().mockResolvedValue(undefined),
     };
+    const sessions = reviewSessionStore(null, () => false);
     TestBed.configureTestingModule({
       imports: [PlatformPurchaseRequestReviewPageComponent],
       providers: [
         provideRouter([]),
         { provide: PlatformPurchaseRequestReviewStore, useValue: store },
-        { provide: PlatformSessionStore, useValue: { captureSessionLease: () => null, isSessionLeaseCurrent: () => false } },
+        { provide: PlatformSessionStore, useValue: sessions },
       ],
     });
     const fixture = TestBed.createComponent(PlatformPurchaseRequestReviewPageComponent);
