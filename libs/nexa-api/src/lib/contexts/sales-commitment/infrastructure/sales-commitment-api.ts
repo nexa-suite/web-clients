@@ -4,6 +4,7 @@ import { Observable } from "rxjs";
 import { NEXA_API_HTTP_CONFIGURATION } from "../../../http/nexa-http";
 import type {
   CreatePurchaseRequestDraftRequest,
+  MaterialChangeProposal,
   PurchaseRequestDetail,
   PurchaseRequestDraft,
   PurchaseRequestDraftPage,
@@ -11,6 +12,7 @@ import type {
   PurchaseRequestDraftLineInput,
   PurchaseRequestPage,
   PurchaseRequestPageQuery,
+  ProposeMaterialChangeRequest,
   SalesOrder,
   SalesOrderPage,
   SalesOrderPageQuery,
@@ -119,6 +121,31 @@ export class NexaSalesCommitmentApi {
     });
   }
 
+  getCurrentMaterialChange(requestId: string): Observable<MaterialChangeProposal> {
+    return this.http.get<MaterialChangeProposal>(
+      `${this.purchaseRequestPath(requestId)}/material-changes/current`,
+    );
+  }
+
+  listMaterialChangeHistory(requestId: string): Observable<readonly MaterialChangeProposal[]> {
+    return this.http.get<readonly MaterialChangeProposal[]>(
+      `${this.purchaseRequestPath(requestId)}/material-changes`,
+    );
+  }
+
+  proposeMaterialChange(
+    requestId: string,
+    etag: string,
+    idempotencyKey: string,
+    request: ProposeMaterialChangeRequest,
+  ): Observable<HttpResponse<MaterialChangeProposal>> {
+    return this.http.post<MaterialChangeProposal>(
+      `${this.purchaseRequestPath(requestId)}/material-changes`,
+      request,
+      this.commandEtagOptions(etag, idempotencyKey),
+    );
+  }
+
   convertPurchaseRequest(
     requestId: string,
     version: number,
@@ -168,6 +195,8 @@ export class NexaSalesCommitmentApi {
 
   private pageParams(query: PurchaseRequestPageQuery | SalesOrderPageQuery): HttpParams {
     let params = new HttpParams();
+    if ("clientAccountId" in query && query.clientAccountId) params = params.set("clientAccountId", query.clientAccountId);
+    if ("search" in query && query.search) params = params.set("search", query.search);
     if (query.status) params = params.set("status", query.status);
     if (query.page !== undefined) params = params.set("page", query.page);
     if (query.size !== undefined) params = params.set("size", query.size);
@@ -191,6 +220,17 @@ export class NexaSalesCommitmentApi {
       observe: "response" as const,
     };
   }
+
+  private commandEtagOptions(etag: string, idempotencyKey: string) {
+    const currentEtag = requireEntityTag(etag);
+    return {
+      headers: new HttpHeaders({
+        "If-Match": currentEtag,
+        "Idempotency-Key": requireIdempotencyKey(idempotencyKey),
+      }),
+      observe: "response" as const,
+    };
+  }
 }
 
 function quoteVersion(version: number): string {
@@ -204,4 +244,12 @@ function requireIdempotencyKey(value: string): string {
   const key = value.trim();
   if (!key || key.length > 160) throw new Error("A valid idempotency key is required.");
   return key;
+}
+
+function requireEntityTag(value: string): string {
+  const etag = value.trim();
+  if (!/^(?:W\/)?"[^"\r\n]*"$/.test(etag)) {
+    throw new Error("A current Purchase Request ETag is required.");
+  }
+  return etag;
 }

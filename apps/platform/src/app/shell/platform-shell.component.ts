@@ -48,11 +48,33 @@ export class PlatformShellComponent {
     return contextParts.length > 0 ? contextParts.join(" · ") : null;
   }
 
+  protected get canViewClients(): boolean {
+    return canAccessPlatformFeature(
+      this.session,
+      PLATFORM_ACCESS_RULES.clients,
+    );
+  }
+  protected get canViewCatalog(): boolean {
+    return canAccessPlatformFeature(
+      this.session,
+      PLATFORM_ACCESS_RULES.catalog,
+    );
+  }
+  protected get canViewCatalogManagement(): boolean {
+    return canAccessPlatformFeature(
+      this.session,
+      PLATFORM_ACCESS_RULES.catalogManagement,
+    );
+  }
   protected get canViewOperationsOverview(): boolean {
     return canAccessPlatformFeature(
       this.session,
       PLATFORM_ACCESS_RULES.operationsOverview,
     );
+  }
+
+  protected get canViewSalesOrders(): boolean {
+    return canAccessPlatformFeature(this.session, PLATFORM_ACCESS_RULES.salesOrders);
   }
 
   protected get canViewSalesCommitment(): boolean {

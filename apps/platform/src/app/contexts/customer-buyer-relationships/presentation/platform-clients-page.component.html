@@ -1,0 +1,617 @@
+<section
+  class="platform-clients"
+  [attr.aria-busy]="busy()"
+  aria-labelledby="clients-title"
+>
+  <header class="platform-clients__header">
+    <div>
+      <p class="eyebrow">CUSTOMER RELATIONSHIPS</p>
+      <h1 id="clients-title">Client accounts</h1>
+      <p>Manage customers and delivery addresses in the active workspace.</p>
+    </div>
+    <nexa-button variant="secondary" [disabled]="busy()" (click)="load()"
+      >Refresh</nexa-button
+    >
+  </header>
+  @if (error()) {
+    <p role="alert" class="error">{{ error() }}</p>
+  }
+  @if (notice()) {
+    <p role="status">{{ notice() }}</p>
+  }
+  <nexa-surface>
+    <form class="toolbar" (ngSubmit)="load()">
+      <label
+        >Search clients
+        <input
+          name="search"
+          [(ngModel)]="search"
+          placeholder="Code or business name" /></label
+      ><nexa-button type="submit" [disabled]="busy()">Search</nexa-button>
+    </form>
+    @if (page(); as results) {
+      <p>{{ results.total }} client accounts</p>
+      @if (!results.items.length) {
+        <p>No clients match this search.</p>
+      }
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Business</th>
+              <th>Segment</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (client of results.items; track client.id) {
+              <tr>
+                <td>{{ client.code }}</td>
+                <td>{{ client.businessName }}</td>
+                <td>{{ client.segment }}</td>
+                <td>{{ client.status }}</td>
+                <td>
+                  <nexa-button
+                    variant="secondary"
+                    size="compact"
+                    [disabled]="busy()"
+                    (click)="select(client.id)"
+                    >Open</nexa-button
+                  >
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="toolbar">
+        <nexa-button
+          variant="secondary"
+          [disabled]="busy() || results.page === 0"
+          (click)="load(results.page - 1)"
+          >Previous</nexa-button
+        ><span>Page {{ results.page + 1 }}</span
+        ><nexa-button
+          variant="secondary"
+          [disabled]="
+            busy() || (results.page + 1) * results.size >= results.total
+          "
+          (click)="load(results.page + 1)"
+          >Next</nexa-button
+        >
+      </div>
+    } @else if (busy()) {
+      <p role="status">Loading clients…</p>
+    }
+  </nexa-surface>
+
+  @if (canManage) {
+    <nexa-surface
+      ><details>
+        <summary>Create client account</summary>
+        <form
+          class="fields"
+          novalidate
+          #createForm="ngForm"
+          (ngSubmit)="createForm.valid && create()"
+        >
+          <label
+            >Code
+            <input
+              name="code"
+              [(ngModel)]="draft.code"
+              required
+              minlength="2"
+              maxlength="32"
+              pattern="[A-Za-z0-9-]{2,32}"
+          /></label>
+          <label
+            >Business name
+            <input
+              name="businessName"
+              [(ngModel)]="draft.businessName"
+              required
+              maxlength="160"
+          /></label>
+          <label
+            >Commercial name
+            <input
+              name="commercialName"
+              [(ngModel)]="draft.commercialName"
+              required
+              maxlength="160"
+          /></label>
+          <label
+            >Country code
+            <input
+              name="countryCode"
+              [(ngModel)]="draft.countryCode"
+              maxlength="2"
+          /></label>
+          <label
+            >Tax type
+            <input name="taxType" [(ngModel)]="draft.taxType" maxlength="32"
+          /></label>
+          <label
+            >Tax value
+            <input
+              name="taxValue"
+              [(ngModel)]="draft.taxValue"
+              required
+              pattern="[0-9]{11}"
+              maxlength="11"
+          /></label>
+          <label
+            >Segment
+            <input
+              name="segment"
+              [(ngModel)]="draft.segment"
+              required
+              maxlength="80"
+          /></label>
+          <label
+            >Contact person
+            <input
+              name="contactPerson"
+              [(ngModel)]="draft.contactPerson"
+              required
+              maxlength="120"
+          /></label>
+          <label
+            >Contact email
+            <input
+              name="contactEmail"
+              [(ngModel)]="draft.contactEmail"
+              required
+              type="email"
+              maxlength="254"
+          /></label>
+          <label
+            >Phone
+            <input
+              pattern="[+0-9 ()-]{7,32}"
+              name="phone"
+              [(ngModel)]="draft.phone"
+              required
+              maxlength="32"
+          /></label>
+          <label
+            >Delivery profile
+            <input
+              name="deliveryProfile"
+              [(ngModel)]="draft.deliveryProfile"
+              required
+              maxlength="2000"
+          /></label>
+          <label
+            >Payment condition
+            <input
+              name="paymentCondition"
+              [(ngModel)]="draft.paymentCondition"
+              required
+              maxlength="80"
+          /></label>
+          <nexa-button
+            type="submit"
+            [disabled]="busy() || createForm.valid !== true"
+            >Create client</nexa-button
+          >
+        </form>
+      </details></nexa-surface
+    >
+  }
+
+  @if (selected(); as client) {
+    <nexa-surface
+      ><h2>{{ client.businessName }}</h2>
+      <nav class="toolbar" aria-label="Client context">
+        @if (canViewOrders) {
+          <a
+            routerLink="/sales/orders"
+            [queryParams]="{ clientAccountId: client.id }"
+            >Client orders</a
+          >
+        }
+        @if (canViewRequests) {
+          <a routerLink="/sales/purchase-requests">Open Sales request inbox</a>
+        }
+      </nav>
+      <p>{{ client.code }} · {{ client.status }} · {{ client.segment }}</p>
+      <p>Tax: {{ client.taxType }} {{ client.taxValue }}</p>
+      @if (canManage) {
+        <form
+          class="fields"
+          novalidate
+          #editForm="ngForm"
+          (ngSubmit)="editForm.valid && save()"
+        >
+          <label
+            >Business name
+            <input
+              name="editBusinessName"
+              [(ngModel)]="edit.businessName"
+              required
+              maxlength="160"
+          /></label>
+          <label
+            >Commercial name
+            <input
+              name="editCommercialName"
+              [(ngModel)]="edit.commercialName"
+              required
+              maxlength="160"
+          /></label>
+          <label
+            >Contact person
+            <input
+              name="editContactPerson"
+              [(ngModel)]="edit.contactPerson"
+              required
+              maxlength="120"
+          /></label>
+          <label
+            >Contact email
+            <input
+              name="editContactEmail"
+              [(ngModel)]="edit.contactEmail"
+              required
+              type="email"
+              maxlength="254"
+          /></label>
+          <label
+            >Phone
+            <input
+              pattern="[+0-9 ()-]{7,32}"
+              name="editPhone"
+              [(ngModel)]="edit.phone"
+              required
+              maxlength="32"
+          /></label>
+          <label
+            >Delivery profile
+            <input
+              name="editDeliveryProfile"
+              [(ngModel)]="edit.deliveryProfile"
+              required
+              maxlength="2000"
+          /></label>
+          <label
+            >Payment condition
+            <input
+              name="editPaymentCondition"
+              [(ngModel)]="edit.paymentCondition"
+              required
+              maxlength="80"
+          /></label>
+          <nexa-button
+            type="submit"
+            [disabled]="busy() || editForm.valid !== true"
+            >Save client</nexa-button
+          >
+        </form>
+        <div class="toolbar">
+          @if (client.status === "ACTIVE") {
+            <nexa-button
+              variant="secondary"
+              [disabled]="busy()"
+              (click)="status('suspensions')"
+              >Suspend</nexa-button
+            >
+          } @else {
+            <nexa-button
+              variant="secondary"
+              [disabled]="busy()"
+              (click)="status('activations')"
+              >Activate</nexa-button
+            >
+          }
+        </div>
+        @if (client.buyerMembershipId) {
+          <p>Buyer linked: {{ client.buyerMembershipId }}</p>
+        } @else {
+          <div class="toolbar">
+            <nexa-button
+              variant="secondary"
+              [disabled]="busy()"
+              (click)="loadCandidates()"
+              >Find available buyers</nexa-button
+            >
+            @if (candidates().length) {
+              <label
+                >Buyer membership
+                <select [(ngModel)]="buyerMembershipId">
+                  <option value="">Select buyer</option>
+                  @for (candidate of candidates(); track candidate.id) {
+                    <option [value]="candidate.id">
+                      {{ candidate.displayName }} · {{ candidate.email }}
+                    </option>
+                  }
+                </select></label
+              ><nexa-button
+                [disabled]="busy() || !buyerMembershipId"
+                (click)="associateBuyer()"
+                >Link buyer</nexa-button
+              >
+            }
+          </div>
+        }
+      } @else {
+        <p>
+          Contact: {{ client.contactPerson }} · {{ client.contactEmail }} ·
+          {{ client.phone }}
+        </p>
+        <p>Delivery profile: {{ client.deliveryProfile }}</p>
+        <p>Payment condition: {{ client.paymentCondition }}</p>
+      }
+    </nexa-surface>
+    <nexa-surface
+      ><h2>Delivery addresses</h2>
+      @if (!addresses().length) {
+        <p>No addresses yet.</p>
+      }
+      <ul class="addresses">
+        @for (item of addresses(); track item.id) {
+          <li>
+            <strong>{{ item.label }}</strong>
+            @if (item.defaultAddress) {
+              <span>· Default</span>
+            }
+            @if (!item.active) {
+              <span>· Inactive</span>
+            }
+            <br />{{ item.line }} · {{ item.departmentCode }},
+            {{ item.provinceCode }}, {{ item.districtCode }}
+            @if (item.reference) {
+              <p>Reference: {{ item.reference }}</p>
+            }
+            @if (item.recipientName || item.recipientPhone) {
+              <p>
+                Recipient: {{ item.recipientName }} {{ item.recipientPhone }}
+              </p>
+            }
+            @if (item.receivingInstructions || item.receivingHours) {
+              <p>
+                {{ item.receivingInstructions }} · {{ item.receivingHours }}
+              </p>
+            }
+            @if (canManageAddresses && item.active) {
+              <div class="toolbar">
+                <nexa-button
+                  variant="secondary"
+                  size="compact"
+                  [disabled]="busy()"
+                  (click)="editAddress(item)"
+                  >Edit</nexa-button
+                >
+                @if (!item.defaultAddress) {
+                  <nexa-button
+                    variant="secondary"
+                    size="compact"
+                    [disabled]="busy()"
+                    (click)="changeAddress(item, 'default')"
+                    >Make default</nexa-button
+                  >
+                }
+                <nexa-button
+                  variant="danger"
+                  size="compact"
+                  [disabled]="busy()"
+                  (click)="changeAddress(item, 'deactivate')"
+                  >Deactivate</nexa-button
+                >
+              </div>
+            }
+          </li>
+        }
+      </ul>
+      @if (canManageAddresses) {
+        <form
+          class="fields"
+          novalidate
+          #addressForm="ngForm"
+          (ngSubmit)="addressForm.valid && saveAddress()"
+        >
+          <h3>{{ editingAddressId ? "Edit address" : "Add address" }}</h3>
+          <label
+            >Label
+            <input
+              name="addressLabel"
+              [(ngModel)]="addressLabel"
+              required
+              maxlength="120"
+          /></label>
+          <label
+            >Address line
+            <input
+              name="line"
+              [(ngModel)]="address.line"
+              required
+              maxlength="240"
+          /></label>
+          <label
+            >Reference
+            <input
+              name="reference"
+              [(ngModel)]="address.reference"
+              maxlength="500"
+          /></label>
+          <label
+            >Country
+            <input
+              name="addressCountry"
+              [(ngModel)]="address.countryCode"
+              maxlength="8"
+          /></label>
+          @if (geographyError()) {
+            <p role="alert">{{ geographyError() }}</p>
+          }
+          <label
+            >Department
+            <select
+              name="departmentCode"
+              [ngModel]="address.departmentCode"
+              (ngModelChange)="selectDepartment($event)"
+              [disabled]="busy() || departmentsLoading()"
+              required
+            >
+              <option value="">Select department</option>
+              @for (department of departments(); track department.code) {
+                <option [value]="department.code">
+                  {{ department.label }}
+                </option>
+              }
+              @if (
+                address.departmentCode &&
+                !hasGeographyOption(departments(), address.departmentCode)
+              ) {
+                <option [value]="address.departmentCode">
+                  Saved department ({{ address.departmentCode }})
+                </option>
+              }
+            </select></label
+          >
+          <label
+            >Province
+            <select
+              name="provinceCode"
+              [ngModel]="address.provinceCode"
+              (ngModelChange)="selectProvince($event)"
+              [disabled]="
+                busy() || !address.departmentCode || provincesLoading()
+              "
+              required
+            >
+              <option value="">Select province</option>
+              @for (province of provinces(); track province.code) {
+                <option [value]="province.code">{{ province.label }}</option>
+              }
+              @if (
+                address.provinceCode &&
+                !hasGeographyOption(provinces(), address.provinceCode)
+              ) {
+                <option [value]="address.provinceCode">
+                  Saved province ({{ address.provinceCode }})
+                </option>
+              }
+            </select></label
+          >
+          <label
+            >District
+            <select
+              name="districtCode"
+              [(ngModel)]="address.districtCode"
+              [disabled]="busy() || !address.provinceCode || districtsLoading()"
+              required
+            >
+              <option value="">Select district</option>
+              @for (district of districts(); track district.code) {
+                <option [value]="district.code">{{ district.label }}</option>
+              }
+              @if (
+                address.districtCode &&
+                !hasGeographyOption(districts(), address.districtCode)
+              ) {
+                <option [value]="address.districtCode">
+                  Saved district ({{ address.districtCode }})
+                </option>
+              }
+            </select></label
+          >
+          <fieldset>
+            <legend>Optional coordinates</legend>
+            <label
+              >Latitude
+              <input
+                type="number"
+                name="latitude"
+                [(ngModel)]="address.latitude"
+                min="-90"
+                max="90"
+                step="any"
+              />
+            </label>
+            <label
+              >Longitude
+              <input
+                type="number"
+                name="longitude"
+                [(ngModel)]="address.longitude"
+                min="-180"
+                max="180"
+                step="any"
+              />
+            </label>
+          </fieldset>
+          @if (!coordinatesValid()) {
+            <p role="alert">
+              Enter both coordinates. Latitude must be between -90 and 90;
+              longitude between -180 and 180.
+            </p>
+          }
+          <label
+            >Recipient
+            <input
+              name="recipientName"
+              [(ngModel)]="address.recipientName"
+              maxlength="160"
+          /></label>
+          <label
+            >Recipient phone
+            <input
+              name="recipientPhone"
+              [(ngModel)]="address.recipientPhone"
+              maxlength="48"
+          /></label>
+          <label
+            >Receiving instructions
+            <input
+              name="receivingInstructions"
+              [(ngModel)]="address.receivingInstructions"
+              maxlength="1000"
+          /></label>
+          <label
+            >Receiving hours
+            <input
+              name="receivingHours"
+              [(ngModel)]="address.receivingHours"
+              maxlength="240"
+          /></label>
+          @if (!editingAddressId) {
+            <label
+              ><input
+                type="checkbox"
+                name="addressDefault"
+                [(ngModel)]="addressDefault"
+              />
+              Default address</label
+            >
+          }
+          <div class="toolbar">
+            <nexa-button
+              type="submit"
+              [disabled]="
+                busy() ||
+                addressForm.valid !== true ||
+                !coordinatesValid() ||
+                departmentsLoading() ||
+                provincesLoading() ||
+                districtsLoading()
+              "
+              >Save address</nexa-button
+            >
+            @if (editingAddressId) {
+              <nexa-button
+                variant="secondary"
+                [disabled]="busy()"
+                (click)="resetAddress()"
+                >Cancel edit</nexa-button
+              >
+            }
+          </div>
+        </form>
+      }
+    </nexa-surface>
+  }
+</section>

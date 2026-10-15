@@ -1,0 +1,200 @@
+<section
+  class="platform-clients"
+  [attr.aria-busy]="busy()"
+  aria-labelledby="catalog-title"
+>
+  <header class="platform-clients__header">
+    <div>
+      <p>CATALOG &amp; COMMERCIAL POLICY</p>
+      <h1 id="catalog-title">Catalog</h1>
+      <p>Product, category and brand information from the active workspace.</p>
+    </div>
+    <nexa-button variant="secondary" [disabled]="busy()" (click)="load()"
+      >Refresh</nexa-button
+    >
+  </header>
+  @if (error()) {
+    <p role="alert" class="error">{{ error() }}</p>
+  }
+  <nexa-surface>
+    <form class="toolbar" (ngSubmit)="load()">
+      <label
+        >Browse
+        <select
+          name="kind"
+          [(ngModel)]="kind"
+          [disabled]="busy()"
+          (ngModelChange)="changeKind()"
+        >
+          <option value="products">Products</option>
+          <option value="categories">Categories</option>
+          <option value="brands">Brands</option>
+        </select></label
+      >
+      <label
+        >Search
+        <input name="search" [(ngModel)]="search" placeholder="Name or code"
+      /></label>
+      @if (kind === "products") {
+        <label
+          >Status
+          <select name="status" [(ngModel)]="status">
+            <option value="">All statuses</option>
+            <option value="DRAFT">Draft</option>
+            <option value="ACTIVE">Active</option>
+            <option value="INACTIVE">Inactive</option>
+            <option value="DISCONTINUED">Discontinued</option>
+            <option value="ARCHIVED">Archived</option>
+          </select></label
+        >
+      }
+      <nexa-button type="submit" [disabled]="busy()">Search</nexa-button>
+    </form>
+    @if (busy()) {
+      <p role="status">Loading catalog…</p>
+    }
+    @if (page(); as results) {
+      <p>{{ results.total }} products</p>
+      @if (!results.items.length) {
+        <p>No products match this search.</p>
+      }
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Product</th>
+              <th>Category / brand</th>
+              <th>Cold chain</th>
+              <th>Current price</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (product of results.items; track product.id) {
+              <tr>
+                <td>{{ product.productCode }}</td>
+                <td>
+                  {{ product.name }}<br />{{ product.presentation }} ·
+                  {{ product.unitOfMeasure }}
+                </td>
+                <td>
+                  {{ product.categoryName || "—" }}<br />{{
+                    product.brandName || "—"
+                  }}
+                </td>
+                <td>{{ product.storageTemperature || "—" }}</td>
+                <td>
+                  @if (product.currentPrice; as price) {
+                    {{ price.currency }} {{ price.amount | number: "1.2-2" }}
+                  } @else {
+                    Not configured
+                  }
+                </td>
+                <td>
+                  {{ product.status }}<br />{{
+                    product.buyerVisible
+                      ? "Buyer visible"
+                      : "Hidden from buyers"
+                  }}
+                </td>
+                <td>
+                  <nexa-button
+                    variant="secondary"
+                    size="compact"
+                    [disabled]="busy()"
+                    (click)="open(product.id)"
+                    >Details</nexa-button
+                  >
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="toolbar">
+        <nexa-button
+          variant="secondary"
+          [disabled]="busy() || results.page === 0"
+          (click)="load(results.page - 1)"
+          >Previous</nexa-button
+        ><span>Page {{ results.page + 1 }}</span
+        ><nexa-button
+          variant="secondary"
+          [disabled]="
+            busy() || (results.page + 1) * results.size >= results.total
+          "
+          (click)="load(results.page + 1)"
+          >Next</nexa-button
+        >
+      </div>
+    }
+    @if (taxonomy(); as results) {
+      <p>{{ results.total }} {{ kind }}</p>
+      @if (!results.items.length) {
+        <p>No entries match this search.</p>
+      }
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of results.items; track item.id) {
+              <tr>
+                <td>{{ item.name }}</td>
+                <td>{{ item.description || "—" }}</td>
+                <td>{{ item.status }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="toolbar">
+        <nexa-button
+          variant="secondary"
+          [disabled]="busy() || results.page === 0"
+          (click)="load(results.page - 1)"
+          >Previous</nexa-button
+        ><span>Page {{ results.page + 1 }}</span
+        ><nexa-button
+          variant="secondary"
+          [disabled]="
+            busy() || (results.page + 1) * results.size >= results.total
+          "
+          (click)="load(results.page + 1)"
+          >Next</nexa-button
+        >
+      </div>
+    }
+  </nexa-surface>
+  @if (selected(); as product) {
+    <nexa-surface
+      ><h2>{{ product.name }}</h2>
+      <p>{{ product.productCode }} · {{ product.status }}</p>
+      <p>{{ product.description || "No description provided." }}</p>
+      <dl>
+        <dt>Category</dt>
+        <dd>{{ product.categoryName || "—" }}</dd>
+        <dt>Brand</dt>
+        <dd>{{ product.brandName || "—" }}</dd>
+        <dt>Presentation / unit</dt>
+        <dd>
+          {{ product.presentation || "—" }} / {{ product.unitOfMeasure || "—" }}
+        </dd>
+        <dt>Cold chain</dt>
+        <dd>{{ product.storageTemperature || "—" }}</dd>
+        <dt>Buyer visibility</dt>
+        <dd>{{ product.buyerVisible ? "Visible" : "Hidden" }}</dd>
+      </dl>
+      <nexa-button variant="quiet" (click)="selected.set(null)"
+        >Close details</nexa-button
+      ></nexa-surface
+    >
+  }
+</section>

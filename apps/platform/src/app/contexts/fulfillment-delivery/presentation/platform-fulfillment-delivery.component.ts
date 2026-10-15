@@ -40,6 +40,13 @@ export class PlatformFulfillmentDeliveryComponent implements OnInit {
     this.workbench.refresh();
   }
 
+  protected changeCandidatePage(offset: number): void {
+    if (!this.workbench.canChangeCandidatePage()) return;
+    this.warehouseStore.clear();
+    this.dispatchStore.clear();
+    this.workbench.changeCandidatePage(offset);
+  }
+
   protected inspectWork(item: FulfillmentWorkItemResponse): void {
     const lease = this.workbench.state().lease;
     if (!lease) {

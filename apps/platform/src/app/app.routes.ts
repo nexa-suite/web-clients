@@ -17,6 +17,12 @@ import { PLATFORM_BUSINESS_DOCUMENT_ROUTES } from "./contexts/business-documents
 import { PLATFORM_CREDIT_CONFIGURATION_ROUTES } from "./contexts/credit-receivables/application/public-api";
 import { PLATFORM_WALLET_REFUND_ROUTES } from "./contexts/payments/application/public-api";
 
+import { PLATFORM_CLIENT_ROUTES } from "./contexts/customer-buyer-relationships/application/public-api";
+import {
+  PLATFORM_CATALOG_MANAGEMENT_ROUTES,
+  PLATFORM_CATALOG_ROUTES,
+} from "./contexts/catalog-commercial-policy/application/public-api";
+
 export const routes: Routes = [
   ...PLATFORM_ACCESS_ROUTES,
   ...PLATFORM_ORGANIZATION_REGISTRATION_ROUTES,
@@ -43,6 +49,9 @@ export const routes: Routes = [
           ),
         title: "Operations overview | Nexa Platform",
       },
+      ...PLATFORM_CLIENT_ROUTES,
+      ...PLATFORM_CATALOG_MANAGEMENT_ROUTES,
+      ...PLATFORM_CATALOG_ROUTES,
       ...PLATFORM_SALES_COMMITMENT_ROUTES,
       ...PLATFORM_FULFILLMENT_ROUTES,
       ...PLATFORM_BUSINESS_DOCUMENT_ROUTES,

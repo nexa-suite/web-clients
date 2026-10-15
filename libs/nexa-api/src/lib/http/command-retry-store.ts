@@ -3,16 +3,23 @@ import { Injectable, inject } from "@angular/core";
 
 const BUYER_SUBMIT_PREFIX = "nexa:buyer:purchase-request-submit:";
 const PLATFORM_REVIEW_PREFIX = "nexa:platform:purchase-request-command:";
+const PLATFORM_MATERIAL_CHANGE_PREFIX =
+  "nexa:platform:purchase-request-material-change:";
 const PLATFORM_FULFILLMENT_PREFIX = "nexa.platform.fulfillment-start:";
 const PLATFORM_ORDER_SUMMARY_PREFIX = "nexa:platform:order-summary-generation:";
-const PLATFORM_FULFILLMENT_COMMAND_PREFIX = "nexa:platform:fulfillment-command:";
+const PLATFORM_FULFILLMENT_COMMAND_PREFIX =
+  "nexa:platform:fulfillment-command:";
 const BUYER_BANK_TRANSFER_PREFIX = "nexa:buyer:bank-transfer:";
 const PLATFORM_MEMBER_INVITATION_PREFIX = "nexa:platform:member-invitation:";
-const PLATFORM_CREDIT_CONFIGURATION_PREFIX = "nexa:platform:credit-configuration:";
+const PLATFORM_CREDIT_CONFIGURATION_PREFIX =
+  "nexa:platform:credit-configuration:";
+const PLATFORM_CATALOG_COMMAND_PREFIX = "nexa:platform:catalog-command:";
 const PLATFORM_WALLET_REFUND_PREFIX = "nexa:platform:wallet-refund:";
 const BUYER_WALLET_RECHARGE_PREFIX = "nexa:buyer:wallet-recharge:";
-const BUYER_WALLET_RECHARGE_PENDING_PREFIX = "nexa:buyer:wallet-recharge-pending:";
-const BUYER_WALLET_RECHARGE_STATUS_PREFIX = "nexa:buyer:wallet-recharge-status:";
+const BUYER_WALLET_RECHARGE_PENDING_PREFIX =
+  "nexa:buyer:wallet-recharge-pending:";
+const BUYER_WALLET_RECHARGE_STATUS_PREFIX =
+  "nexa:buyer:wallet-recharge-status:";
 const MAX_STORAGE_KEY_LENGTH = 2_048;
 const MAX_STORAGE_VALUE_LENGTH = 65_536;
 
@@ -115,12 +122,14 @@ function allowedPrefixFor(key: string): string | null {
   const prefix = [
     BUYER_SUBMIT_PREFIX,
     PLATFORM_REVIEW_PREFIX,
+    PLATFORM_MATERIAL_CHANGE_PREFIX,
     PLATFORM_FULFILLMENT_PREFIX,
     PLATFORM_ORDER_SUMMARY_PREFIX,
     PLATFORM_FULFILLMENT_COMMAND_PREFIX,
     BUYER_BANK_TRANSFER_PREFIX,
     PLATFORM_MEMBER_INVITATION_PREFIX,
     PLATFORM_CREDIT_CONFIGURATION_PREFIX,
+    PLATFORM_CATALOG_COMMAND_PREFIX,
     PLATFORM_WALLET_REFUND_PREFIX,
     BUYER_WALLET_RECHARGE_PREFIX,
     BUYER_WALLET_RECHARGE_PENDING_PREFIX,
@@ -131,12 +140,14 @@ function allowedPrefixFor(key: string): string | null {
   const expectedSegments = new Map([
     [BUYER_SUBMIT_PREFIX, 4],
     [PLATFORM_REVIEW_PREFIX, 4],
+    [PLATFORM_MATERIAL_CHANGE_PREFIX, 4],
     [PLATFORM_FULFILLMENT_PREFIX, 6],
     [PLATFORM_ORDER_SUMMARY_PREFIX, 5],
     [PLATFORM_FULFILLMENT_COMMAND_PREFIX, 7],
     [BUYER_BANK_TRANSFER_PREFIX, 6],
     [PLATFORM_MEMBER_INVITATION_PREFIX, 5],
     [PLATFORM_CREDIT_CONFIGURATION_PREFIX, 7],
+    [PLATFORM_CATALOG_COMMAND_PREFIX, 7],
     [PLATFORM_WALLET_REFUND_PREFIX, 6],
     [BUYER_WALLET_RECHARGE_PREFIX, 5],
     [BUYER_WALLET_RECHARGE_PENDING_PREFIX, 4],
@@ -145,9 +156,18 @@ function allowedPrefixFor(key: string): string | null {
   const segments = key.slice(prefix.length).split(":");
   if (segments.length !== expectedSegments) return null;
   if (
-    (prefix === PLATFORM_FULFILLMENT_COMMAND_PREFIX || prefix === BUYER_BANK_TRANSFER_PREFIX || prefix === PLATFORM_MEMBER_INVITATION_PREFIX || prefix === PLATFORM_CREDIT_CONFIGURATION_PREFIX || prefix === PLATFORM_WALLET_REFUND_PREFIX || prefix === BUYER_WALLET_RECHARGE_PREFIX) &&
+    (prefix === PLATFORM_FULFILLMENT_COMMAND_PREFIX ||
+      prefix === BUYER_BANK_TRANSFER_PREFIX ||
+      prefix === PLATFORM_MEMBER_INVITATION_PREFIX ||
+      prefix === PLATFORM_CREDIT_CONFIGURATION_PREFIX ||
+      prefix === PLATFORM_CATALOG_COMMAND_PREFIX ||
+      prefix === PLATFORM_WALLET_REFUND_PREFIX ||
+      prefix === BUYER_WALLET_RECHARGE_PREFIX ||
+      prefix === PLATFORM_MATERIAL_CHANGE_PREFIX) &&
     !/^[a-f0-9]{64}$/.test(segments.at(-1) ?? "")
-  ) return null;
+  ) {
+    return null;
+  }
   for (const segment of segments) {
     if (!segment) return null;
     try {
@@ -186,11 +206,12 @@ function isAllowedValue(key: string, value: string): boolean {
     key.startsWith(PLATFORM_ORDER_SUMMARY_PREFIX) ||
     key.startsWith(PLATFORM_FULFILLMENT_COMMAND_PREFIX) ||
     key.startsWith(BUYER_BANK_TRANSFER_PREFIX) ||
-    key.startsWith(PLATFORM_MEMBER_INVITATION_PREFIX)
-    || key.startsWith(PLATFORM_CREDIT_CONFIGURATION_PREFIX)
-    || key.startsWith(PLATFORM_WALLET_REFUND_PREFIX)
-    || key.startsWith(BUYER_WALLET_RECHARGE_PREFIX)
-    || key.startsWith(BUYER_WALLET_RECHARGE_STATUS_PREFIX)
+    key.startsWith(PLATFORM_MEMBER_INVITATION_PREFIX) ||
+    key.startsWith(PLATFORM_CREDIT_CONFIGURATION_PREFIX) ||
+    key.startsWith(PLATFORM_CATALOG_COMMAND_PREFIX) ||
+    key.startsWith(PLATFORM_WALLET_REFUND_PREFIX) ||
+    key.startsWith(BUYER_WALLET_RECHARGE_PREFIX) ||
+    key.startsWith(BUYER_WALLET_RECHARGE_STATUS_PREFIX)
   ) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       value,
@@ -199,7 +220,45 @@ function isAllowedValue(key: string, value: string): boolean {
   if (key.startsWith(PLATFORM_REVIEW_PREFIX)) {
     return isPendingReviewCommand(value);
   }
+  if (key.startsWith(PLATFORM_MATERIAL_CHANGE_PREFIX)) {
+    return isPendingMaterialChangeCommand(value);
+  }
   return false;
+}
+
+interface PendingMaterialChangeCommand {
+  readonly etag: string;
+  readonly idempotencyKey: string;
+  readonly requestVersion: number;
+  readonly fingerprint: string;
+}
+
+function isPendingMaterialChangeCommand(value: string): boolean {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return false;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    return false;
+  const command = parsed as Partial<PendingMaterialChangeCommand>;
+  const keys = Object.keys(parsed).sort();
+  if (
+    keys.join(",") !== "etag,fingerprint,idempotencyKey,requestVersion" ||
+    typeof command.etag !== "string" ||
+    !/^(?:W\/)?"[^"\r\n]*"$/.test(command.etag) ||
+    typeof command.idempotencyKey !== "string" ||
+    !/^sales-pr-material-change-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      command.idempotencyKey,
+    ) ||
+    !Number.isSafeInteger(command.requestVersion) ||
+    (command.requestVersion as number) < 0 ||
+    typeof command.fingerprint !== "string" ||
+    !/^[a-f0-9]{64}$/.test(command.fingerprint)
+  )
+    return false;
+  return JSON.stringify(parsed) === value;
 }
 
 function isPendingWalletRecharge(value: string): boolean {
@@ -209,18 +268,26 @@ function isPendingWalletRecharge(value: string): boolean {
   } catch {
     return false;
   }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    return false;
   const command = parsed as {
     readonly amount?: unknown;
     readonly fingerprint?: unknown;
     readonly idempotencyKey?: unknown;
   };
-  return Object.keys(parsed).join(",") === "amount,fingerprint,idempotencyKey" &&
-    typeof command.amount === "number" && Number.isFinite(command.amount) && command.amount > 0 &&
-    typeof command.fingerprint === "string" && /^[a-f0-9]{64}$/.test(command.fingerprint) &&
+  return (
+    Object.keys(parsed).join(",") === "amount,fingerprint,idempotencyKey" &&
+    typeof command.amount === "number" &&
+    Number.isFinite(command.amount) &&
+    command.amount > 0 &&
+    typeof command.fingerprint === "string" &&
+    /^[a-f0-9]{64}$/.test(command.fingerprint) &&
     typeof command.idempotencyKey === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(command.idempotencyKey) &&
-    JSON.stringify(parsed) === value;
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      command.idempotencyKey,
+    ) &&
+    JSON.stringify(parsed) === value
+  );
 }
 
 function isPendingReviewCommand(value: string): boolean {

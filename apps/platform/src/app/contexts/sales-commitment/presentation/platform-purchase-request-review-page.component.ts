@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from "@angular/core";
+import { canAccessPlatformFeature, PLATFORM_ACCESS_RULES } from "../../../core/platform-access-policy";
 import { NgTemplateOutlet } from "@angular/common";
 import { ActivatedRoute, RouterLink } from "@angular/router";
 import { NexaButton, NexaSurface } from "nexa-ui";
@@ -24,6 +25,14 @@ export class PlatformPurchaseRequestReviewPageComponent implements OnInit {
     return current.lease && this.sessions.isSessionLeaseCurrent(current.lease) ? current.value : "";
   });
 
+  protected readonly canViewOrders = computed(() => {
+    const state = this.sessions.state();
+    return state.status === "authenticated" && canAccessPlatformFeature(state.session, PLATFORM_ACCESS_RULES.salesOrders);
+  });
+  protected readonly canViewClient = computed(() => {
+    const state = this.sessions.state();
+    return state.status === "authenticated" && canAccessPlatformFeature(state.session, PLATFORM_ACCESS_RULES.clients);
+  });
   constructor() {
     effect(() => {
       const current = this.reviewNoteSnapshot();

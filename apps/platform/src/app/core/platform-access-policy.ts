@@ -8,6 +8,18 @@ export interface PlatformAccessRule {
 }
 
 export const PLATFORM_ACCESS_RULES = {
+  clients: { capabilities: [["client.read"]] },
+  catalog: { capabilities: [["catalog.read"]] },
+  catalogManagement: {
+    capabilities: [
+      ["catalog.read"],
+      [
+        "catalog.taxonomy.manage",
+        "catalog.product.manage",
+        "catalog.price.manage",
+      ],
+    ],
+  },
   workforceAccess: { capabilities: [["tenant.member.read"]] },
   rolesAndPermissions: { capabilities: [["tenant.role.read"]] },
   supportConsent: { capabilities: [], roles: ["COMPANY_OWNER"] },
@@ -18,7 +30,11 @@ export const PLATFORM_ACCESS_RULES = {
   operationsOverview: {
     capabilities: [["logistics.read", "dispatch.read", "logistics.analytics.read", "logistics:read"]],
   },
+  salesOrders: { capabilities: [["sales.order.read"]] },
   purchaseRequests: { capabilities: [["sales.purchase_request.read"]] },
+  purchaseRequestMaterialChanges: {
+    capabilities: [["sales.purchase_request.review"], ["sales.purchase_request.read"]],
+  },
   fulfillment: {
     capabilities: [["fulfillment.read", "fulfillment:read", "logistics.read", "dispatch.read", "logistics.analytics.read", "logistics:read"]],
   },

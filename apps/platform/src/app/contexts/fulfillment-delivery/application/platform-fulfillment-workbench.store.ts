@@ -103,6 +103,8 @@ export class PlatformFulfillmentWorkbenchStore {
   private boardRequestVersion = 0;
   private orderRequestVersion = 0;
   private startRequestVersion = 0;
+  private candidateRequestVersion = 0;
+  private candidatePage = 0;
   private readonly snapshot = signal<FulfillmentWorkbenchState>(idleState(null));
 
   readonly state = computed<FulfillmentWorkbenchState>(() => {
@@ -136,16 +138,7 @@ export class PlatformFulfillmentWorkbenchStore {
       session.status === "authenticated"
         ? session.session.membership?.permissions
         : undefined;
-    return (
-      permissions?.some((permission) =>
-        [
-          "sales.dashboard.read",
-          "sales.purchase_request.read",
-          "sales.order.read",
-          "client.read",
-        ].includes(permission),
-      ) ?? false
-    );
+    return permissions?.includes("sales.order.read") === true;
   });
 
   readonly canStartFulfillment = computed(() => {
@@ -167,6 +160,7 @@ export class PlatformFulfillmentWorkbenchStore {
   });
 
   refresh(): void {
+    this.candidatePage = 0;
     this.orderRequestVersion += 1;
     const lease = this.sessions.captureSessionLease();
     const version = ++this.boardRequestVersion;
@@ -370,20 +364,73 @@ export class PlatformFulfillmentWorkbenchStore {
     this.loadBoards(lease, version);
   }
 
-  private loadBoards(lease: PlatformSessionLease, version: number): void {
+  readonly canChangeCandidatePage = computed(() => {
+    const page = this.state();
+    return (
+      page.lease !== null &&
+      page.candidates.status === "ready" &&
+      page.start.status !== "preparing" &&
+      page.start.status !== "submitting" &&
+      (page.start.status !== "error" || !page.start.retryable)
+    );
+  });
+
+  changeCandidatePage(offset: number): void {
+    const page = this.state();
+    if (
+      !this.canChangeCandidatePage() ||
+      !page.lease ||
+      page.candidates.status !== "ready"
+    )
+      return;
+    const next = page.candidates.value.page + offset;
+    if (
+      !Number.isSafeInteger(next) ||
+      next < 0 ||
+      next * page.candidates.value.size >= page.candidates.value.total
+    )
+      return;
+    this.candidatePage = next;
+    this.orderRequestVersion += 1;
+    this.snapshot.update((current) => ({
+      ...current,
+      candidates: { status: "loading" },
+      order: { status: "idle" },
+      start: { status: "idle" },
+    }));
+    this.loadCandidates(page.lease, this.boardRequestVersion);
+  }
+
+  private loadCandidates(lease: PlatformSessionLease, version: number): void {
+    const requestVersion = ++this.candidateRequestVersion;
     this.reads
-      .listOrderFulfillmentCandidates()
+      .listOrderFulfillmentCandidates(this.candidatePage, 25)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (value) => {
-          if (!this.isBoardRequestCurrent(version, lease)) return;
+          if (
+            requestVersion !== this.candidateRequestVersion ||
+            !this.isBoardRequestCurrent(version, lease)
+          )
+            return;
+          const lastPage = Math.max(0, Math.ceil(value.total / value.size) - 1);
+          if (value.page > lastPage) {
+            this.candidatePage = lastPage;
+            this.loadCandidates(lease, version);
+            return;
+          }
+          this.candidatePage = value.page;
           this.snapshot.update((current) => ({
             ...current,
             candidates: { status: "ready", value },
           }));
         },
         error: (error: unknown) => {
-          if (!this.isBoardRequestCurrent(version, lease)) return;
+          if (
+            requestVersion !== this.candidateRequestVersion ||
+            !this.isBoardRequestCurrent(version, lease)
+          )
+            return;
           this.handleSessionError(error, lease);
           this.snapshot.update((current) => ({
             ...current,
@@ -391,6 +438,10 @@ export class PlatformFulfillmentWorkbenchStore {
           }));
         },
       });
+  }
+
+  private loadBoards(lease: PlatformSessionLease, version: number): void {
+    this.loadCandidates(lease, version);
     this.reads
       .listFulfillmentWork()
       .pipe(takeUntilDestroyed(this.destroyRef))

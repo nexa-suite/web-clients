@@ -17,7 +17,7 @@
 <ng-template #requestDetails let-request>
   <header class="platform-sales-page__heading"><div><p class="platform-sales-page__eyebrow">PURCHASE REQUEST REVIEW</p><h1 id="purchase-request-review-title">{{ request.code || request.id }}</h1><p>Current state: <strong>{{ request.status.replaceAll('_', ' ') }}</strong></p></div><nexa-button variant="secondary" size="compact" (click)="refresh()">Refresh</nexa-button></header>
   <nexa-surface tone="default">
-    <dl class="platform-sales-page__facts"><div><dt>Buyer account</dt><dd>{{ request.clientAccountId }}</dd></div><div><dt>Requested delivery</dt><dd>{{ request.requestedDeliveryDate }}</dd></div><div><dt>Payment preference</dt><dd>{{ request.paymentOption || 'Not provided' }}</dd></div><div><dt>Buyer note</dt><dd>{{ request.comment || 'No note' }}</dd></div><div><dt>Previous Sales note</dt><dd>{{ request.reviewNote || 'No review note' }}</dd></div><div><dt>Version</dt><dd>{{ request.version }}</dd></div></dl>
+    <dl class="platform-sales-page__facts"><div><dt>Buyer account</dt><dd>@if (canViewClient()) { <a routerLink="/clients" [queryParams]="{ clientId: request.clientAccountId }">View client</a> } @else { {{ request.clientAccountId }} }</dd></div><div><dt>Requested delivery</dt><dd>{{ request.requestedDeliveryDate }}</dd></div><div><dt>Payment preference</dt><dd>{{ request.paymentOption || 'Not provided' }}</dd></div><div><dt>Buyer note</dt><dd>{{ request.comment || 'No note' }}</dd></div><div><dt>Previous Sales note</dt><dd>{{ request.reviewNote || 'No review note' }}</dd></div><div><dt>Version</dt><dd>{{ request.version }}</dd></div></dl>
   </nexa-surface>
   <nexa-surface tone="default">
     <h2>Requested items</h2>
@@ -26,7 +26,7 @@
     </tbody></table></div>
   </nexa-surface>
   @if (state().order; as order) {
-    <nexa-surface tone="inset"><h2>Sales order created</h2><p><strong>{{ order.number || order.id }}</strong> · {{ order.status.replaceAll('_', ' ') }}</p><p>A Sales Order has been created from this request.</p></nexa-surface>
+    <nexa-surface tone="inset"><h2>Sales order created</h2><p><strong>{{ order.number || order.id }}</strong> · {{ order.status.replaceAll('_', ' ') }}</p><p>A Sales Order has been created from this request.</p>@if (canViewOrders()) { <a [routerLink]="['/sales/orders', order.id]">View Sales Order</a> }</nexa-surface>
   }
   @if (state().status === 'rejected') { <nexa-surface tone="inset"><h2>Request rejected</h2><p>{{ request.reviewNote || 'The request is now rejected.' }}</p></nexa-surface> }
   @if ((state().pendingAction !== null || canReview(request.status)) && store.canDecidePurchaseRequest()) {
@@ -34,6 +34,7 @@
       @if (canConvert(request.status)) { <p>Converting creates a Sales Order after the request is checked.</p> }
       @else if (request.status === 'CHANGES_PROPOSED') { <p>A Buyer must accept proposed changes before Sales can convert this request.</p> }
       <div class="platform-sales-page__actions">
+      @if (request.status === 'SUBMITTED' && store.canDecidePurchaseRequest()) { <a [routerLink]="['/sales/purchase-requests', request.id, 'changes']">Propose material changes</a> }
       @if (state().pendingAction === 'convert' || (state().pendingAction === null && canConvert(request.status))) { <nexa-button (click)="convert()" [disabled]="state().status === 'saving'">@if (state().pendingAction === 'convert') { Retry conversion } @else { Convert to order }</nexa-button> }
       @if (state().pendingAction === 'reject' || (state().pendingAction === null && canReview(request.status))) {
         <label class="platform-sales-page__review-note">Sales review note <textarea [value]="state().pendingAction === 'reject' ? state().pendingNote : reviewNote()" (input)="setReviewNote($any($event.target).value)" [disabled]="state().status === 'saving' || state().pendingAction === 'reject'" maxlength="2000" rows="3"></textarea></label>

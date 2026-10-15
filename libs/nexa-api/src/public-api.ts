@@ -47,6 +47,40 @@ export type {
   ProblemDetail,
 } from "./lib/http/problem-details";
 export { NexaBuyerRelationshipsApi } from "./lib/contexts/customer-buyer-relationships/infrastructure/buyer-relationships-api";
+export { NexaPlatformClientAccountsApi } from "./lib/contexts/customer-buyer-relationships/infrastructure/platform-client-accounts-api";
+export type {
+  ClientAccountSummary,
+  ClientAccountDetail,
+  ClientAccountPage,
+  CreateClientAccount,
+  UpdateClientAccount,
+  ClientAddress,
+  DeliveryAddressInput,
+  BuyerMembershipCandidate,
+} from "./lib/contexts/customer-buyer-relationships/infrastructure/platform-client-accounts-api";
+export { NexaPlatformCatalogApi } from "./lib/contexts/catalog-commercial-policy/infrastructure/platform-catalog-api";
+export type {
+  PlatformCatalogProduct,
+  PlatformCatalogPage,
+  PlatformCatalogTaxonomy,
+  PlatformCatalogTaxonomyPage,
+} from "./lib/contexts/catalog-commercial-policy/infrastructure/platform-catalog-api";
+export { NexaPlatformCatalogManagementApi } from "./lib/contexts/catalog-commercial-policy/infrastructure/catalog-management-api";
+export type {
+  CatalogCommandPage,
+  ManagedCategory,
+  ManagedBrand,
+  CreateCategoryRequest,
+  CreateBrandRequest,
+  ProductFamilySummary,
+  CreateProductFamilyRequest,
+  ProductVariantSummary,
+  CreateProductVariantRequest,
+  SellableSkuSummary,
+  CreateSellableSkuRequest,
+  SkuPrice,
+  CreateSkuPriceRequest,
+} from "./lib/contexts/catalog-commercial-policy/contracts/catalog-management.contracts";
 export type {
   CurrentBuyerAccountResponse,
   BuyerAddressResponse,
@@ -104,6 +138,7 @@ export * from "./lib/contexts/sales-commitment/public-api";
 export * from "./lib/contexts/tenant-access-governance/public-api";
 
 export * from "./lib/queries/fulfillment-readiness/public-api";
+export * from "./lib/queries/reference-data/public-api";
 export * from "./lib/contexts/fulfillment-delivery/public-api";
 export { NexaCommandRetryStore } from "./lib/http/command-retry-store";
 export { NexaBuyerDeliveriesApi } from "./lib/contexts/fulfillment-delivery/infrastructure/buyer-deliveries-api";
