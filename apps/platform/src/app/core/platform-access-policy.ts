@@ -10,6 +10,15 @@ export interface PlatformAccessRule {
 export const PLATFORM_ACCESS_RULES = {
   clients: { capabilities: [["client.read"]] },
   catalog: { capabilities: [["catalog.read"]] },
+  inventory: {
+    capabilities: [["inventory.read", "warehouse.read", "warehouse:read"]],
+  },
+  inventoryReceive: {
+    capabilities: [["inventory.receive", "warehouse.write", "warehouse:write"]],
+  },
+  inventoryCatalog: {
+    capabilities: [["catalog.read", "catalog:read"]],
+  },
   catalogManagement: {
     capabilities: [
       ["catalog.read"],

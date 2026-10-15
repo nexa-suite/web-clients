@@ -1,0 +1,338 @@
+<main class="inventory-page">
+  <header class="inventory-page__header">
+    <div>
+      <p class="inventory-page__eyebrow">Warehouse</p>
+      <h1>Inventory and receiving</h1>
+      <p>Review scoped stock lots and record a receipt against an active SKU.</p>
+    </div>
+    <nexa-button appearance="secondary" [disabled]="store.lotsLoading()" (click)="store.refreshLots()">
+      Refresh lots
+    </nexa-button>
+  </header>
+
+  @if (!store.canRead()) {
+    <nexa-surface class="inventory-panel">
+      <p role="alert">Inventory is unavailable for the active membership or scope.</p>
+    </nexa-surface>
+  } @else {
+    <nexa-surface class="inventory-panel" aria-labelledby="inventory-filters-title">
+      <div class="inventory-panel__heading">
+        <div>
+          <p class="inventory-page__eyebrow">Scoped stock</p>
+          <h2 id="inventory-filters-title">Lots by warehouse</h2>
+        </div>
+      </div>
+
+      <div class="inventory-filters">
+        <label>
+          Warehouse
+          <select
+            [ngModel]="store.filters().warehouseId"
+            (ngModelChange)="store.setWarehouse($event)"
+            [disabled]="store.warehousesLoading() || store.receiptLocked()"
+          >
+            <option value="">All authorized warehouses</option>
+            @for (warehouse of store.warehouses(); track warehouse.id) {
+              <option [value]="warehouse.id">
+                {{ warehouse.code }} · {{ warehouse.name }} ({{ warehouse.status }})
+              </option>
+            }
+          </select>
+        </label>
+        <label>
+          Zone
+          <select
+            [ngModel]="store.filters().zoneId"
+            (ngModelChange)="store.setZone($event)"
+            [disabled]="!store.filters().warehouseId || store.zonesLoading() || store.receiptLocked()"
+          >
+            <option value="">All zones</option>
+            @for (zone of store.zones(); track zone.id) {
+              <option [value]="zone.id">{{ zone.code }} · {{ zone.name }} ({{ zone.status }})</option>
+            }
+          </select>
+        </label>
+        <label>
+          Lot status
+          <select
+            [ngModel]="store.filters().status"
+            (ngModelChange)="store.setStatus($event)"
+            [disabled]="store.receiptLocked()"
+          >
+            <option value="">All statuses</option>
+            <option value="AVAILABLE">Available</option>
+            <option value="HOLD">Hold</option>
+            <option value="QUARANTINED">Quarantined</option>
+            <option value="BLOCKED">Blocked</option>
+            <option value="EXPIRED">Expired</option>
+            <option value="DEPLETED">Depleted</option>
+          </select>
+        </label>
+      </div>
+
+      @if (store.warehouseError()) {
+        <p class="inventory-message inventory-message--error" role="alert">{{ store.warehouseError() }}</p>
+      }
+      @if (store.zonesError()) {
+        <p class="inventory-message inventory-message--error" role="alert">{{ store.zonesError() }}</p>
+      }
+      @if (store.lotsError()) {
+        <p class="inventory-message inventory-message--error" role="alert">{{ store.lotsError() }}</p>
+      }
+
+      @if (store.canReadCatalog()) {
+        <section class="catalog-picker" aria-labelledby="catalog-picker-title">
+          <h3 id="catalog-picker-title">Filter by catalog item / SKU</h3>
+          <div class="inventory-filters inventory-filters--catalog">
+            <label>
+              Search (q)
+              <input [ngModel]="store.catalogQuery()" (ngModelChange)="store.updateCatalogSearch($event, store.selectedBrand(), store.selectedCategory())" maxlength="120" autocomplete="off" [disabled]="store.receiptLocked()" />
+            </label>
+            <label>
+              Brand
+              <select [ngModel]="store.selectedBrand()" (ngModelChange)="store.updateCatalogSearch(store.catalogQuery(), $event, store.selectedCategory())" [disabled]="store.receiptLocked() || store.filterOptionsLoading()">
+                <option value="">All brands</option>
+                @for (brand of store.brandOptions(); track brand.id) {
+                  <option [value]="brand.name">{{ brand.name }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              Category
+              <select [ngModel]="store.selectedCategory()" (ngModelChange)="store.updateCatalogSearch(store.catalogQuery(), store.selectedBrand(), $event)" [disabled]="store.receiptLocked() || store.filterOptionsLoading()">
+                <option value="">All categories</option>
+                @for (category of store.categoryOptions(); track category.id) {
+                  <option [value]="category.name">{{ category.name }}</option>
+                }
+              </select>
+            </label>
+            <nexa-button appearance="secondary" [disabled]="store.receiptLocked() || store.catalogLoading()" (click)="searchCatalog()">
+              Search catalog
+            </nexa-button>
+          </div>
+          @if (store.filterOptionsError()) {
+            <p class="inventory-message inventory-message--error" role="alert">{{ store.filterOptionsError() }}</p>
+          }
+          @if (store.catalogError()) {
+            <p class="inventory-message inventory-message--error" role="alert">{{ store.catalogError() }}</p>
+          }
+          @if (store.catalogLoading()) {
+            <p class="inventory-message" role="status">Loading catalog…</p>
+          } @else if (store.catalogPage(); as catalog) {
+            @if (catalog.items.length === 0) {
+              <p class="inventory-message">No active catalog items match current filters.</p>
+            } @else {
+              <label>
+                Catalog item / SKU
+                <select
+                  [ngModel]="store.selectedCatalogItem()?.catalogItemId ?? store.receiptDraft().catalogItemId"
+                  (ngModelChange)="selectCatalogItem($event)"
+                  [disabled]="store.receiptLocked() || store.catalogLoading()"
+                >
+                  <option value="">Choose an item</option>
+                  @for (item of catalog.items; track item.catalogItemId) {
+                    <option [value]="item.catalogItemId">
+                      {{ item.itemName }} · {{ item.skuCode || item.productId }} · {{ item.unitOfMeasure || "unit pending" }}
+                    </option>
+                  }
+                </select>
+              </label>
+              <div class="inventory-pagination">
+                <p>Catalog page {{ catalog.page + 1 }} · {{ catalog.totalItems }} items</p>
+                <div>
+                  <nexa-button appearance="secondary" [disabled]="catalog.page === 0 || store.receiptLocked() || store.catalogLoading()" (click)="store.changeCatalogPage(-1)">Previous</nexa-button>
+                  <nexa-button appearance="secondary" [disabled]="catalog.page + 1 >= catalog.totalPages || store.receiptLocked() || store.catalogLoading()" (click)="store.changeCatalogPage(1)">Next</nexa-button>
+                </div>
+              </div>
+            }
+          }
+          @if (store.selectedCatalogItem(); as item) {
+            <div class="selected-item" role="status">
+              <strong>{{ item.itemName }}</strong>
+              <span>{{ item.brandName || "Brand not set" }} · {{ item.categoryName || "Category not set" }}</span>
+              <span>SKU {{ item.skuCode || item.sellableSkuId || "not supplied" }} · Unit {{ item.unitOfMeasure }}</span>
+              <button type="button" class="text-button" [disabled]="store.receiptLocked()" (click)="store.setCatalogFilter(null)">Clear selected item and stock filter</button>
+            </div>
+          } @else if (store.receiptDraft().catalogItemId) {
+            <p class="inventory-message">Saved receipt item {{ store.receiptDraft().catalogItemId }} · Unit {{ store.receiptDraft().unit }}</p>
+          }
+        </section>
+      }
+
+      @if (store.lotsLoading()) {
+        <p class="inventory-message" role="status">Loading stock lots…</p>
+      } @else if (store.lotsPage(); as lots) {
+        @if (lots.items.length === 0) {
+          <p class="inventory-message">No lots are visible through current warehouse grants and filters.</p>
+        } @else {
+          <div class="inventory-table-wrap">
+            <table>
+              <caption>Warehouse lots ordered by earliest expiration first</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Catalog item / SKU</th>
+                  <th scope="col">Warehouse / zone</th>
+                  <th scope="col">Batch</th>
+                  <th scope="col">Production</th>
+                  <th scope="col">Received</th>
+                  <th scope="col">Expiration</th>
+                  <th scope="col">On hand</th>
+                  <th scope="col">Reserved</th>
+                  <th scope="col">Available</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (lot of lots.items; track lot.id) {
+                  <tr>
+                    <td>
+                      <span>{{ lot.catalogItemId }}</span>
+                      <small>SKU {{ lot.skuId || "unresolved" }}</small>
+                    </td>
+                    <td>
+                      <span>{{ warehouseLabel(lot.warehouseId) }}</span>
+                      <small>{{ zoneLabel(lot.zoneId) }}</small>
+                    </td>
+                    <td>{{ lot.batchNumber }}</td>
+                    <td>{{ lot.productionDate || "—" }}</td>
+                    <td>{{ lot.receivedAt | date: "medium" }}</td>
+                    <td>{{ lot.expirationDate }}</td>
+                    <td>{{ lot.onHand | number: "1.0-3" }} {{ lot.unit }}</td>
+                    <td>{{ lot.reserved | number: "1.0-3" }} {{ lot.unit }}</td>
+                    <td>{{ lot.available | number: "1.0-3" }} {{ lot.unit }}</td>
+                    <td>{{ lot.status }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="inventory-pagination" aria-label="Lot pages">
+            <p>Page {{ lots.page + 1 }} · {{ lots.total }} lots</p>
+            <div>
+              <nexa-button appearance="secondary" [disabled]="lots.page === 0 || store.lotsLoading()" (click)="store.changeLotsPage(-1)">Previous</nexa-button>
+              <nexa-button appearance="secondary" [disabled]="(lots.page + 1) * lots.size >= lots.total || store.lotsLoading()" (click)="store.changeLotsPage(1)">Next</nexa-button>
+            </div>
+          </div>
+        }
+      }
+    </nexa-surface>
+
+    <nexa-surface class="inventory-panel" aria-labelledby="receiving-title">
+      <div class="inventory-panel__heading">
+        <div>
+          <p class="inventory-page__eyebrow">US071–073 · V1</p>
+          <h2 id="receiving-title">Record inventory receipt</h2>
+          <p>Warehouse and zone choices come from the current API scope and grants.</p>
+        </div>
+      </div>
+
+      @if (!store.canReceive()) {
+        <p class="inventory-message" role="status">This membership can view stock but cannot record receipts.</p>
+      } @else if (!store.canReadCatalog()) {
+        <p class="inventory-message" role="status">Catalog item selection is unavailable for this membership.</p>
+      } @else {
+        @if (store.pendingReceipt(); as pending) {
+          <div class="inventory-message inventory-message--warning" role="alert">
+            <strong>Receipt outcome needs confirmation.</strong>
+            <p>Inputs are locked. Retry uses same saved payload and idempotency key.</p>
+            <p>Item {{ pending.request.catalogItemId }} · batch {{ pending.request.batchNumber }}</p>
+            @if (store.receiptError()) {
+              <p>{{ store.receiptError() }}</p>
+            }
+            <nexa-button [disabled]="store.receiving()" (click)="store.retryPendingReceipt()">
+              Retry exact receipt
+            </nexa-button>
+          </div>
+        } @else {
+          @if (store.receiptNotice()) {
+            <p class="inventory-message inventory-message--success" role="status">{{ store.receiptNotice() }}</p>
+          }
+          @if (store.receiptError()) {
+            <p class="inventory-message inventory-message--error" role="alert">{{ store.receiptError() }}</p>
+          }
+          <section class="receipt-fields" aria-labelledby="receipt-details-title">
+            <h3 id="receipt-details-title">Receipt details</h3>
+            <div class="inventory-filters">
+              <label>
+                Warehouse
+                <select
+                  [ngModel]="store.receiptDraft().warehouseId"
+                  (ngModelChange)="store.setWarehouse($event)"
+                  [disabled]="store.warehousesLoading()"
+                >
+                  <option value="">Choose active authorized warehouse</option>
+                  @for (warehouse of store.warehouses(); track warehouse.id) {
+                    @if (warehouse.status === "ACTIVE") {
+                      <option [value]="warehouse.id">{{ warehouse.code }} · {{ warehouse.name }}</option>
+                    }
+                  }
+                </select>
+              </label>
+              <label>
+                Zone
+                <select
+                  [ngModel]="store.receiptDraft().zoneId"
+                  (ngModelChange)="store.setZone($event)"
+                  [disabled]="!store.receiptDraft().warehouseId || store.zonesLoading()"
+                >
+                  <option value="">Choose active zone</option>
+                  @for (zone of store.zones(); track zone.id) {
+                    @if (zone.status === "ACTIVE") {
+                      <option [value]="zone.id">{{ zone.code }} · {{ zone.name }}</option>
+                    }
+                  }
+                </select>
+              </label>
+              <label>
+                Batch / lot number
+                <input
+                  [ngModel]="store.receiptDraft().batchNumber"
+                  (ngModelChange)="updateDraft('batchNumber', $event)"
+                  maxlength="80"
+                  required
+                />
+              </label>
+              <label>
+                Production date
+                <input type="date" [ngModel]="store.receiptDraft().productionDate" (ngModelChange)="updateDraft('productionDate', $event)" required />
+              </label>
+              <label>
+                Received at
+                <input type="datetime-local" [ngModel]="store.receiptDraft().receivedAtLocal" (ngModelChange)="updateDraft('receivedAtLocal', $event)" required />
+              </label>
+              <label>
+                Expiration date
+                <input type="date" [ngModel]="store.receiptDraft().expirationDate" (ngModelChange)="updateDraft('expirationDate', $event)" required />
+              </label>
+              <label>
+                Quantity
+                <input type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]+)?" [ngModel]="store.receiptDraft().quantity" (ngModelChange)="updateDraft('quantity', $event)" required />
+              </label>
+              <label>
+                Unit (SKU)
+                <input [value]="store.receiptDraft().unit" readonly aria-readonly="true" />
+              </label>
+              <label>
+                Receiving temperature (°C)
+                <input type="text" inputmode="decimal" pattern="-?[0-9]+([.][0-9]+)?" [ngModel]="store.receiptDraft().temperatureReading" (ngModelChange)="updateDraft('temperatureReading', $event)" />
+              </label>
+              <label class="inventory-filters__wide">
+                Notes
+                <textarea [ngModel]="store.receiptDraft().notes" (ngModelChange)="updateDraft('notes', $event)" maxlength="2000" rows="3"></textarea>
+              </label>
+            </div>
+            <p class="inventory-message">
+              API validates SKU, zone temperature policy and expiry. Out-of-range temperature requires validated photographic evidence. Use Operations receiving for that case.
+            </p>
+            <nexa-button
+              [disabled]="store.receiving() || store.catalogLoading() || !store.selectedCatalogItem()"
+              (click)="store.submitReceipt()"
+            >
+              @if (store.receiving()) { Recording… } @else { Record receipt }
+            </nexa-button>
+          </section>
+        }
+      }
+    </nexa-surface>
+  }
+</main>

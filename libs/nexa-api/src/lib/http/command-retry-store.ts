@@ -14,6 +14,7 @@ const PLATFORM_MEMBER_INVITATION_PREFIX = "nexa:platform:member-invitation:";
 const PLATFORM_CREDIT_CONFIGURATION_PREFIX =
   "nexa:platform:credit-configuration:";
 const PLATFORM_CATALOG_COMMAND_PREFIX = "nexa:platform:catalog-command:";
+const PLATFORM_INVENTORY_RECEIPT_PREFIX = "nexa:platform:inventory-receipt:";
 const PLATFORM_WALLET_REFUND_PREFIX = "nexa:platform:wallet-refund:";
 const BUYER_WALLET_RECHARGE_PREFIX = "nexa:buyer:wallet-recharge:";
 const BUYER_WALLET_RECHARGE_PENDING_PREFIX =
@@ -130,6 +131,7 @@ function allowedPrefixFor(key: string): string | null {
     PLATFORM_MEMBER_INVITATION_PREFIX,
     PLATFORM_CREDIT_CONFIGURATION_PREFIX,
     PLATFORM_CATALOG_COMMAND_PREFIX,
+    PLATFORM_INVENTORY_RECEIPT_PREFIX,
     PLATFORM_WALLET_REFUND_PREFIX,
     BUYER_WALLET_RECHARGE_PREFIX,
     BUYER_WALLET_RECHARGE_PENDING_PREFIX,
@@ -148,6 +150,7 @@ function allowedPrefixFor(key: string): string | null {
     [PLATFORM_MEMBER_INVITATION_PREFIX, 5],
     [PLATFORM_CREDIT_CONFIGURATION_PREFIX, 7],
     [PLATFORM_CATALOG_COMMAND_PREFIX, 7],
+    [PLATFORM_INVENTORY_RECEIPT_PREFIX, 4],
     [PLATFORM_WALLET_REFUND_PREFIX, 6],
     [BUYER_WALLET_RECHARGE_PREFIX, 5],
     [BUYER_WALLET_RECHARGE_PENDING_PREFIX, 4],
@@ -165,6 +168,12 @@ function allowedPrefixFor(key: string): string | null {
       prefix === BUYER_WALLET_RECHARGE_PREFIX ||
       prefix === PLATFORM_MATERIAL_CHANGE_PREFIX) &&
     !/^[a-f0-9]{64}$/.test(segments.at(-1) ?? "")
+  ) {
+    return null;
+  }
+  if (
+    prefix === PLATFORM_INVENTORY_RECEIPT_PREFIX &&
+    !segments.every(isUuid)
   ) {
     return null;
   }
@@ -217,6 +226,9 @@ function isAllowedValue(key: string, value: string): boolean {
       value,
     );
   }
+  if (key.startsWith(PLATFORM_INVENTORY_RECEIPT_PREFIX)) {
+    return isPendingInventoryReceipt(value);
+  }
   if (key.startsWith(PLATFORM_REVIEW_PREFIX)) {
     return isPendingReviewCommand(value);
   }
@@ -224,6 +236,98 @@ function isAllowedValue(key: string, value: string): boolean {
     return isPendingMaterialChangeCommand(value);
   }
   return false;
+}
+
+interface PendingInventoryReceipt {
+  readonly idempotencyKey: string;
+  readonly request: {
+    readonly warehouseId: string;
+    readonly zoneId: string;
+    readonly catalogItemId: string;
+    readonly batchNumber: string;
+    readonly expirationDate: string;
+    readonly quantity: number;
+    readonly unit: string;
+    readonly temperatureReading: number | null;
+    readonly notes: string | null;
+    readonly skuId: string | null;
+    readonly productionDate: string;
+    readonly receivedAt: string;
+  };
+}
+
+function isPendingInventoryReceipt(value: string): boolean {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return false;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    return false;
+  const command = parsed as Partial<PendingInventoryReceipt>;
+  if (
+    Object.keys(parsed).sort().join(",") !== "idempotencyKey,request" ||
+    typeof command.idempotencyKey !== "string" ||
+    !isUuid(command.idempotencyKey) ||
+    !command.request ||
+    typeof command.request !== "object" ||
+    Array.isArray(command.request)
+  ) {
+    return false;
+  }
+  const request = command.request as PendingInventoryReceipt["request"];
+  const requestRecord = request as unknown as Record<string, unknown>;
+  if (
+    Object.keys(requestRecord).sort().join(",") !==
+    "batchNumber,catalogItemId,expirationDate,notes,productionDate,quantity,receivedAt,skuId,temperatureReading,unit,warehouseId,zoneId"
+  ) {
+    return false;
+  }
+  return (
+    isUuid(request.warehouseId) &&
+    isUuid(request.zoneId) &&
+    (request.skuId === null || isUuid(request.skuId)) &&
+    isBoundedText(request.catalogItemId, 64) &&
+    isBoundedText(request.batchNumber, 80) &&
+    isBoundedText(request.unit, 32) &&
+    isDateOnly(request.expirationDate) &&
+    isDateOnly(request.productionDate) &&
+    isIsoInstant(request.receivedAt) &&
+    typeof request.quantity === "number" &&
+    Number.isFinite(request.quantity) &&
+    request.quantity > 0 &&
+    (request.temperatureReading === null ||
+      (typeof request.temperatureReading === "number" &&
+        Number.isFinite(request.temperatureReading))) &&
+    (request.notes === null ||
+      (typeof request.notes === "string" && request.notes.length <= 2000))
+  );
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function isBoundedText(value: string, maximum: number): boolean {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    value.length <= maximum &&
+    !/[\u0000-\u001f\u007f]/.test(value)
+  );
+}
+
+function isDateOnly(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function isIsoInstant(value: string): boolean {
+  return typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/.test(value) &&
+    !Number.isNaN(Date.parse(value));
 }
 
 interface PendingMaterialChangeCommand {

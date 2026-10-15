@@ -11,6 +11,7 @@
         canViewOperationsOverview ||
         canViewSalesOrders || canViewSalesCommitment ||
         canViewFulfillment ||
+        canViewInventory ||
         canViewDocuments ||
         canViewTenantAccess ||
         canViewTenantRoles ||
@@ -121,6 +122,16 @@
               ariaCurrentWhenActive="page"
             >
               Fulfillment
+            </a>
+          }
+          @if (canViewInventory) {
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/inventory"
+              routerLinkActive="platform-shell__navigation-link--active"
+              ariaCurrentWhenActive="page"
+            >
+              Inventory
             </a>
           }
           @if (canViewDocuments) {

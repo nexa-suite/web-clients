@@ -91,6 +91,13 @@ export class PlatformShellComponent {
     );
   }
 
+  protected get canViewInventory(): boolean {
+    return canAccessPlatformFeature(
+      this.session,
+      PLATFORM_ACCESS_RULES.inventory,
+    );
+  }
+
   protected get canViewDocuments(): boolean {
     return canAccessPlatformFeature(
       this.session,

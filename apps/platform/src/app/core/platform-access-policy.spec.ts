@@ -72,6 +72,48 @@ describe("Platform access policy", () => {
     ).toBe(false);
   });
 
+  it("keeps inventory read, receiving and catalog read permissions independent", () => {
+    const scope = platformSession({ membership: { permissions: ["warehouse:read"] } });
+    expect(canAccessPlatformFeature(scope, PLATFORM_ACCESS_RULES.inventory)).toBe(true);
+    expect(canAccessPlatformFeature(scope, PLATFORM_ACCESS_RULES.inventoryReceive)).toBe(false);
+    expect(canAccessPlatformFeature(scope, PLATFORM_ACCESS_RULES.inventoryCatalog)).toBe(false);
+
+    const receiver = platformSession({ membership: { permissions: ["warehouse:read", "warehouse:write", "catalog:read"] } });
+    expect(canAccessPlatformFeature(receiver, PLATFORM_ACCESS_RULES.inventory)).toBe(true);
+    expect(canAccessPlatformFeature(receiver, PLATFORM_ACCESS_RULES.inventoryReceive)).toBe(true);
+    expect(canAccessPlatformFeature(receiver, PLATFORM_ACCESS_RULES.inventoryCatalog)).toBe(true);
+
+    expect(canAccessPlatformFeature(
+      platformSession({ membership: { permissions: ["catalog:read", "warehouse:write"] } }),
+      PLATFORM_ACCESS_RULES.inventory,
+    )).toBe(false);
+  });
+
+  it("opens catalog management from a server-issued product grant and ignores the role label", () => {
+    expect(
+      canAccessPlatformFeature(
+        platformSession({
+          membership: {
+            roles: ["BUSINESS_OPERATIONS_MANAGER"],
+            permissions: ["catalog.read", "catalog.product.manage"],
+          },
+        }),
+        PLATFORM_ACCESS_RULES.catalogManagement,
+      ),
+    ).toBe(true);
+    expect(
+      canAccessPlatformFeature(
+        platformSession({
+          membership: {
+            roles: ["BUSINESS_OPERATIONS_MANAGER"],
+            permissions: ["catalog.read", "sales.order.read"],
+          },
+        }),
+        PLATFORM_ACCESS_RULES.catalogManagement,
+      ),
+    ).toBe(false);
+  });
+
   it("requires all capabilities for order-summary generation", () => {
     expect(
       canAccessPlatformFeature(

@@ -65,6 +65,17 @@ export type {
   PlatformCatalogTaxonomy,
   PlatformCatalogTaxonomyPage,
 } from "./lib/contexts/catalog-commercial-policy/infrastructure/platform-catalog-api";
+export { NexaWarehouseInventoryApi } from "./lib/contexts/inventory-availability/infrastructure/warehouse-inventory-api";
+export {
+  NEXA_WAREHOUSE_INVENTORY_API_PATHS,
+  type ReceiveWarehouseStockRequest,
+  type WarehouseInventoryLotResponse,
+  type WarehouseInventoryPageResponse,
+  type WarehouseInventoryResourceResponse,
+  type WarehouseInventoryWarehouseResponse,
+  type WarehouseInventoryZoneResponse,
+} from "./lib/contexts/inventory-availability/contracts/warehouse-inventory.contracts";
+export type { WarehouseInventoryLotQuery } from "./lib/contexts/inventory-availability/infrastructure/warehouse-inventory-api";
 export { NexaPlatformCatalogManagementApi } from "./lib/contexts/catalog-commercial-policy/infrastructure/catalog-management-api";
 export type {
   CatalogCommandPage,

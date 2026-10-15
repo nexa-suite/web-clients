@@ -11,6 +11,7 @@ import {
 import { PLATFORM_ACCESS_RULES } from "./core/platform-access-policy";
 import { requirePlatformCapability } from "./core/platform-capability.guard";
 import { PLATFORM_FULFILLMENT_ROUTES } from "./contexts/fulfillment-delivery/application/public-api";
+import { PLATFORM_INVENTORY_ROUTES } from "./contexts/inventory-availability/application/public-api";
 import { PLATFORM_SALES_COMMITMENT_ROUTES } from "./contexts/sales-commitment/application/public-api";
 
 import { PLATFORM_BUSINESS_DOCUMENT_ROUTES } from "./contexts/business-documents/application/public-api";
@@ -54,6 +55,7 @@ export const routes: Routes = [
       ...PLATFORM_CATALOG_ROUTES,
       ...PLATFORM_SALES_COMMITMENT_ROUTES,
       ...PLATFORM_FULFILLMENT_ROUTES,
+      ...PLATFORM_INVENTORY_ROUTES,
       ...PLATFORM_BUSINESS_DOCUMENT_ROUTES,
       ...PLATFORM_CREDIT_CONFIGURATION_ROUTES,
       ...PLATFORM_WALLET_REFUND_ROUTES,
