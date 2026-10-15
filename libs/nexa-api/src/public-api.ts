@@ -108,3 +108,6 @@ export * from "./lib/contexts/fulfillment-delivery/public-api";
 export { NexaCommandRetryStore } from "./lib/http/command-retry-store";
 export { NexaBuyerDeliveriesApi } from "./lib/contexts/fulfillment-delivery/infrastructure/buyer-deliveries-api";
 export type { BuyerDeliveryResponse, BuyerDeliveryPageResponse, BuyerDeliveryEventResponse } from "./lib/contexts/fulfillment-delivery/contracts/buyer-delivery.contracts";
+
+export { NexaOrganizationRegistrationApi } from './lib/contexts/tenant-access-governance/infrastructure/organization-registration-api';
+export type { OrganizationRegistrationDraft, RegistrationSnapshot } from './lib/contexts/tenant-access-governance/contracts/organization-registration.contracts';
