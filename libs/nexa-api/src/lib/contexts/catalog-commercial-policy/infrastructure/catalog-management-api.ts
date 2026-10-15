@@ -113,10 +113,18 @@ export class NexaPlatformCatalogManagementApi {
     return this.changeStatus(`${this.taxonomyPath}/brands`, id, version, status);
   }
 
-  families(search = "", page = 0): Observable<CatalogCommandPage<ProductFamilySummary>> {
+  families(
+    search = "",
+    page = 0,
+    brand = "",
+    category = "",
+  ): Observable<CatalogCommandPage<ProductFamilySummary>> {
+    let params = this.pageParams(search, page);
+    if (brand.trim()) params = params.set("brand", brand.trim());
+    if (category.trim()) params = params.set("category", category.trim());
     return this.http.get<CatalogCommandPage<ProductFamilySummary>>(
       this.familyPath,
-      { params: this.pageParams(search, page) },
+      { params },
     );
   }
 

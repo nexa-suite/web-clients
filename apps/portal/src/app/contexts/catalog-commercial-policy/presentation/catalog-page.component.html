@@ -17,8 +17,24 @@
         [value]="q()"
         (valueChange)="q.set($event)"
       />
-      <nexa-text-field id="catalog-brand" label="Brand" [value]="brand()" (valueChange)="brand.set($event)" />
-      <nexa-text-field id="catalog-category" label="Category" [value]="category()" (valueChange)="category.set($event)" />
+      <label class="catalog-reference-filter" for="catalog-brand">
+        <span>Brand</span>
+        <select id="catalog-brand" [value]="brand()" (change)="brand.set($any($event.target).value)" [disabled]="store.filterOptionsLoading()">
+          <option value="">All brands</option>
+          @for (option of store.brands(); track option.id) {
+            <option [value]="option.name">{{ option.name }}</option>
+          }
+        </select>
+      </label>
+      <label class="catalog-reference-filter" for="catalog-category">
+        <span>Type / category</span>
+        <select id="catalog-category" [value]="category()" (change)="category.set($any($event.target).value)" [disabled]="store.filterOptionsLoading()">
+          <option value="">All types</option>
+          @for (option of store.categories(); track option.id) {
+            <option [value]="option.name">{{ option.name }}</option>
+          }
+        </select>
+      </label>
       <label class="cold-chain-filter" for="catalog-cold-chain">
         <span>Cold-chain requirement</span>
         <select id="catalog-cold-chain" [value]="coldChain()" (change)="coldChain.set($any($event.target).value)">
@@ -33,6 +49,9 @@
       </div>
     </form>
   </nexa-surface>
+  @if (store.filterOptionsError()) {
+    <p role="alert">{{ store.filterOptionsError() }}</p>
+  }
 
   <div class="results-heading">
     <h2>Catalog results</h2>

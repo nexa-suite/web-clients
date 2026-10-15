@@ -1,9 +1,10 @@
 import { signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { ActivatedRoute, provideRouter } from "@angular/router";
 import type { BuyerAddressResponse, PurchaseRequestDraft } from "@nexa/api";
 import { PortalBuyerEligibilityService } from "../../customer-buyer-relationships/application/public-api";
-import { CatalogStore, type BuyerCatalogItem, type CatalogDetailState, type CatalogPageState } from "../../catalog-commercial-policy/application/public-api";
+import { CatalogStore, type BuyerCatalogItem, type CatalogDetailState, type CatalogPageState, type CatalogSearch } from "../../catalog-commercial-policy/application/public-api";
 import { PortalSessionStore, type PortalSessionLease } from "../../tenant-access-governance/application/public-api";
 import { BuyerDraftWorkflowState, BuyerPurchaseRequestDraftStore } from "../application/public-api";
 import { BuyerPurchaseRequestDraftPageComponent } from "./buyer-purchase-request-draft-page.component";
@@ -94,10 +95,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
       clear: vi.fn(() => state.set(emptyWorkflow())),
       loadAddresses: vi.fn(() => addressLoading),
     };
-    const catalog = {
-      page: signal<CatalogPageState>({ kind: "results", page: { items: [catalogItem], page: 0, size: 50, totalItems: 1, totalPages: 1 }, errorMessage: null }),
-      detail: signal<CatalogDetailState>({ kind: "idle", item: null, errorMessage: null }),
-    };
+    const catalog = createCatalogStoreMock({ kind: "results", page: { items: [catalogItem], page: 0, size: 50, totalItems: 1, totalPages: 1 }, errorMessage: null });
     TestBed.configureTestingModule({
       imports: [BuyerPurchaseRequestDraftPageComponent],
       providers: [
@@ -136,6 +134,107 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
     expect(select.selectedOptions[0]?.textContent).toContain("SKU-001");
   });
 
+  it("loads filtered catalog pages for SKU selection and retains a selected SKU across pages", async () => {
+    const pageState = signal<CatalogPageState>({
+      kind: "results",
+      page: { items: [catalogItem], page: 0, size: 12, totalItems: 25, totalPages: 3 },
+      errorMessage: null,
+    });
+    const searchState = signal<CatalogSearch>({ q: "", brand: "", category: "", coldChain: "", page: 0 });
+    const catalog = {
+      page: pageState,
+      detail: signal<CatalogDetailState>({ kind: "idle", item: null, errorMessage: null }),
+      search: searchState,
+      brands: signal([{ id: "brand-1", name: "Northwind" }]),
+      categories: signal([{ id: "category-1", name: "Grocery" }]),
+      filterOptionsLoading: signal(false),
+      filterOptionsError: signal(null),
+      loadFilterOptions: vi.fn(async () => undefined),
+      load: vi.fn(async () => undefined),
+      applySearch: vi.fn(async (filters: { q: string; brand: string; category: string; coldChain: "" | "NONE" | "REFRIGERATED" | "FROZEN" }) => {
+        searchState.set({ ...filters, page: 0 });
+      }),
+      changePage: vi.fn(async (page: number) => {
+        searchState.update((current) => ({ ...current, page }));
+      }),
+    };
+    const state = signal<BuyerDraftWorkflowState>(emptyWorkflow());
+    const store = {
+      state,
+      clear: vi.fn(() => state.set(emptyWorkflow())),
+      loadAddresses: vi.fn(async () => undefined),
+    };
+    TestBed.configureTestingModule({
+      imports: [BuyerPurchaseRequestDraftPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: () => null } } } },
+        {
+          provide: PortalSessionStore,
+          useValue: {
+            state: signal({ status: "authenticated", session: scopedBuyerSession(["buyer.sales.write", "catalog.read"]) }),
+            captureSessionLease: vi.fn(() => lease),
+            isSessionLeaseCurrent: vi.fn(() => true),
+          },
+        },
+        { provide: PortalBuyerEligibilityService, useValue: { currentAccount: () => ({ id: "account-1" }) } },
+        { provide: BuyerPurchaseRequestDraftStore, useValue: store },
+        { provide: CatalogStore, useValue: catalog },
+        { provide: BUYER_WALLET_CAPABILITIES_PORT, useValue: { canRead: () => false, orderPaymentSupported: () => false, loadCapabilities: vi.fn(), clear: vi.fn() } },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(BuyerPurchaseRequestDraftPageComponent);
+    await fixture.componentInstance.ngOnInit();
+    fixture.detectChanges();
+    const page = fixture.componentInstance as unknown as {
+      catalogProductSearch: string;
+      catalogBrandSearch: string;
+      catalogCategorySearch: string;
+      searchCatalog: () => Promise<void>;
+      changeCatalogPage: (offset: number) => Promise<void>;
+      updateLine: (index: number, field: "skuId", value: string) => void;
+      skuLabel: (skuId: string) => string;
+      hasPreviouslySelectedCatalogSku: (skuId: string) => boolean;
+    };
+
+    expect(catalog.load).toHaveBeenCalledOnce();
+    expect(catalog.loadFilterOptions).toHaveBeenCalledOnce();
+    const brandFilter = fixture.nativeElement.querySelector('select[name="catalogBrand"]') as HTMLSelectElement;
+    const categoryFilter = fixture.nativeElement.querySelector('select[name="catalogCategory"]') as HTMLSelectElement;
+    expect(fixture.nativeElement.querySelector('input[name="catalogBrand"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('input[name="catalogCategory"]')).toBeNull();
+    expect([...brandFilter.options].some((option) => option.value === "Northwind")).toBe(true);
+    expect([...categoryFilter.options].some((option) => option.value === "Grocery")).toBe(true);
+    page.catalogProductSearch = "  oats ";
+    fixture.debugElement.query(By.css('select[name="catalogBrand"]'))
+      .triggerEventHandler("ngModelChange", "Northwind");
+    fixture.debugElement.query(By.css('select[name="catalogCategory"]'))
+      .triggerEventHandler("ngModelChange", "Grocery");
+    fixture.detectChanges();
+    expect(page.catalogBrandSearch).toBe("Northwind");
+    expect(page.catalogCategorySearch).toBe("Grocery");
+    await page.searchCatalog();
+    expect(catalog.applySearch).toHaveBeenCalledWith({ q: "oats", brand: "Northwind", category: "Grocery", coldChain: "" });
+
+    page.updateLine(0, "skuId", catalogItem.sellableSkuId ?? "");
+    pageState.set({
+      kind: "results",
+      page: { items: [], page: 1, size: 12, totalItems: 25, totalPages: 3 },
+      errorMessage: null,
+    });
+    expect(page.hasPreviouslySelectedCatalogSku(catalogItem.sellableSkuId ?? "")).toBe(true);
+    expect(page.skuLabel(catalogItem.sellableSkuId ?? "")).toContain("Private catalog item");
+
+    pageState.set({
+      kind: "results",
+      page: { items: [catalogItem], page: 0, size: 12, totalItems: 25, totalPages: 3 },
+      errorMessage: null,
+    });
+    await page.changeCatalogPage(1);
+    expect(catalog.changePage).toHaveBeenCalledWith(1);
+  });
+
   it("clears and hides a loaded draft form when its Buyer session lease expires", async () => {
     const currentLease = signal<PortalSessionLease | null>(lease);
     const sessions = {
@@ -160,14 +259,11 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
         addresses: [address],
       })),
     };
-    const catalog = {
-      page: signal<CatalogPageState>({
+    const catalog = createCatalogStoreMock({
         kind: "results",
         page: { items: [catalogItem], page: 0, size: 50, totalItems: 1, totalPages: 1 },
         errorMessage: null,
-      }),
-      detail: signal<CatalogDetailState>({ kind: "idle", item: null, errorMessage: null }),
-    };
+      });
     TestBed.configureTestingModule({
       imports: [BuyerPurchaseRequestDraftPageComponent],
       providers: [
@@ -227,10 +323,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
       loadDraft: vi.fn(async () => undefined),
       previewRoute: vi.fn(async () => undefined),
     };
-    const catalog = {
-      page: signal<CatalogPageState>({ kind: "results", page: { items: [catalogItem], page: 0, size: 50, totalItems: 1, totalPages: 1 }, errorMessage: null }),
-      detail: signal<CatalogDetailState>({ kind: "idle", item: null, errorMessage: null }),
-    };
+    const catalog = createCatalogStoreMock({ kind: "results", page: { items: [catalogItem], page: 0, size: 50, totalItems: 1, totalPages: 1 }, errorMessage: null });
     TestBed.configureTestingModule({
       imports: [BuyerPurchaseRequestDraftPageComponent],
       providers: [
@@ -288,10 +381,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
       loadDraft: vi.fn(async () => undefined),
       setPreferences: vi.fn(async () => undefined),
     };
-    const catalog = {
-      page: signal<CatalogPageState>({ kind: "results", page: { items: [catalogItem], page: 0, size: 50, totalItems: 1, totalPages: 1 }, errorMessage: null }),
-      detail: signal<CatalogDetailState>({ kind: "idle", item: null, errorMessage: null }),
-    };
+    const catalog = createCatalogStoreMock({ kind: "results", page: { items: [catalogItem], page: 0, size: 50, totalItems: 1, totalPages: 1 }, errorMessage: null });
     TestBed.configureTestingModule({
       imports: [BuyerPurchaseRequestDraftPageComponent],
       providers: [
@@ -365,6 +455,27 @@ function emptyWorkflow(): BuyerDraftWorkflowState {
     addresses: [],
     submissionKeyPending: false,
     errorMessage: null,
+  };
+}
+
+function createCatalogStoreMock(pageState: CatalogPageState) {
+  const search = signal<CatalogSearch>({ q: "", brand: "", category: "", coldChain: "", page: 0 });
+  return {
+    page: signal(pageState),
+    detail: signal<CatalogDetailState>({ kind: "idle", item: null, errorMessage: null }),
+    search,
+    brands: signal([{ id: "brand-1", name: "Northwind" }]),
+    categories: signal([{ id: "category-1", name: "Grocery" }]),
+    filterOptionsLoading: signal(false),
+    filterOptionsError: signal(null),
+    loadFilterOptions: vi.fn(async () => undefined),
+    load: vi.fn(async () => undefined),
+    applySearch: vi.fn(async (filters: Omit<CatalogSearch, "page">) => {
+      search.set({ ...filters, page: 0 });
+    }),
+    changePage: vi.fn(async (page: number) => {
+      search.update((current) => ({ ...current, page }));
+    }),
   };
 }
 

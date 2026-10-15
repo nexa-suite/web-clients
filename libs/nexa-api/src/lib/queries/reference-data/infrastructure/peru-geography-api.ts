@@ -29,4 +29,10 @@ export class NexaPeruGeographyApi {
       `${this.base}/reference/provinces/${encodeURIComponent(provinceCode)}/districts`,
     );
   }
+
+  roadTypes(): Observable<readonly PeruGeographyOption[]> {
+    return this.http.get<readonly PeruGeographyOption[]>(
+      `${this.base}/reference/road-types`,
+    );
+  }
 }

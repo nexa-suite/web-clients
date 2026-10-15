@@ -9,7 +9,7 @@
       <h1 id="catalog-title">Catalog</h1>
       <p>Product, category and brand information from the active workspace.</p>
     </div>
-    <nexa-button variant="secondary" [disabled]="busy()" (click)="load()"
+    <nexa-button variant="secondary" [disabled]="busy()" (click)="refresh()"
       >Refresh</nexa-button
     >
   </header>
@@ -37,6 +37,26 @@
       /></label>
       @if (kind === "products") {
         <label
+          >Brand
+          <select name="brand" [(ngModel)]="brand" [disabled]="busy() || filterOptionsLoading()">
+            <option value="">All brands</option>
+            @for (option of brandOptions(); track option.id) {
+              <option [value]="option.name">{{ option.name }}</option>
+            }
+          </select>
+        </label>
+        <label
+          >Category / type
+          <select name="category" [(ngModel)]="category" [disabled]="busy() || filterOptionsLoading()">
+            <option value="">All types</option>
+            @for (option of categoryOptions(); track option.id) {
+              <option [value]="option.name">{{ option.name }}</option>
+            }
+          </select>
+        </label>
+      }
+      @if (kind === "products") {
+        <label
           >Status
           <select name="status" [(ngModel)]="status">
             <option value="">All statuses</option>
@@ -50,6 +70,9 @@
       }
       <nexa-button type="submit" [disabled]="busy()">Search</nexa-button>
     </form>
+    @if (filterOptionsError()) {
+      <p role="alert">{{ filterOptionsError() }}</p>
+    }
     @if (busy()) {
       <p role="status">Loading catalog…</p>
     }

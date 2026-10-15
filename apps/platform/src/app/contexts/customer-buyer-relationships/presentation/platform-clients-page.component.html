@@ -363,6 +363,15 @@
             }
             <br />{{ item.line }} · {{ item.departmentCode }},
             {{ item.provinceCode }}, {{ item.districtCode }}
+            @if (item.roadType || item.streetName || item.streetNumber || item.interior) {
+              <p>
+                {{ item.roadType }} {{ item.streetName }} {{ item.streetNumber }}
+                {{ item.interior }}
+              </p>
+            }
+            @if (item.postalCode) {
+              <p>Postal code: {{ item.postalCode }}</p>
+            }
             @if (item.reference) {
               <p>Reference: {{ item.reference }}</p>
             }
@@ -431,6 +440,57 @@
               maxlength="240"
           /></label>
           <label
+            >Address type
+            <input
+              name="addressType"
+              [(ngModel)]="address.addressType"
+              maxlength="32"
+          /></label>
+          <label
+            >Road type
+            <select
+              name="roadType"
+              [(ngModel)]="address.roadType"
+              [disabled]="busy() || roadTypesLoading()"
+            >
+              <option [ngValue]="null">Select road type</option>
+              @for (roadType of roadTypes(); track roadType.code) {
+                <option [value]="roadType.code">{{ roadType.label }}</option>
+              }
+              @if (address.roadType && !hasGeographyOption(roadTypes(), address.roadType)) {
+                <option [value]="address.roadType">Saved road type ({{ address.roadType }})</option>
+              }
+            </select>
+          </label>
+          <label
+            >Street
+            <input
+              name="streetName"
+              [(ngModel)]="address.streetName"
+              maxlength="180"
+          /></label>
+          <label
+            >Street number
+            <input
+              name="streetNumber"
+              [(ngModel)]="address.streetNumber"
+              maxlength="32"
+          /></label>
+          <label
+            >Interior
+            <input
+              name="interior"
+              [(ngModel)]="address.interior"
+              maxlength="64"
+          /></label>
+          <label
+            >Postal code
+            <input
+              name="postalCode"
+              [(ngModel)]="address.postalCode"
+              maxlength="32"
+          /></label>
+          <label
             >Reference
             <input
               name="reference"
@@ -442,7 +502,8 @@
             <input
               name="addressCountry"
               [(ngModel)]="address.countryCode"
-              maxlength="8"
+              minlength="2"
+              maxlength="2"
           /></label>
           @if (geographyError()) {
             <p role="alert">{{ geographyError() }}</p>

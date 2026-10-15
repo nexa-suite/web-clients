@@ -61,7 +61,7 @@
       <div class="section-heading">
         <div>
           <p class="eyebrow">Foundation</p>
-          <h2>Categories</h2>
+          <h2>Categories / types</h2>
           <p>Categories organize product families in the catalog.</p>
         </div>
         <label class="compact-field">
@@ -95,7 +95,7 @@
               <input name="categoryName" [(ngModel)]="categoryDraft.name" required maxlength="160" />
             </label>
             <label>
-              <span>Parent category (optional)</span>
+              <span>Parent category / type (optional)</span>
               <select name="categoryParent" [(ngModel)]="categoryDraft.parentId">
                 <option [ngValue]="null">No parent</option>
                 @for (category of categoryLookups(); track category.id) {
@@ -140,6 +140,15 @@
           </tbody>
         </table>
       </div>
+      @if (categoryListPage(); as page) {
+        @if (page.total > page.size) {
+          <div class="toolbar" aria-label="Category pages">
+            <nexa-button variant="secondary" [disabled]="busy() || page.page === 0" (click)="changeTaxonomyPage('categories', -1)">Previous</nexa-button>
+            <span>Page {{ page.page + 1 }} · {{ page.total }} categories</span>
+            <nexa-button variant="secondary" [disabled]="busy() || (page.page + 1) * page.size >= page.total" (click)="changeTaxonomyPage('categories', 1)">Next</nexa-button>
+          </div>
+        }
+      }
     </nexa-surface>
 
     <nexa-surface>
@@ -215,6 +224,15 @@
           </tbody>
         </table>
       </div>
+      @if (brandListPage(); as page) {
+        @if (page.total > page.size) {
+          <div class="toolbar" aria-label="Brand pages">
+            <nexa-button variant="secondary" [disabled]="busy() || page.page === 0" (click)="changeTaxonomyPage('brands', -1)">Previous</nexa-button>
+            <span>Page {{ page.page + 1 }} · {{ page.total }} brands</span>
+            <nexa-button variant="secondary" [disabled]="busy() || (page.page + 1) * page.size >= page.total" (click)="changeTaxonomyPage('brands', 1)">Next</nexa-button>
+          </div>
+        }
+      }
     </nexa-surface>
   </section>
 
@@ -269,7 +287,34 @@
         <span>Find a family</span>
         <input name="familySearch" [(ngModel)]="familySearch" (keyup.enter)="searchFamilies()" />
       </label>
+      <label class="compact-field">
+        <span>Brand</span>
+        <select name="familyBrandSearch" [(ngModel)]="familyBrandSearch" (ngModelChange)="searchFamilies()" [disabled]="busy()">
+          <option value="">All brands</option>
+          @for (brand of activeBrandLookups(); track brand.id) {
+            <option [value]="brand.name">{{ brand.name }}</option>
+          }
+        </select>
+      </label>
+      <label class="compact-field">
+        <span>Category / type</span>
+        <select name="familyCategorySearch" [(ngModel)]="familyCategorySearch" (ngModelChange)="searchFamilies()" [disabled]="busy()">
+          <option value="">All categories</option>
+          @for (category of activeCategoryLookups(); track category.id) {
+            <option [value]="category.name">{{ category.name }}</option>
+          }
+        </select>
+      </label>
     </div>
+    @if (familyListPage(); as page) {
+      @if (page.total > page.size) {
+        <div class="toolbar" aria-label="Product family pages">
+          <nexa-button variant="secondary" [disabled]="busy() || page.page === 0" (click)="changeFamilyPage(-1)">Previous</nexa-button>
+          <span>Page {{ page.page + 1 }} · {{ page.total }} product families</span>
+          <nexa-button variant="secondary" [disabled]="busy() || (page.page + 1) * page.size >= page.total" (click)="changeFamilyPage(1)">Next</nexa-button>
+        </div>
+      }
+    }
     <div class="toolbar">
       <nexa-button variant="secondary" [disabled]="busy()" (click)="searchFamilies()">Search families</nexa-button>
     </div>
@@ -283,8 +328,8 @@
             <span>Category</span>
             <select name="familyCategory" [(ngModel)]="familyDraft.categoryId" required>
               <option value="">Choose a category</option>
-              @for (category of categoryLookups(); track category.id) {
-                <option [value]="category.id">{{ category.name }} · {{ category.status }}</option>
+              @for (category of activeCategoryLookups(); track category.id) {
+                <option [value]="category.id">{{ category.name }}</option>
               }
             </select>
           </label>
@@ -292,8 +337,8 @@
             <span>Brand</span>
             <select name="familyBrand" [(ngModel)]="familyDraft.brandId" required>
               <option value="">Choose a brand</option>
-              @for (brand of brandLookups(); track brand.id) {
-                <option [value]="brand.id">{{ brand.name }} · {{ brand.status }}</option>
+              @for (brand of activeBrandLookups(); track brand.id) {
+                <option [value]="brand.id">{{ brand.name }}</option>
               }
             </select>
           </label>

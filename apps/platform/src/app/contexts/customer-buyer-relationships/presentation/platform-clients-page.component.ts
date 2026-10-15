@@ -45,6 +45,14 @@ const blankClient = (): CreateClientAccount => ({
   paymentCondition: "",
 });
 const blankAddress = (): DeliveryAddressInput => ({
+  addressType: null,
+  roadType: null,
+  streetName: null,
+  streetNumber: null,
+  interior: null,
+  postalCode: null,
+  placeId: null,
+  source: null,
   line: "",
   reference: "",
   countryCode: "PE",
@@ -116,9 +124,11 @@ export class PlatformClientsPageComponent implements OnInit {
   readonly departments = signal<readonly PeruGeographyOption[]>([]);
   readonly provinces = signal<readonly PeruGeographyOption[]>([]);
   readonly districts = signal<readonly PeruGeographyOption[]>([]);
+  readonly roadTypes = signal<readonly PeruGeographyOption[]>([]);
   readonly departmentsLoading = signal(false);
   readonly provincesLoading = signal(false);
   readonly districtsLoading = signal(false);
+  readonly roadTypesLoading = signal(false);
   readonly geographyError = signal("");
   readonly candidates = signal<BuyerMembershipCandidate[]>([]);
   readonly busy = signal(false);
@@ -192,10 +202,16 @@ export class PlatformClientsPageComponent implements OnInit {
       const lease = this.activeLease;
       if (!lease) return;
       this.departmentsLoading.set(true);
+      this.roadTypesLoading.set(true);
       try {
-        const departments = await this.request(this.geography.departments());
-        if (this.isGeographyRequestCurrent(requestVersion, lease))
+        const [departments, roadTypes] = await Promise.all([
+          this.request(this.geography.departments()),
+          this.request(this.geography.roadTypes()),
+        ]);
+        if (this.isGeographyRequestCurrent(requestVersion, lease)) {
           this.departments.set(departments);
+          this.roadTypes.set(roadTypes.filter((option) => option.active));
+        }
       } catch {
         if (this.isGeographyRequestCurrent(requestVersion, lease))
           this.geographyError.set(
@@ -204,6 +220,8 @@ export class PlatformClientsPageComponent implements OnInit {
       } finally {
         if (this.isGeographyRequestCurrent(requestVersion, lease))
           this.departmentsLoading.set(false);
+        if (this.isGeographyRequestCurrent(requestVersion, lease))
+          this.roadTypesLoading.set(false);
       }
     });
   }
@@ -493,9 +511,11 @@ export class PlatformClientsPageComponent implements OnInit {
   private clearGeography(): void {
     this.geographyRequestVersion += 1;
     this.departments.set([]);
+    this.roadTypes.set([]);
     this.provinces.set([]);
     this.districts.set([]);
     this.departmentsLoading.set(false);
+    this.roadTypesLoading.set(false);
     this.provincesLoading.set(false);
     this.districtsLoading.set(false);
     this.geographyError.set("");

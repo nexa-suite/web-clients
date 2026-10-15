@@ -64,13 +64,22 @@ export class NexaPlatformCatalogApi {
       },
     );
   }
-  list(search = "", page = 0, status = ""): Observable<PlatformCatalogPage> {
+  list(
+    search = "",
+    page = 0,
+    status = "",
+    brand = "",
+    category = "",
+  ): Observable<PlatformCatalogPage> {
+    let params = new HttpParams()
+      .set("search", search.trim())
+      .set("page", page)
+      .set("size", 25)
+      .set("status", status);
+    if (brand.trim()) params = params.set("brand", brand.trim());
+    if (category.trim()) params = params.set("category", category.trim());
     return this.http.get<PlatformCatalogPage>(`${this.base}/catalog/products`, {
-      params: new HttpParams()
-        .set("search", search)
-        .set("page", page)
-        .set("size", 25)
-        .set("status", status),
+      params,
     });
   }
 }

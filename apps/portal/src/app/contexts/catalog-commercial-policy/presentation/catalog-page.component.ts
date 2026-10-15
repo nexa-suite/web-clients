@@ -30,6 +30,7 @@ export class CatalogPageComponent implements OnInit {
     this.brand.set(search.brand);
     this.category.set(search.category);
     this.coldChain.set(search.coldChain);
+    void this.store.loadFilterOptions();
     void this.store.load();
   }
 

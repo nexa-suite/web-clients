@@ -6,7 +6,7 @@ import { CatalogApiAdapter } from './catalog-api.adapter';
 
 describe('CatalogApiAdapter', () => {
   let adapter: CatalogApiAdapter;
-  const api = { listCatalog: vi.fn(), getCatalogItem: vi.fn() };
+  const api = { listCatalog: vi.fn(), getCatalogItem: vi.fn(), filterOptions: vi.fn() };
 
   const item: BuyerCatalogItemSummaryResponse = {
     catalogItemId: 'CAT-1001',
@@ -47,6 +47,7 @@ describe('CatalogApiAdapter', () => {
   beforeEach(() => {
     api.listCatalog.mockReset();
     api.getCatalogItem.mockReset();
+    api.filterOptions.mockReset();
     TestBed.configureTestingModule({
       providers: [CatalogApiAdapter, { provide: NexaBuyerCatalogApi, useValue: api }],
     });
@@ -142,6 +143,32 @@ describe('CatalogApiAdapter', () => {
     });
 
     expect(api.getCatalogItem).toHaveBeenCalledWith('CAT-1001');
+  });
+
+  it('loads every page of server-authorized brand and category options', async () => {
+    api.filterOptions
+      .mockReturnValueOnce(of({
+        items: [{ id: 'brand-1', name: 'Northwind' }, { id: 'brand-2', name: 'Frostline' }],
+        page: 0,
+        size: 2,
+        total: 3,
+      }))
+      .mockReturnValueOnce(of({
+        items: [{ id: 'brand-3', name: 'Harbor Foods' }],
+        page: 1,
+        size: 2,
+        total: 3,
+      }));
+
+    await expect(adapter.filterOptions('brand')).resolves.toEqual([
+      { id: 'brand-1', name: 'Northwind' },
+      { id: 'brand-2', name: 'Frostline' },
+      { id: 'brand-3', name: 'Harbor Foods' },
+    ]);
+    expect(api.filterOptions.mock.calls).toEqual([
+      ['brand', '', 0, 100],
+      ['brand', '', 1, 100],
+    ]);
   });
 
   it('rejects a malformed catalog record instead of rendering an empty identifier', async () => {

@@ -15,6 +15,7 @@ import {
   NexaPlatformCatalogApi,
   type PlatformCatalogPage,
   type PlatformCatalogProduct,
+  type PlatformCatalogTaxonomy,
   type PlatformCatalogTaxonomyPage,
 } from "@nexa/api";
 import { NexaButton, NexaSurface } from "nexa-ui";
@@ -33,11 +34,18 @@ export class PlatformCatalogPageComponent implements OnInit {
   private lease: ReturnType<PlatformSessionStore["captureSessionLease"]> = null;
   readonly page = signal<PlatformCatalogPage | null>(null);
   readonly taxonomy = signal<PlatformCatalogTaxonomyPage | null>(null);
+  readonly brandOptions = signal<readonly PlatformCatalogTaxonomy[]>([]);
+  readonly categoryOptions = signal<readonly PlatformCatalogTaxonomy[]>([]);
+  readonly filterOptionsLoading = signal(false);
+  readonly filterOptionsError = signal("");
+  private filterOptionsLoaded = false;
   readonly selected = signal<PlatformCatalogProduct | null>(null);
   readonly busy = signal(false);
   readonly error = signal("");
   search = "";
   status = "";
+  brand = "";
+  category = "";
   kind: "products" | "categories" | "brands" = "products";
   constructor() {
     effect(() => {
@@ -48,6 +56,11 @@ export class PlatformCatalogPageComponent implements OnInit {
       ) {
         this.page.set(null);
         this.taxonomy.set(null);
+        this.brandOptions.set([]);
+        this.categoryOptions.set([]);
+        this.filterOptionsLoading.set(false);
+        this.filterOptionsError.set("");
+        this.filterOptionsLoaded = false;
         this.selected.set(null);
         this.error.set("");
         this.busy.set(false);
@@ -55,13 +68,24 @@ export class PlatformCatalogPageComponent implements OnInit {
     });
   }
   ngOnInit(): void {
+    void this.loadFilterOptions();
     void this.load();
+  }
+  async refresh(): Promise<void> {
+    this.filterOptionsLoaded = false;
+    await Promise.all([this.loadFilterOptions(), this.load()]);
   }
   async load(page = 0): Promise<void> {
     await this.run(async (current) => {
       if (this.kind === "products") {
         const result = await firstValueFrom(
-          this.api.list(this.search.trim(), page, this.status),
+          this.api.list(
+            this.search,
+            page,
+            this.status,
+            this.brand,
+            this.category,
+          ),
         );
         if (!current()) return;
         this.page.set(result);
@@ -86,6 +110,8 @@ export class PlatformCatalogPageComponent implements OnInit {
   async changeKind(): Promise<void> {
     this.search = "";
     this.status = "";
+    this.brand = "";
+    this.category = "";
     this.page.set(null);
     this.taxonomy.set(null);
     this.selected.set(null);
@@ -113,5 +139,48 @@ export class PlatformCatalogPageComponent implements OnInit {
     } finally {
       if (current()) this.busy.set(false);
     }
+  }
+
+  private async loadFilterOptions(): Promise<void> {
+    if (this.filterOptionsLoaded || this.filterOptionsLoading()) return;
+    const lease = this.sessions.captureSessionLease();
+    if (!lease) return;
+    this.filterOptionsLoading.set(true);
+    this.filterOptionsError.set("");
+    const current = () => !this.destroyRef.destroyed && this.sessions.isSessionLeaseCurrent(lease);
+    try {
+      const [categories, brands] = await Promise.all([
+        this.listAllTaxonomy("categories"),
+        this.listAllTaxonomy("brands"),
+      ]);
+      if (!current()) return;
+      this.categoryOptions.set(categories.filter((option) => option.status === "ACTIVE"));
+      this.brandOptions.set(brands.filter((option) => option.status === "ACTIVE"));
+      this.filterOptionsLoaded = true;
+    } catch {
+      if (current()) this.filterOptionsError.set("Brand and category options could not be loaded. Refresh catalog filters to try again.");
+    } finally {
+      if (current()) this.filterOptionsLoading.set(false);
+    }
+  }
+
+  private async listAllTaxonomy(kind: "categories" | "brands"): Promise<PlatformCatalogTaxonomy[]> {
+    const values: PlatformCatalogTaxonomy[] = [];
+    let page = 0;
+    let total = 0;
+    do {
+      const result = await firstValueFrom(this.api.taxonomy(kind, "", page));
+      if (result.page !== page || result.size < 1 || result.total < result.items.length || result.items.length > result.size) {
+        throw new NexaApiError("unknown", null, null);
+      }
+      if (page === 0) total = result.total;
+      else if (result.total !== total) throw new NexaApiError("unknown", null, null);
+      values.push(...result.items);
+      if (values.length < total && result.items.length === 0) throw new NexaApiError("unknown", null, null);
+      page += 1;
+    } while (values.length < total);
+    const unique = [...new Map(values.map((value) => [value.id, value])).values()];
+    if (unique.length !== total) throw new NexaApiError("unknown", null, null);
+    return unique;
   }
 }

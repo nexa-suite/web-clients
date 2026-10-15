@@ -44,6 +44,62 @@
           <nexa-button variant="secondary" size="compact" (click)="addLine()">Add item</nexa-button>
         }
       </div>
+      @if (canReadCatalog()) {
+        <form class="request-builder__catalog-search" aria-label="Search catalog SKUs" (ngSubmit)="searchCatalog()">
+          <label>
+            Product
+            <input type="search" name="catalogProduct" [(ngModel)]="catalogProductSearch" placeholder="Name, family or SKU" />
+          </label>
+          <label>
+            Brand
+            <select name="catalogBrand" [(ngModel)]="catalogBrandSearch" [disabled]="catalog.filterOptionsLoading()">
+              <option value="">All brands</option>
+              @for (brand of catalog.brands(); track brand.id) {
+                <option [value]="brand.name">{{ brand.name }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Type / category
+            <select name="catalogCategory" [(ngModel)]="catalogCategorySearch" [disabled]="catalog.filterOptionsLoading()">
+              <option value="">All types</option>
+              @for (category of catalog.categories(); track category.id) {
+                <option [value]="category.name">{{ category.name }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Cold-chain requirement
+            <select name="catalogColdChain" [(ngModel)]="catalogColdChain">
+              @for (option of catalogColdChainOptions; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+          </label>
+          <div class="request-builder__catalog-search-actions">
+            <nexa-button type="submit" variant="secondary" size="compact" [disabled]="catalog.page().kind === 'loading'">Search catalog</nexa-button>
+            <nexa-button type="button" variant="quiet" size="compact" [disabled]="catalog.page().kind === 'loading'" (click)="clearCatalogFilters()">Clear filters</nexa-button>
+          </div>
+        </form>
+        @if (catalog.filterOptionsError()) {
+          <p class="request-builder__notice" role="alert">{{ catalog.filterOptionsError() }}</p>
+        }
+        @if (catalog.page().kind === 'loading') {
+          <p class="request-builder__notice" role="status">Loading catalog SKUs…</p>
+        } @else if (catalog.page().kind === 'error') {
+          <p class="request-builder__notice" role="alert">{{ catalog.page().errorMessage }}</p>
+        }
+        @if (catalog.page().page; as catalogPage) {
+          <div class="request-builder__catalog-pagination">
+            <span>{{ catalogPage.totalItems }} matching SKUs</span>
+            @if (catalogPage.totalPages > 1) {
+              <nexa-button type="button" variant="quiet" size="compact" [disabled]="catalogPage.page === 0 || catalog.page().kind === 'loading'" (click)="changeCatalogPage(-1)">Previous catalog page</nexa-button>
+              <span>Page {{ catalogPage.page + 1 }} of {{ catalogPage.totalPages }}</span>
+              <nexa-button type="button" variant="quiet" size="compact" [disabled]="catalogPage.page + 1 >= catalogPage.totalPages || catalog.page().kind === 'loading'" (click)="changeCatalogPage(1)">Next catalog page</nexa-button>
+            }
+          </div>
+        }
+      }
       <div class="request-builder__lines">
         @for (line of lines; track $index; let row = $index) {
           <div class="request-builder__line">
@@ -52,6 +108,9 @@
               <select [ngModel]="line.skuId" (ngModelChange)="updateLine(row, 'skuId', $event)">
                 <option value="">Choose a sellable SKU</option>
                 @if (line.skuId && !hasCatalogSku(line.skuId) && isSavedDraftSku(line.skuId)) {
+                  <option [value]="line.skuId" disabled>{{ skuLabel(line.skuId) }}</option>
+                }
+                @if (line.skuId && !hasCatalogSku(line.skuId) && hasPreviouslySelectedCatalogSku(line.skuId)) {
                   <option [value]="line.skuId" disabled>{{ skuLabel(line.skuId) }}</option>
                 }
                 @for (item of catalogSkuOptions(); track item.catalogItemId) {

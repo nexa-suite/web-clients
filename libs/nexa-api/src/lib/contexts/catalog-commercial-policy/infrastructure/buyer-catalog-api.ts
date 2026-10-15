@@ -4,6 +4,7 @@ import { Observable, throwError } from "rxjs";
 import { NEXA_API_HTTP_CONFIGURATION } from "../../../http/nexa-http";
 import {
   BuyerCatalogItemDetailResponse,
+  BuyerCatalogFilterOptionPage,
   BuyerCatalogPageResponse,
   BuyerCatalogQuery,
 } from "../contracts/buyer-catalog.contracts";
@@ -32,6 +33,23 @@ export class NexaBuyerCatalogApi {
     }
     return this.http.get<BuyerCatalogPageResponse>(
       `${this.configuration.apiBaseUrl}/catalog-items`,
+      { params },
+    );
+  }
+
+  filterOptions(
+    kind: "brand" | "category",
+    search = "",
+    page = 0,
+    size = 100,
+  ): Observable<BuyerCatalogFilterOptionPage> {
+    const params = new HttpParams()
+      .set("kind", kind)
+      .set("search", search.trim())
+      .set("page", page)
+      .set("size", size);
+    return this.http.get<BuyerCatalogFilterOptionPage>(
+      `${this.configuration.apiBaseUrl}/catalog-items/filter-options`,
       { params },
     );
   }

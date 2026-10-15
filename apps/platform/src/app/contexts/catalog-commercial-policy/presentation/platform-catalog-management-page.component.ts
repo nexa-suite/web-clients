@@ -3,6 +3,7 @@ import {
   Component,
   DestroyRef,
   OnInit,
+  computed,
   effect,
   inject,
   signal,
@@ -14,7 +15,6 @@ import { firstValueFrom } from "rxjs";
 import {
   NexaApiError,
   NexaCommandRetryStore,
-  NexaPlatformCatalogApi,
   NexaPlatformCatalogManagementApi,
   type CreateBrandRequest,
   type CreateCategoryRequest,
@@ -127,7 +127,6 @@ const emptyPrice = (): Mutable<CreateSkuPriceRequest> => ({
 })
 export class PlatformCatalogManagementPageComponent implements OnInit {
   private readonly api = inject(NexaPlatformCatalogManagementApi);
-  private readonly catalogQueries = inject(NexaPlatformCatalogApi);
   private readonly sessions = inject(PlatformSessionStore);
   private readonly retryStore = inject(NexaCommandRetryStore);
   private readonly destroyRef = inject(DestroyRef);
@@ -139,9 +138,21 @@ export class PlatformCatalogManagementPageComponent implements OnInit {
   protected readonly unknownCreate = signal<CatalogUnknownCreate | null>(null);
   protected readonly categoryLookups = signal<readonly PlatformCatalogTaxonomy[]>([]);
   protected readonly brandLookups = signal<readonly PlatformCatalogTaxonomy[]>([]);
+  protected readonly activeCategoryLookups = computed(() =>
+    this.categoryLookups().filter((category) => category.status === "ACTIVE"),
+  );
+  protected readonly activeBrandLookups = computed(() =>
+    this.brandLookups().filter((brand) => brand.status === "ACTIVE"),
+  );
   protected readonly categories = signal<readonly ManagedCategory[]>([]);
   protected readonly brands = signal<readonly ManagedBrand[]>([]);
+  protected readonly categoryListPage = signal<{ page: number; size: number; total: number } | null>(null);
+  protected readonly brandListPage = signal<{ page: number; size: number; total: number } | null>(null);
+  protected readonly categoryPageIndex = signal(0);
+  protected readonly brandPageIndex = signal(0);
   protected readonly families = signal<readonly ProductFamilySummary[]>([]);
+  protected readonly familyListPage = signal<{ page: number; size: number; total: number } | null>(null);
+  protected readonly familyPageIndex = signal(0);
   protected readonly variants = signal<readonly ProductVariantSummary[]>([]);
   protected readonly skus = signal<readonly SellableSkuSummary[]>([]);
   protected readonly prices = signal<readonly SkuPrice[]>([]);
@@ -158,6 +169,8 @@ export class PlatformCatalogManagementPageComponent implements OnInit {
   protected categoryLookupSearch = "";
   protected brandLookupSearch = "";
   protected familySearch = "";
+  protected familyBrandSearch = "";
+  protected familyCategorySearch = "";
 
   constructor() {
     effect(() => {
@@ -202,14 +215,41 @@ export class PlatformCatalogManagementPageComponent implements OnInit {
   }
 
   protected async searchFamilies(): Promise<void> {
+    this.familyPageIndex.set(0);
+    await this.run((current) => this.refreshFamilyList(current));
+  }
+
+  protected async changeFamilyPage(offset: number): Promise<void> {
+    const page = this.familyListPage();
+    if (!page) return;
+    const nextPage = page.page + offset;
+    if (nextPage < 0 || nextPage * page.size >= page.total) return;
+    this.familyPageIndex.set(nextPage);
     await this.run((current) => this.refreshFamilyList(current));
   }
 
   protected async searchLookups(kind: "categories" | "brands"): Promise<void> {
+    if (kind === "categories") this.categoryPageIndex.set(0);
+    else this.brandPageIndex.set(0);
     await this.run(async (current) => {
       await Promise.all([
         this.refreshLookups(current, kind),
         this.refreshTaxonomyData(current),
+      ]);
+    });
+  }
+
+  protected async changeTaxonomyPage(kind: "categories" | "brands", offset: number): Promise<void> {
+    const page = kind === "categories" ? this.categoryListPage() : this.brandListPage();
+    if (!page) return;
+    const nextPage = page.page + offset;
+    if (nextPage < 0 || nextPage * page.size >= page.total) return;
+    if (kind === "categories") this.categoryPageIndex.set(nextPage);
+    else this.brandPageIndex.set(nextPage);
+    await this.run(async (current) => {
+      await Promise.all([
+        this.refreshTaxonomyData(current),
+        this.refreshLookups(current, kind),
       ]);
     });
   }
@@ -639,12 +679,14 @@ export class PlatformCatalogManagementPageComponent implements OnInit {
 
   private async refreshTaxonomyData(current: () => boolean): Promise<void> {
     const [categories, brands] = await Promise.all([
-      firstValueFrom(this.api.categories(this.categoryLookupSearch.trim())),
-      firstValueFrom(this.api.brands(this.brandLookupSearch.trim())),
+      firstValueFrom(this.api.categories(this.categoryLookupSearch.trim(), this.categoryPageIndex())),
+      firstValueFrom(this.api.brands(this.brandLookupSearch.trim(), this.brandPageIndex())),
     ]);
     if (!current()) return;
     this.categories.set(categories.items);
     this.brands.set(brands.items);
+    this.categoryListPage.set({ page: categories.page, size: categories.size, total: categories.total });
+    this.brandListPage.set({ page: brands.page, size: brands.size, total: brands.total });
   }
 
   private async refreshLookups(
@@ -653,35 +695,72 @@ export class PlatformCatalogManagementPageComponent implements OnInit {
   ): Promise<void> {
     const categoriesPromise =
       !kind || kind === "categories"
-        ? firstValueFrom(
-            this.catalogQueries.taxonomy(
-              "categories",
-              this.categoryLookupSearch,
-              0,
-            ),
-          )
+        ? this.listAllTaxonomy("categories", current)
         : null;
     const brandsPromise =
       !kind || kind === "brands"
-        ? firstValueFrom(
-            this.catalogQueries.taxonomy("brands", this.brandLookupSearch, 0),
-          )
+        ? this.listAllTaxonomy("brands", current)
         : null;
     const [categories, brands] = await Promise.all([
       categoriesPromise,
       brandsPromise,
     ]);
     if (!current()) return;
-    if (categories) this.categoryLookups.set(categories.items);
-    if (brands) this.brandLookups.set(brands.items);
+    if (categories) this.categoryLookups.set(categories);
+    if (brands) this.brandLookups.set(brands);
+  }
+
+  private async listAllTaxonomy(
+    kind: "categories" | "brands",
+    current: () => boolean,
+  ): Promise<PlatformCatalogTaxonomy[]> {
+    const options: PlatformCatalogTaxonomy[] = [];
+    let page = 0;
+    let total = 0;
+    do {
+      if (!current()) return [];
+      const result = await firstValueFrom(
+        kind === "categories"
+          ? this.api.categories("", page)
+          : this.api.brands("", page),
+      );
+      if (!current()) return [];
+      if (
+        result.page !== page ||
+        !Number.isSafeInteger(result.size) ||
+        result.size < 1 ||
+        !Number.isSafeInteger(result.total) ||
+        result.total < result.items.length ||
+        result.items.length > result.size
+      ) {
+        throw new NexaApiError("unknown", null, null);
+      }
+      if (page === 0) total = result.total;
+      else if (result.total !== total) throw new NexaApiError("unknown", null, null);
+      options.push(...result.items);
+      if (options.length < total && result.items.length === 0) {
+        throw new NexaApiError("unknown", null, null);
+      }
+      page += 1;
+    } while (options.length < total);
+
+    const unique = [...new Map(options.map((option) => [option.id, option])).values()];
+    if (unique.length !== total) throw new NexaApiError("unknown", null, null);
+    return unique;
   }
 
   private async refreshFamilyList(current: () => boolean): Promise<void> {
     const page = await firstValueFrom(
-      this.api.families(this.familySearch.trim(), 0),
+      this.api.families(
+        this.familySearch.trim(),
+        this.familyPageIndex(),
+        this.familyBrandSearch.trim(),
+        this.familyCategorySearch.trim(),
+      ),
     );
     if (!current()) return;
     this.families.set(page.items);
+    this.familyListPage.set({ page: page.page, size: page.size, total: page.total });
     const selected = this.selectedFamily();
     if (selected) {
       const refreshed = page.items.find((item) => item.id === selected.id);
@@ -925,9 +1004,15 @@ export class PlatformCatalogManagementPageComponent implements OnInit {
   private clearWorkspace(): void {
     this.categories.set([]);
     this.brands.set([]);
+    this.categoryListPage.set(null);
+    this.brandListPage.set(null);
+    this.categoryPageIndex.set(0);
+    this.brandPageIndex.set(0);
     this.categoryLookups.set([]);
     this.brandLookups.set([]);
     this.families.set([]);
+    this.familyListPage.set(null);
+    this.familyPageIndex.set(0);
     this.variants.set([]);
     this.skus.set([]);
     this.prices.set([]);
