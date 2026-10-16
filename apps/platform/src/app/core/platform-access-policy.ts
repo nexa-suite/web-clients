@@ -48,6 +48,9 @@ export const PLATFORM_ACCESS_RULES = {
     capabilities: [["fulfillment.read", "fulfillment:read", "logistics.read", "dispatch.read", "logistics.analytics.read", "logistics:read"]],
   },
   documents: { capabilities: [["document.read"]] },
+  inventoryEvidenceUpload: {
+    capabilities: [["document.upload"], ["document.read"]],
+  },
   orderSummaryGeneration: {
     capabilities: [["document.generate"], ["sales.order.read"]],
   },

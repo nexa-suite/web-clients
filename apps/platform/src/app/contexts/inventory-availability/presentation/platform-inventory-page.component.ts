@@ -58,6 +58,13 @@ export class PlatformInventoryPageComponent {
     this.store.updateReceiptDraft({ [field]: value } as Pick<WarehouseReceiptDraft, K>);
   }
 
+  protected selectEvidenceFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.item(0) ?? null;
+    input.value = "";
+    void this.store.selectEvidenceFile(file);
+  }
+
   protected zoneLabel(zoneId: string): string {
     return this.store.zones().find((zone) => zone.id === zoneId)?.name ?? zoneId;
   }

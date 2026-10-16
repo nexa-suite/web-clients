@@ -72,6 +72,17 @@ describe("Platform access policy", () => {
     ).toBe(false);
   });
 
+  it("requires both document upload and read access for evidence status confirmation", () => {
+    expect(canAccessPlatformFeature(
+      platformSession({ membership: { permissions: ["document.upload"] } }),
+      PLATFORM_ACCESS_RULES.inventoryEvidenceUpload,
+    )).toBe(false);
+    expect(canAccessPlatformFeature(
+      platformSession({ membership: { permissions: ["document.upload", "document.read"] } }),
+      PLATFORM_ACCESS_RULES.inventoryEvidenceUpload,
+    )).toBe(true);
+  });
+
   it("keeps inventory read, receiving and catalog read permissions independent", () => {
     const scope = platformSession({ membership: { permissions: ["warehouse:read"] } });
     expect(canAccessPlatformFeature(scope, PLATFORM_ACCESS_RULES.inventory)).toBe(true);

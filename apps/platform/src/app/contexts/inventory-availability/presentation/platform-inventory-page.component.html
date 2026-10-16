@@ -258,7 +258,7 @@
                 <select
                   [ngModel]="store.receiptDraft().warehouseId"
                   (ngModelChange)="store.setWarehouse($event)"
-                  [disabled]="store.warehousesLoading()"
+                  [disabled]="store.warehousesLoading() || store.receiptLocked() || !!store.availableEvidence()"
                 >
                   <option value="">Choose active authorized warehouse</option>
                   @for (warehouse of store.warehouses(); track warehouse.id) {
@@ -273,7 +273,7 @@
                 <select
                   [ngModel]="store.receiptDraft().zoneId"
                   (ngModelChange)="store.setZone($event)"
-                  [disabled]="!store.receiptDraft().warehouseId || store.zonesLoading()"
+                  [disabled]="!store.receiptDraft().warehouseId || store.zonesLoading() || store.receiptLocked()"
                 >
                   <option value="">Choose active zone</option>
                   @for (zone of store.zones(); track zone.id) {
@@ -290,23 +290,24 @@
                   (ngModelChange)="updateDraft('batchNumber', $event)"
                   maxlength="80"
                   required
+                  [disabled]="store.receiptLocked()"
                 />
               </label>
               <label>
                 Production date
-                <input type="date" [ngModel]="store.receiptDraft().productionDate" (ngModelChange)="updateDraft('productionDate', $event)" required />
+                <input type="date" [ngModel]="store.receiptDraft().productionDate" (ngModelChange)="updateDraft('productionDate', $event)" required [disabled]="store.receiptLocked()" />
               </label>
               <label>
                 Received at
-                <input type="datetime-local" [ngModel]="store.receiptDraft().receivedAtLocal" (ngModelChange)="updateDraft('receivedAtLocal', $event)" required />
+                <input type="datetime-local" [ngModel]="store.receiptDraft().receivedAtLocal" (ngModelChange)="updateDraft('receivedAtLocal', $event)" required [disabled]="store.receiptLocked()" />
               </label>
               <label>
                 Expiration date
-                <input type="date" [ngModel]="store.receiptDraft().expirationDate" (ngModelChange)="updateDraft('expirationDate', $event)" required />
+                <input type="date" [ngModel]="store.receiptDraft().expirationDate" (ngModelChange)="updateDraft('expirationDate', $event)" required [disabled]="store.receiptLocked()" />
               </label>
               <label>
                 Quantity
-                <input type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]+)?" [ngModel]="store.receiptDraft().quantity" (ngModelChange)="updateDraft('quantity', $event)" required />
+                <input type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]+)?" [ngModel]="store.receiptDraft().quantity" (ngModelChange)="updateDraft('quantity', $event)" required [disabled]="store.receiptLocked()" />
               </label>
               <label>
                 Unit (SKU)
@@ -314,21 +315,64 @@
               </label>
               <label>
                 Receiving temperature (°C)
-                <input type="text" inputmode="decimal" pattern="-?[0-9]+([.][0-9]+)?" [ngModel]="store.receiptDraft().temperatureReading" (ngModelChange)="updateDraft('temperatureReading', $event)" />
+                <input type="text" inputmode="decimal" pattern="-?[0-9]+([.][0-9]+)?" [ngModel]="store.receiptDraft().temperatureReading" (ngModelChange)="updateDraft('temperatureReading', $event)" [disabled]="store.receiptLocked()" />
               </label>
               <label class="inventory-filters__wide">
                 Notes
-                <textarea [ngModel]="store.receiptDraft().notes" (ngModelChange)="updateDraft('notes', $event)" maxlength="2000" rows="3"></textarea>
+                <textarea [ngModel]="store.receiptDraft().notes" (ngModelChange)="updateDraft('notes', $event)" maxlength="2000" rows="3" [disabled]="store.receiptLocked()"></textarea>
               </label>
             </div>
-            <p class="inventory-message">
-              API validates SKU, zone temperature policy and expiry. Out-of-range temperature requires validated photographic evidence. Use Operations receiving for that case.
-            </p>
+            <section class="receipt-evidence" aria-labelledby="receipt-evidence-title">
+              <h3 id="receipt-evidence-title">Photo evidence</h3>
+              <p>The API may require an available photo for a temperature excursion. File scanning confirms type and safety, not what the photo depicts.</p>
+              @if (!store.canUploadEvidence()) {
+                <p class="inventory-message" role="status">Photo upload is unavailable for this membership.</p>
+              } @else if (store.availableEvidence(); as evidence) {
+                <p class="inventory-message inventory-message--success" role="status">
+                  Photo available for this warehouse · {{ evidence.originalFilename }} · {{ evidence.detectedContentType }}.
+                </p>
+                <nexa-button appearance="secondary" [disabled]="store.receiving()" (click)="store.removeSelectedEvidence()">
+                  Remove photo
+                </nexa-button>
+              } @else if (store.pendingEvidenceUpload(); as pendingEvidence) {
+                <p class="inventory-message" role="status">
+                  Photo {{ store.evidenceStatus()?.lifecycleStatus || (pendingEvidence.evidenceId ? 'status not checked' : 'upload outcome needs confirmation') }}.
+                  @if (store.evidenceStatus()?.failureCode) { {{ store.evidenceStatus()?.failureCode }} }
+                </p>
+                @if (!pendingEvidence.evidenceId) {
+                  <label>
+                    Select the exact same photo to retry
+                    <input type="file" accept="image/*" (change)="selectEvidenceFile($event)" [disabled]="store.receiving() || store.evidenceFileHashing()" />
+                  </label>
+                }
+                @if (store.evidenceError()) {
+                  <p class="inventory-message inventory-message--error" role="alert">{{ store.evidenceError() }}</p>
+                }
+                <nexa-button appearance="secondary" [disabled]="!store.canRetryEvidenceUpload()" (click)="store.retryPendingEvidenceUpload()">
+                  @if (store.receiving() || store.evidenceLoading()) { Checking photo… } @else { Retry / check photo }
+                </nexa-button>
+              } @else {
+                <label>
+                  Photo file
+                  <input type="file" accept="image/*" (change)="selectEvidenceFile($event)" [disabled]="store.receiving() || store.evidenceFileHashing()" />
+                </label>
+                @if (store.selectedEvidenceFile(); as file) {
+                  <p class="inventory-message" role="status">Selected {{ file.name }} · {{ file.size }} bytes. Upload starts when receipt is recorded.</p>
+                  <nexa-button appearance="secondary" [disabled]="store.receiving() || store.evidenceFileHashing()" (click)="store.removeSelectedEvidence()">Remove selected photo</nexa-button>
+                }
+                @if (store.evidenceError()) {
+                  <p class="inventory-message inventory-message--error" role="alert">{{ store.evidenceError() }}</p>
+                }
+                @if (store.evidenceNotice()) {
+                  <p class="inventory-message" role="status">{{ store.evidenceNotice() }}</p>
+                }
+              }
+            </section>
             <nexa-button
-              [disabled]="store.receiving() || store.catalogLoading() || !store.selectedCatalogItem()"
+              [disabled]="store.receiving() || store.evidenceFileHashing() || store.catalogLoading() || (!store.pendingReceipt() && store.pendingEvidenceUpload() !== null && store.availableEvidence() === null) || (!store.pendingReceipt() && !store.selectedCatalogItem())"
               (click)="store.submitReceipt()"
             >
-              @if (store.receiving()) { Recording… } @else { Record receipt }
+              @if (store.receiving()) { Uploading / recording… } @else { Record receipt }
             </nexa-button>
           </section>
         }

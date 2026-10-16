@@ -1,9 +1,12 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal } from "@angular/core";
 import {
   NexaApiError,
+  NexaBusinessDocumentsApi,
   NexaBuyerCatalogApi,
   NexaCommandRetryStore,
   NexaWarehouseInventoryApi,
+  BUSINESS_DOCUMENT_EVIDENCE_MAX_BYTES,
+  type BusinessDocumentEvidenceResponse,
   type BuyerCatalogItemDetailResponse,
   type BuyerCatalogItemSummaryResponse,
   type BuyerCatalogPageResponse,
@@ -13,13 +16,15 @@ import {
   type WarehouseInventoryWarehouseResponse,
   type WarehouseInventoryZoneResponse,
 } from "@nexa/api";
-import { firstValueFrom } from "rxjs";
+import { firstValueFrom, timer } from "rxjs";
 import { canAccessPlatformFeature, PLATFORM_ACCESS_RULES } from "../../../core/platform-access-policy";
 import { PlatformSessionStore, type PlatformSessionLease } from "../../tenant-access-governance/application/public-api";
 
 const PAGE_SIZE = 25;
 const REFERENCE_PAGE_SIZE = 100;
 const RECEIPT_RETRY_PREFIX = "nexa:platform:inventory-receipt:";
+const EVIDENCE_RETRY_PREFIX = "nexa:platform:inventory-evidence:";
+const PENDING_EVIDENCE_STATUSES = new Set(["REQUESTED", "UPLOADING", "QUARANTINED", "SCANNING"]);
 
 interface StockFilters {
   readonly warehouseId: string;
@@ -55,6 +60,17 @@ interface PendingReceipt {
   readonly storageKey: string;
 }
 
+interface PendingEvidenceUpload {
+  readonly idempotencyKey: string;
+  readonly warehouseId: string;
+  readonly originalFilename: string;
+  readonly declaredContentType: string;
+  readonly byteSize: number;
+  readonly checksumSha256: string;
+  readonly evidenceId: string | null;
+  readonly storageKey: string;
+}
+
 const EMPTY_FILTERS: StockFilters = {
   warehouseId: "",
   zoneId: "",
@@ -81,6 +97,7 @@ const EMPTY_DRAFT: WarehouseReceiptDraft = {
 @Injectable()
 export class PlatformInventoryReceivingStore {
   private readonly inventory = inject(NexaWarehouseInventoryApi);
+  private readonly businessDocuments = inject(NexaBusinessDocumentsApi);
   private readonly catalog = inject(NexaBuyerCatalogApi);
   private readonly retries = inject(NexaCommandRetryStore);
   private readonly sessions = inject(PlatformSessionStore);
@@ -104,12 +121,21 @@ export class PlatformInventoryReceivingStore {
   readonly selectedBrand = signal("");
   readonly selectedCategory = signal("");
   readonly pendingReceipt = signal<PendingReceipt | null>(null);
+  readonly selectedEvidenceFile = signal<File | null>(null);
+  readonly selectedEvidenceChecksum = signal("");
+  readonly pendingEvidenceUpload = signal<PendingEvidenceUpload | null>(null);
+  readonly evidenceStatus = signal<BusinessDocumentEvidenceResponse | null>(null);
+  readonly availableEvidence = signal<BusinessDocumentEvidenceResponse | null>(null);
   readonly warehousesLoading = signal(false);
   readonly zonesLoading = signal(false);
   readonly lotsLoading = signal(false);
   readonly catalogLoading = signal(false);
   readonly filterOptionsLoading = signal(false);
   readonly receiving = signal(false);
+  readonly evidenceFileHashing = signal(false);
+  readonly evidenceLoading = signal(false);
+  readonly evidenceError = signal("");
+  readonly evidenceNotice = signal("");
   readonly warehouseError = signal("");
   readonly zonesError = signal("");
   readonly lotsError = signal("");
@@ -136,7 +162,14 @@ export class PlatformInventoryReceivingStore {
       canAccessPlatformFeature(current.session, PLATFORM_ACCESS_RULES.inventoryCatalog);
   });
 
-  readonly receiptLocked = computed(() => this.receiving() || this.pendingReceipt() !== null);
+  readonly canUploadEvidence = computed(() => {
+    const current = this.sessions.state();
+    return current.status === "authenticated" && this.canReceive() &&
+      canAccessPlatformFeature(current.session, PLATFORM_ACCESS_RULES.inventoryEvidenceUpload);
+  });
+
+  readonly receiptLocked = computed(() => this.receiving() || this.evidenceFileHashing() || this.pendingReceipt() !== null ||
+    (this.pendingEvidenceUpload() !== null && this.availableEvidence() === null));
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -144,6 +177,7 @@ export class PlatformInventoryReceivingStore {
       this.zonesGeneration += 1;
       this.lotsGeneration += 1;
       this.catalogGeneration += 1;
+      this.selectedEvidenceFile.set(null);
     });
     effect(() => {
       const current = this.sessions.state();
@@ -163,8 +197,13 @@ export class PlatformInventoryReceivingStore {
       this.resetContextState();
       if (!lease || !this.canRead()) return;
 
+      const pendingEvidence = this.restorePendingEvidence(lease);
       const pending = this.restorePendingReceipt(lease);
-      void this.loadWarehouses(lease, generation, pending?.request.warehouseId ?? "");
+      void this.loadWarehouses(
+        lease,
+        generation,
+        pending?.request.warehouseId ?? pendingEvidence?.warehouseId ?? "",
+      );
       void this.loadLots(0, lease, generation);
       if (this.canReadCatalog()) void this.loadFilterOptions(lease, generation);
     });
@@ -172,6 +211,11 @@ export class PlatformInventoryReceivingStore {
 
   setWarehouse(warehouseId: string): void {
     if (!this.canEditFilters()) return;
+    const evidence = this.availableEvidence();
+    if (evidence && evidence.subjectId !== warehouseId) {
+      this.evidenceError.set("Remove the current warehouse photo before changing warehouse.");
+      return;
+    }
     const warehouse = this.warehouses().find((item) => item.id === warehouseId);
     if (warehouseId && !warehouse) return;
     const lease = this.sessions.captureSessionLease();
@@ -268,6 +312,89 @@ export class PlatformInventoryReceivingStore {
     this.receiptNotice.set("");
   }
 
+  async selectEvidenceFile(file: File | null): Promise<void> {
+    if (!file || !this.canUploadEvidence() || this.receiving() || this.pendingReceipt()) return;
+    const currentUpload = this.pendingEvidenceUpload();
+    if (currentUpload?.evidenceId || this.availableEvidence()) {
+      this.evidenceError.set("Remove the current warehouse photo before selecting another file.");
+      return;
+    }
+    const mimeType = file.type.trim();
+    if (
+      file.size <= 0 || file.size > BUSINESS_DOCUMENT_EVIDENCE_MAX_BYTES ||
+      !mimeType.toLowerCase().startsWith("image/") || mimeType.length > 160 ||
+      !file.name.trim() || file.name.length > 255 || /[\u0000-\u001f\u007f]/.test(file.name)
+    ) {
+      this.selectedEvidenceFile.set(null);
+      this.selectedEvidenceChecksum.set("");
+      this.evidenceError.set("Choose a non-empty image within the API file-size limit.");
+      return;
+    }
+    const lease = this.sessions.captureSessionLease();
+    if (!lease) return;
+    const generation = this.generation;
+    this.evidenceFileHashing.set(true);
+    this.evidenceError.set("");
+    this.evidenceNotice.set("");
+    try {
+      const checksumSha256 = await hashEvidenceFile(file);
+      if (!this.isCurrent(lease, generation)) return;
+      if (currentUpload && !matchesEvidenceFile(currentUpload, file, checksumSha256)) {
+        this.selectedEvidenceFile.set(null);
+        this.selectedEvidenceChecksum.set("");
+        this.evidenceError.set("Select the exact same photo to retry the upload whose outcome is unknown.");
+        return;
+      }
+      this.selectedEvidenceFile.set(file);
+      this.selectedEvidenceChecksum.set(checksumSha256);
+    } catch {
+      if (this.isCurrent(lease, generation)) {
+        this.selectedEvidenceFile.set(null);
+        this.selectedEvidenceChecksum.set("");
+        this.evidenceError.set("This browser could not verify the photo bytes. No upload was sent.");
+      }
+    } finally {
+      if (this.isCurrent(lease, generation)) this.evidenceFileHashing.set(false);
+    }
+  }
+
+  removeSelectedEvidence(): void {
+    if (this.receiving() || this.evidenceFileHashing() || this.pendingReceipt()) return;
+    const pending = this.pendingEvidenceUpload();
+    if (pending && !this.availableEvidence()) return;
+    if (pending) this.retries.remove(pending.storageKey);
+    this.clearEvidenceState(false);
+    this.evidenceNotice.set("Photo removed from this receipt draft.");
+  }
+
+  async retryPendingEvidenceUpload(): Promise<void> {
+    const pending = this.pendingEvidenceUpload();
+    const lease = this.sessions.captureSessionLease();
+    if (!pending || !lease || !this.canUploadEvidence() || this.receiving() || this.pendingReceipt()) return;
+    if (!pending.evidenceId && !this.selectedEvidenceMatches(pending)) {
+      this.evidenceError.set("Select the exact same photo before retrying this upload.");
+      return;
+    }
+    const generation = this.generation;
+    this.receiving.set(true);
+    this.evidenceError.set("");
+    try {
+      await this.ensureEvidenceAvailable(pending, lease, generation);
+    } catch (error: unknown) {
+      if (this.isCurrent(lease, generation)) this.handleEvidenceError(error);
+    } finally {
+      if (this.isCurrent(lease, generation)) this.receiving.set(false);
+    }
+  }
+
+  canRetryEvidenceUpload(): boolean {
+    const pending = this.pendingEvidenceUpload();
+    return Boolean(
+      pending && this.canUploadEvidence() && !this.receiving() && !this.pendingReceipt() &&
+      (pending.evidenceId !== null || this.selectedEvidenceMatches(pending)),
+    );
+  }
+
   updateCatalogSearch(query: string, brand: string, category: string): void {
     if (!this.canEditFilters() || !this.canReadCatalog()) return;
     this.catalogQuery.set(query);
@@ -345,6 +472,44 @@ export class PlatformInventoryReceivingStore {
     if (!this.canReceive() || !this.canReadCatalog() || !this.canEditReceipt()) return;
     const lease = this.sessions.captureSessionLease();
     if (!lease) return;
+    let request = this.buildReceiptRequest();
+    if (!request) return;
+    const generation = this.generation;
+    this.receiving.set(true);
+    this.receiptError.set("");
+    this.evidenceError.set("");
+    this.receiptNotice.set("");
+    try {
+      let evidence = this.availableEvidence();
+      const pendingUpload = this.pendingEvidenceUpload();
+      if (pendingUpload) {
+        evidence = await this.ensureEvidenceAvailable(pendingUpload, lease, generation);
+      } else if (this.selectedEvidenceFile()) {
+        if (!this.canUploadEvidence()) {
+          throw new Error("Photo upload is not available to this membership.");
+        }
+        const upload = this.createPendingEvidenceUpload(lease, request.warehouseId);
+        if (!upload) return;
+        evidence = await this.ensureEvidenceAvailable(upload, lease, generation);
+      }
+      if (!this.isCurrent(lease, generation)) return;
+      if (evidence) {
+        if (evidence.subjectType !== "WAREHOUSE" || evidence.subjectId !== request.warehouseId) {
+          throw new Error("Photo evidence is not bound to the selected warehouse.");
+        }
+        request = { ...request, temperatureEvidenceObjectId: evidence.id };
+      }
+      const pending = this.createPendingReceipt(lease, request);
+      if (!pending) return;
+      await this.sendReceipt(pending, lease, generation);
+    } catch (error: unknown) {
+      if (this.isCurrent(lease, generation)) this.handleEvidenceError(error);
+    } finally {
+      if (this.isCurrent(lease, generation)) this.receiving.set(false);
+    }
+  }
+
+  private buildReceiptRequest(): PendingReceipt["request"] | null {
     const draft = this.receiptDraft();
     const warehouse = this.warehouses().find((item) => item.id === draft.warehouseId);
     const zone = this.zones().find((item) => item.id === draft.zoneId && item.warehouseId === draft.warehouseId);
@@ -363,9 +528,9 @@ export class PlatformInventoryReceivingStore {
       draft.notes.length > 2000
     ) {
       this.receiptError.set("Complete active warehouse and zone, catalog item, lot, dates, positive quantity and SKU unit.");
-      return;
+      return null;
     }
-    const request: PendingReceipt["request"] = {
+    return {
       warehouseId: warehouse.id,
       zoneId: zone.id,
       catalogItemId: item.catalogItemId,
@@ -379,22 +544,28 @@ export class PlatformInventoryReceivingStore {
       notes: draft.notes.trim() || null,
       skuId: null,
     };
+  }
+
+  private createPendingReceipt(
+    lease: PlatformSessionLease,
+    request: PendingReceipt["request"],
+  ): PendingReceipt | null {
     const storageKey = receiptStorageKey(lease);
     const idempotencyKey = globalThis.crypto?.randomUUID?.();
     if (!idempotencyKey) {
       this.receiptError.set("This browser cannot create a safe receipt retry key. No request was sent.");
-      return;
+      return null;
     }
     const pending: PendingReceipt = { idempotencyKey, request, storageKey };
     try {
       this.retries.write(storageKey, JSON.stringify({ idempotencyKey, request }));
     } catch {
       this.receiptError.set("The receipt could not be saved for safe retry. No request was sent.");
-      return;
+      return null;
     }
     this.pendingReceipt.set(pending);
     this.receiptError.set("");
-    await this.sendReceipt(pending, lease, this.generation);
+    return pending;
   }
 
   async retryPendingReceipt(): Promise<void> {
@@ -402,6 +573,212 @@ export class PlatformInventoryReceivingStore {
     const lease = this.sessions.captureSessionLease();
     if (!pending || !lease || !this.canReceive() || this.receiving()) return;
     await this.sendReceipt(pending, lease, this.generation);
+  }
+
+  private createPendingEvidenceUpload(
+    lease: PlatformSessionLease,
+    warehouseId: string,
+  ): PendingEvidenceUpload | null {
+    const file = this.selectedEvidenceFile();
+    const checksumSha256 = this.selectedEvidenceChecksum();
+    if (!file || !checksumSha256 || !this.canUploadEvidence()) {
+      this.evidenceError.set("Select a photo and confirm document upload access before receiving.");
+      return null;
+    }
+    const idempotencyKey = globalThis.crypto?.randomUUID?.();
+    if (!idempotencyKey) {
+      this.evidenceError.set("This browser cannot create a safe photo retry key. No upload was sent.");
+      return null;
+    }
+    const storageKey = evidenceStorageKey(lease);
+    const pending: PendingEvidenceUpload = {
+      idempotencyKey,
+      warehouseId,
+      originalFilename: file.name,
+      declaredContentType: file.type.trim(),
+      byteSize: file.size,
+      checksumSha256,
+      evidenceId: null,
+      storageKey,
+    };
+    try {
+      this.persistPendingEvidence(pending);
+    } catch {
+      this.evidenceError.set("Photo retry details could not be saved safely. No upload was sent.");
+      return null;
+    }
+    this.pendingEvidenceUpload.set(pending);
+    this.evidenceStatus.set(null);
+    this.availableEvidence.set(null);
+    this.evidenceNotice.set("");
+    return pending;
+  }
+
+  private async ensureEvidenceAvailable(
+    pending: PendingEvidenceUpload,
+    lease: PlatformSessionLease,
+    generation: number,
+  ): Promise<BusinessDocumentEvidenceResponse | null> {
+    let current = this.pendingEvidenceUpload() ?? pending;
+    if (this.availableEvidence()) return this.availableEvidence();
+    if (!current.evidenceId) {
+      const file = this.selectedEvidenceFile();
+      const checksum = this.selectedEvidenceChecksum();
+      if (!file || !matchesEvidenceFile(current, file, checksum)) {
+        throw new Error("Select the exact same photo before retrying this upload.");
+      }
+      const response = await firstValueFrom(this.businessDocuments.uploadWarehouseEvidence(
+        current.warehouseId,
+        file,
+        current.idempotencyKey,
+      ));
+      if (!this.isCurrent(lease, generation)) return null;
+      if (response.status !== 201 || !matchesEvidenceIdentity(response.body, current, null)) {
+        throw new Error("The API response did not confirm the expected warehouse photo upload.");
+      }
+      current = { ...current, evidenceId: response.body.id };
+      this.pendingEvidenceUpload.set(current);
+      this.evidenceStatus.set(response.body);
+      this.persistPendingEvidence(current);
+      const available = this.applyEvidenceStatus(response.body, current);
+      if (available) return available;
+    }
+    const evidenceId = current.evidenceId;
+    if (!evidenceId) throw new Error("Photo upload did not return an evidence identifier.");
+    return this.pollEvidence(current, lease, generation, evidenceId);
+  }
+
+  private async pollEvidence(
+    pending: PendingEvidenceUpload,
+    lease: PlatformSessionLease,
+    generation: number,
+    evidenceId: string,
+  ): Promise<BusinessDocumentEvidenceResponse | null> {
+    let delayMs = 750;
+    this.evidenceLoading.set(true);
+    try {
+      while (this.isCurrent(lease, generation)) {
+        await firstValueFrom(timer(delayMs));
+        if (!this.isCurrent(lease, generation)) return null;
+        const response = await firstValueFrom(this.businessDocuments.getEvidence(evidenceId));
+        if (!this.isCurrent(lease, generation)) return null;
+        const available = this.applyEvidenceStatus(response, pending);
+        if (available) return available;
+        delayMs = Math.min(delayMs * 2, 15_000);
+      }
+      return null;
+    } finally {
+      if (this.isCurrent(lease, generation)) this.evidenceLoading.set(false);
+    }
+  }
+
+  private applyEvidenceStatus(
+    response: BusinessDocumentEvidenceResponse,
+    pending: PendingEvidenceUpload,
+  ): BusinessDocumentEvidenceResponse | null {
+    if (!matchesEvidenceIdentity(response, pending, pending.evidenceId)) {
+      throw new Error("The API evidence does not match the selected warehouse photo.");
+    }
+    this.evidenceStatus.set(response);
+    if (response.lifecycleStatus === "AVAILABLE") {
+      if (
+        !response.detectedContentType?.toLowerCase().startsWith("image/") ||
+        response.checksumSha256?.toLowerCase() !== pending.checksumSha256 ||
+        response.byteSize !== pending.byteSize
+      ) {
+        this.clearEvidenceState(true);
+        throw new Error("The API did not confirm an available image matching the uploaded bytes.");
+      }
+      this.availableEvidence.set(response);
+      this.evidenceError.set("");
+      this.evidenceNotice.set("Photo scan is available for the selected warehouse. The API does not verify what the photo depicts.");
+      return response;
+    }
+    if (response.lifecycleStatus === "REJECTED" || response.lifecycleStatus === "DELETED") {
+      this.clearEvidenceState(true);
+      throw new Error("The API did not make this photo available. Choose another image or contact Operations.");
+    }
+    if (!PENDING_EVIDENCE_STATUSES.has(response.lifecycleStatus)) {
+      throw new Error("The API returned an unsupported photo status. Receipt remains blocked.");
+    }
+    return null;
+  }
+
+  private persistPendingEvidence(pending: PendingEvidenceUpload): void {
+    this.retries.write(pending.storageKey, JSON.stringify({
+      idempotencyKey: pending.idempotencyKey,
+      warehouseId: pending.warehouseId,
+      originalFilename: pending.originalFilename,
+      declaredContentType: pending.declaredContentType,
+      byteSize: pending.byteSize,
+      checksumSha256: pending.checksumSha256,
+      evidenceId: pending.evidenceId,
+    }));
+  }
+
+  private restorePendingEvidence(lease: PlatformSessionLease): PendingEvidenceUpload | null {
+    const storageKey = evidenceStorageKey(lease);
+    const stored = this.retries.read(storageKey);
+    if (!stored) return null;
+    try {
+      const value = JSON.parse(stored) as Omit<PendingEvidenceUpload, "storageKey">;
+      if (
+        !isUuid(value.idempotencyKey) || !isUuid(value.warehouseId) ||
+        !isBoundedText(value.originalFilename, 255) ||
+        !isBoundedText(value.declaredContentType, 160) ||
+        !value.declaredContentType.toLowerCase().startsWith("image/") ||
+        !Number.isSafeInteger(value.byteSize) || value.byteSize <= 0 ||
+        value.byteSize > BUSINESS_DOCUMENT_EVIDENCE_MAX_BYTES ||
+        !/^[a-f0-9]{64}$/.test(value.checksumSha256) ||
+        (value.evidenceId !== null && !isUuid(value.evidenceId))
+      ) {
+        throw new Error("Stored photo retry details are invalid.");
+      }
+      const pending: PendingEvidenceUpload = { ...value, storageKey };
+      this.pendingEvidenceUpload.set(pending);
+      this.filters.update((current) => ({ ...current, warehouseId: pending.warehouseId }));
+      this.receiptDraft.update((current) => ({ ...current, warehouseId: pending.warehouseId }));
+      return pending;
+    } catch {
+      this.retries.remove(storageKey);
+      return null;
+    }
+  }
+
+  private selectedEvidenceMatches(pending: PendingEvidenceUpload): boolean {
+    const file = this.selectedEvidenceFile();
+    return file !== null && matchesEvidenceFile(pending, file, this.selectedEvidenceChecksum());
+  }
+
+  private handleEvidenceError(error: unknown): void {
+    if (error instanceof NexaApiError && ["unauthenticated", "forbidden", "not-found"].includes(error.kind)) {
+      this.clearEvidenceState(true);
+      this.evidenceError.set("Photo access or warehouse scope changed. Confirm the active warehouse and select the photo again.");
+      return;
+    }
+    if (error instanceof NexaApiError && error.kind === "validation") {
+      this.clearEvidenceState(true);
+      this.evidenceError.set("The API rejected the photo. Choose a supported image and retry.");
+      return;
+    }
+    if (error instanceof NexaApiError && ["network", "timeout", "server", "rate-limited"].includes(error.kind)) {
+      this.evidenceError.set("Photo upload or status is unknown. Keep or reselect the exact same photo, then retry.");
+      return;
+    }
+    this.evidenceError.set(error instanceof Error ? error.message : "Photo evidence was not confirmed.");
+  }
+
+  private clearEvidenceState(removeStored: boolean): void {
+    const pending = this.pendingEvidenceUpload();
+    if (removeStored && pending) this.retries.remove(pending.storageKey);
+    this.selectedEvidenceFile.set(null);
+    this.selectedEvidenceChecksum.set("");
+    this.pendingEvidenceUpload.set(null);
+    this.evidenceStatus.set(null);
+    this.availableEvidence.set(null);
+    this.evidenceLoading.set(false);
+    this.evidenceError.set("");
+    this.evidenceNotice.set("");
   }
 
   private async loadWarehouses(
@@ -528,8 +905,9 @@ export class PlatformInventoryReceivingStore {
     lease: PlatformSessionLease,
     generation: number,
   ): Promise<void> {
-    if (!this.canReceive() || !this.sessions.isSessionLeaseCurrent(lease) || this.receiving()) return;
-    this.receiving.set(true);
+    if (!this.canReceive() || !this.sessions.isSessionLeaseCurrent(lease)) return;
+    const ownsBusyState = !this.receiving();
+    if (ownsBusyState) this.receiving.set(true);
     this.receiptError.set("");
     this.receiptNotice.set("");
     try {
@@ -544,6 +922,7 @@ export class PlatformInventoryReceivingStore {
       }
       this.retries.remove(pending.storageKey);
       this.pendingReceipt.set(null);
+      this.clearEvidenceState(true);
       this.receiptDraft.update((current) => ({
         ...current,
         batchNumber: "",
@@ -562,10 +941,13 @@ export class PlatformInventoryReceivingStore {
       if (error instanceof NexaApiError && error.kind === "validation") {
         this.retries.remove(pending.storageKey);
         this.pendingReceipt.set(null);
+        if (code === "BUSINESS_EVIDENCE_NOT_AVAILABLE" && this.availableEvidence()) {
+          this.clearEvidenceState(true);
+        }
       }
       this.receiptError.set(receiptErrorMessage(error, code));
     } finally {
-      if (this.isCurrent(lease, generation)) this.receiving.set(false);
+      if (ownsBusyState && this.isCurrent(lease, generation)) this.receiving.set(false);
     }
   }
 
@@ -640,12 +1022,21 @@ export class PlatformInventoryReceivingStore {
     this.selectedBrand.set("");
     this.selectedCategory.set("");
     this.pendingReceipt.set(null);
+    this.selectedEvidenceFile.set(null);
+    this.selectedEvidenceChecksum.set("");
+    this.pendingEvidenceUpload.set(null);
+    this.evidenceStatus.set(null);
+    this.availableEvidence.set(null);
     this.warehousesLoading.set(false);
     this.zonesLoading.set(false);
     this.lotsLoading.set(false);
     this.catalogLoading.set(false);
     this.filterOptionsLoading.set(false);
     this.receiving.set(false);
+    this.evidenceFileHashing.set(false);
+    this.evidenceLoading.set(false);
+    this.evidenceError.set("");
+    this.evidenceNotice.set("");
     this.warehouseError.set("");
     this.zonesError.set("");
     this.lotsError.set("");
@@ -758,6 +1149,92 @@ function receiptStorageKey(lease: PlatformSessionLease): string {
   ].map(encodeURIComponent).join(":")}`;
 }
 
+function evidenceStorageKey(lease: PlatformSessionLease): string {
+  return `${EVIDENCE_RETRY_PREFIX}${[
+    lease.scope.userId,
+    lease.scope.tenantId,
+    lease.scope.workspaceId,
+    lease.scope.membershipId,
+  ].map(encodeURIComponent).join(":")}`;
+}
+
+async function hashEvidenceFile(file: File): Promise<string> {
+  if (!globalThis.crypto?.subtle) throw new Error("Web Crypto is unavailable.");
+  const bytes = typeof file.arrayBuffer === "function"
+    ? await file.arrayBuffer()
+    : await readFileAsArrayBuffer(file);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error("Photo bytes could not be read."));
+    reader.onload = () => {
+      if (reader.result instanceof ArrayBuffer) resolve(reader.result);
+      else reject(new Error("Photo bytes were not returned as an array buffer."));
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function matchesEvidenceFile(
+  pending: PendingEvidenceUpload,
+  file: File,
+  checksumSha256: string,
+): boolean {
+  return file.name === pending.originalFilename &&
+    file.type.trim() === pending.declaredContentType &&
+    file.size === pending.byteSize &&
+    checksumSha256.toLowerCase() === pending.checksumSha256;
+}
+
+function matchesEvidenceIdentity(
+  value: BusinessDocumentEvidenceResponse,
+  pending: PendingEvidenceUpload,
+  expectedId: string | null,
+): boolean {
+  return isBusinessDocumentEvidence(value) &&
+    value.subjectType === "WAREHOUSE" &&
+    value.subjectId === pending.warehouseId &&
+    (expectedId === null || value.id === expectedId) &&
+    value.declaredContentType === pending.declaredContentType &&
+    value.byteSize === pending.byteSize &&
+    (value.checksumSha256 === null || value.checksumSha256.toLowerCase() === pending.checksumSha256);
+}
+
+function isBusinessDocumentEvidence(value: unknown): value is BusinessDocumentEvidenceResponse {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const evidence = value as Partial<BusinessDocumentEvidenceResponse>;
+  return isUuid(evidence.id) &&
+    typeof evidence.subjectType === "string" &&
+    isUuid(evidence.subjectId) &&
+    typeof evidence.lifecycleStatus === "string" &&
+    isBoundedText(evidence.declaredContentType, 160) &&
+    (evidence.detectedContentType === null || typeof evidence.detectedContentType === "string") &&
+    isBoundedText(evidence.originalFilename, 255) &&
+    (evidence.checksumSha256 === null || typeof evidence.checksumSha256 === "string") &&
+    Number.isSafeInteger(evidence.byteSize) &&
+    typeof evidence.createdAt === "string" &&
+    (evidence.scannedAt === null || typeof evidence.scannedAt === "string") &&
+    (evidence.failureCode === null || typeof evidence.failureCode === "string") &&
+    typeof evidence.updatedAt === "string" &&
+    (evidence.requestedByMembershipId === null || typeof evidence.requestedByMembershipId === "string");
+}
+
+function isUuid(value: unknown): value is string {
+  return typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function isBoundedText(value: unknown, maximum: number): value is string {
+  return typeof value === "string" &&
+    value.trim().length > 0 &&
+    value.length <= maximum &&
+    !/[\u0000-\u001f\u007f]/.test(value);
+}
+
 function parseLocalDateTime(value: string): string | null {
   if (!value.trim()) return null;
   const parsed = new Date(value);
@@ -778,7 +1255,7 @@ function catalogDetailError(error: unknown): string {
 
 function receiptErrorMessage(error: unknown, code?: string): string {
   if (code === "BUSINESS_EVIDENCE_NOT_AVAILABLE") {
-    return "Receipt blocked: temperature excursion requires an available photo already bound to this warehouse. This screen cannot attach evidence.";
+    return "The API blocked this temperature reading. Attach a photo for this warehouse, wait until its scan is available, then record the receipt.";
   }
   if (code === "TEMPERATURE_REQUIRED") return "The selected cold-chain item requires a receiving temperature.";
   if (code === "WRONG_UNIT") return "The API rejected the unit. Reload the catalog item and use its current SKU unit.";
