@@ -17,6 +17,10 @@ describe("NexaCommandRetryStore", () => {
     "nexa.platform.fulfillment-start:user:tenant:workspace:membership:order:%224%22";
   const documentKey =
     "nexa:platform:order-summary-generation:user:tenant:workspace:membership:order";
+  const inventoryReceiptKey =
+    "nexa:platform:inventory-receipt:00000000-0000-4000-8000-000000000001:00000000-0000-4000-8000-000000000002:00000000-0000-4000-8000-000000000003:00000000-0000-4000-8000-000000000004";
+  const inventoryEvidenceKey =
+    "nexa:platform:inventory-evidence:00000000-0000-4000-8000-000000000001:00000000-0000-4000-8000-000000000002:00000000-0000-4000-8000-000000000003:00000000-0000-4000-8000-000000000004";
   let values: Map<string, string>;
   let storage: FakeStorage;
   let store: NexaCommandRetryStore;
@@ -119,6 +123,51 @@ describe("NexaCommandRetryStore", () => {
     expect(() => store.read(key.replace(hash, "refund-25.00"))).toThrow();
     expect(() => store.write(key, '{"amountPEN":25}')).toThrow();
     expect(() => store.write(key.replace(hash, "d".repeat(63)), idempotencyKey)).toThrow();
+  });
+
+  it("persists a strictly scoped frozen inventory receipt for exact retry", () => {
+    const frozen = JSON.stringify({
+      idempotencyKey: "123e4567-e89b-42d3-a456-426614174000",
+      request: {
+        warehouseId: "00000000-0000-4000-8000-000000000005",
+        zoneId: "00000000-0000-4000-8000-000000000006",
+        catalogItemId: "CAT-0001",
+        batchNumber: "BATCH-0001",
+        expirationDate: "2027-06-30",
+        productionDate: "2026-06-30",
+        receivedAt: "2026-10-15T12:00:00Z",
+        quantity: 5,
+        unit: "kg",
+        temperatureReading: 4,
+        notes: null,
+        skuId: null,
+      },
+    });
+
+    store.write(inventoryReceiptKey, frozen);
+
+    expect(store.read(inventoryReceiptKey)).toBe(frozen);
+    expect(storage.setItem).toHaveBeenCalledWith(inventoryReceiptKey, frozen);
+    expect(() => store.write(inventoryReceiptKey.replace(/:[^:]+$/, "member"), frozen)).toThrow();
+    expect(() => store.write(inventoryReceiptKey, frozen.replace('"notes":null', '"accessToken":"secret","notes":null'))).toThrow();
+  });
+
+  it("persists only scoped photo metadata and hash for an inventory evidence retry", () => {
+    const pending = JSON.stringify({
+      idempotencyKey: "123e4567-e89b-42d3-a456-426614174000",
+      warehouseId: "00000000-0000-4000-8000-000000000005",
+      originalFilename: "receiving.jpg",
+      declaredContentType: "image/jpeg",
+      byteSize: 11,
+      checksumSha256: "a".repeat(64),
+      evidenceId: null,
+    });
+
+    store.write(inventoryEvidenceKey, pending);
+
+    expect(store.read(inventoryEvidenceKey)).toBe(pending);
+    expect(() => store.write(inventoryEvidenceKey, pending.replace('"evidenceId":null', '"evidenceId":null,"fileBytes":"photo"'))).toThrow();
+    expect(() => store.write(inventoryEvidenceKey.replace(/:[^:]+$/, "member"), pending)).toThrow();
   });
 
   it("keeps an idempotency key in memory when session storage is blocked", () => {

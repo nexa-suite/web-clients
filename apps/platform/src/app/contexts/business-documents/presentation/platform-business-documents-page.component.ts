@@ -3,12 +3,18 @@ import {
   ChangeDetectionStrategy,
   Component,
   OnInit,
+  computed,
   inject,
 } from "@angular/core";
 import { RouterLink } from "@angular/router";
 import { NexaButton, NexaSurface } from "nexa-ui";
 import { PlatformBusinessDocumentsStore } from "../application/platform-business-documents.store";
 import type { PlatformBusinessDocumentListState } from "../application/business-documents.models";
+import { PlatformSessionStore } from "../../tenant-access-governance/application/public-api";
+import {
+  canAccessPlatformFeature,
+  PLATFORM_ACCESS_RULES,
+} from "../../../core/platform-access-policy";
 import {
   platformBusinessDocumentStatusLabel,
   platformBusinessDocumentTypeLabel,
@@ -24,6 +30,14 @@ import {
 })
 export class PlatformBusinessDocumentsPageComponent implements OnInit {
   protected readonly store = inject(PlatformBusinessDocumentsStore);
+  private readonly sessions = inject(PlatformSessionStore);
+  protected readonly canGenerateOrderSummary = computed(() => {
+    const current = this.sessions.state();
+    return current.status === "authenticated" && canAccessPlatformFeature(
+      current.session,
+      PLATFORM_ACCESS_RULES.orderSummaryGeneration,
+    );
+  });
   protected readonly typeLabel = platformBusinessDocumentTypeLabel;
   protected readonly statusLabel = platformBusinessDocumentStatusLabel;
 

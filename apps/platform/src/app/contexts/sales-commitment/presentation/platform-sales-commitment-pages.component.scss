@@ -1,4 +1,5 @@
-.platform-sales-page { display: grid; gap: 1.15rem; max-width: 78rem; margin: 0 auto; padding: 1.5rem; }
+.platform-sales-page { display: grid; min-width: 0; gap: 1.15rem; max-width: 78rem; margin: 0 auto; }
+.platform-sales-page > nexa-surface { --nexa-surface-padding: var(--nexa-panel-padding, var(--nexa-space-4)); }
 .platform-sales-page__heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
 .platform-sales-page__heading h1 { margin: .25rem 0; }
 .platform-sales-page__heading p { color: var(--nexa-color-text-secondary, #5b6472); }
@@ -18,4 +19,24 @@
 .platform-sales-page__actions { display: flex; align-items: flex-end; flex-wrap: wrap; gap: .75rem; }
 .platform-sales-page__review-note { display: grid; min-width: min(100%, 26rem); gap: .45rem; }
 .platform-sales-page textarea { width: 100%; padding: .65rem; border: 1px solid var(--nexa-color-border-default, #aeb7c4); border-radius: .45rem; background: var(--nexa-color-surface, #fff); color: inherit; font: inherit; resize: vertical; }
-@media (max-width: 620px) { .platform-sales-page { padding: 1rem; } .platform-sales-page__heading { flex-direction: column; } .platform-sales-page__facts { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .platform-sales-page__heading { flex-direction: column; } .platform-sales-page__facts { grid-template-columns: 1fr; } }
+
+.platform-sales-page__actions label { display: grid; gap: var(--nexa-space-2); }
+.platform-sales-page__actions input, .platform-sales-page__actions select { box-sizing: border-box; max-width: 100%; min-height: 2.75rem; padding: var(--nexa-space-2); border: 1px solid var(--nexa-color-border-default); border-radius: var(--nexa-radius-md); background: var(--nexa-surface-card); color: var(--nexa-color-text-primary); font: inherit; }
+.platform-material-change__form { display: grid; gap: 1rem; }
+.platform-material-change__form > label, .platform-material-change__fields > label { display: grid; min-width: 0; gap: .45rem; font-weight: 600; }
+.platform-material-change__form input, .platform-material-change__form select, .platform-material-change__form textarea { box-sizing: border-box; width: 100%; min-height: 2.75rem; padding: .65rem; border: 1px solid var(--nexa-color-border-default, #aeb7c4); border-radius: .45rem; background: var(--nexa-color-surface, #fff); color: inherit; font: inherit; }
+.platform-material-change__form textarea { resize: vertical; }
+.platform-material-change__form small, .platform-material-change__authority-note { color: var(--nexa-color-text-secondary, #5b6472); font-size: .85rem; }
+.platform-material-change__fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.platform-material-change__long-value { overflow-wrap: anywhere; white-space: pre-wrap; }
+.platform-material-change__line-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.platform-material-change__line-heading h3 { margin: 0; }
+.platform-material-change__text-button { border: 0; padding: .35rem .5rem; color: var(--nexa-color-link, #215ec9); background: transparent; font: inherit; cursor: pointer; text-decoration: underline; }
+.platform-material-change__text-button:disabled { cursor: not-allowed; opacity: .55; }
+.platform-material-change__history { display: grid; gap: .75rem; padding: 1rem 0; border-top: 1px solid var(--nexa-color-border-subtle, #d8dde5); }
+.platform-material-change__history h3, .platform-material-change__history h4 { margin: 0; }
+.platform-material-change__history p { margin: .25rem 0; overflow-wrap: anywhere; }
+.platform-material-change__comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.platform-material-change__comparison section { min-width: 0; padding: .85rem; border-radius: .5rem; background: var(--nexa-color-surface-subtle, #f4f6f9); }
+@media (max-width: 760px) { .platform-material-change__fields, .platform-material-change__comparison { grid-template-columns: 1fr; } }

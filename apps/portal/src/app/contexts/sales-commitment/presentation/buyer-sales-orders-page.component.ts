@@ -1,10 +1,12 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from "@angular/core";
+import { DOCUMENT } from "@angular/common";
+import { ChangeDetectionStrategy, Component, DestroyRef, Injector, OnInit, computed, inject, signal } from "@angular/core";
+import { toObservable } from "@angular/core/rxjs-interop";
 import { RouterLink } from "@angular/router";
-import { NexaSalesCommitmentApi } from "@nexa/api";
+import { NexaApiError, NexaSalesCommitmentApi } from "@nexa/api";
 import type { SalesOrderPage } from "@nexa/api";
-import { NexaButton, NexaSurface } from "nexa-ui";
-import { firstValueFrom } from "rxjs";
-import { PortalSessionStore } from "../../tenant-access-governance/application/public-api";
+import { NexaButton, NexaSurface, startForegroundRefresh } from "nexa-ui";
+import { Observable, catchError, filter, firstValueFrom, map, of, take, tap } from "rxjs";
+import { PortalSessionStore, type PortalSessionLease } from "../../tenant-access-governance/application/public-api";
 
 type SalesOrdersState =
   | { readonly status: "loading"; readonly page: null; readonly message: null }
@@ -26,6 +28,9 @@ const STALE_CONTEXT_STATE: SalesOrdersState = { status: "error", page: null, mes
 export class BuyerSalesOrdersPageComponent implements OnInit {
   private readonly api = inject(NexaSalesCommitmentApi);
   private readonly sessions = inject(PortalSessionStore);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
+  private readonly document = inject(DOCUMENT);
   private revision = 0;
   private readonly snapshot = signal<{ readonly state: SalesOrdersState; readonly lease: PortalLease | null }>({ state: LOADING_STATE, lease: null });
   protected readonly state = computed(() => {
@@ -35,7 +40,10 @@ export class BuyerSalesOrdersPageComponent implements OnInit {
   });
   protected readonly pageIndex = signal(0);
 
-  ngOnInit(): void { void this.load(); }
+  ngOnInit(): void {
+    void this.load();
+    this.startPolling();
+  }
   protected async refresh(): Promise<void> { await this.load(); }
   protected async changePage(offset: number): Promise<void> {
     const current = this.state();
@@ -67,6 +75,50 @@ export class BuyerSalesOrdersPageComponent implements OnInit {
       if (revision !== this.revision || !this.sessions.isSessionLeaseCurrent(lease)) return;
       this.write({ status: "error", page: null, message: "Orders could not be loaded. Try again." }, lease);
     }
+  }
+
+  private startPolling(): void {
+    const lease = this.sessions.captureSessionLease();
+    if (!lease) return;
+    const stopWhen = toObservable(this.sessions.state, { injector: this.injector }).pipe(
+      filter(() => !this.sessions.isSessionLeaseCurrent(lease)),
+      take(1),
+    );
+    startForegroundRefresh({
+      document: this.document,
+      destroyRef: this.destroyRef,
+      stopWhen,
+      refresh: () => this.refreshReadModel(lease),
+    });
+  }
+
+  private refreshReadModel(lease: PortalSessionLease): Observable<boolean> {
+    if (!this.sessions.isSessionLeaseCurrent(lease) || this.state().status === "loading") return of(true);
+    const revision = ++this.revision;
+    const current = () =>
+      !this.destroyRef.destroyed &&
+      revision === this.revision &&
+      this.sessions.isSessionLeaseCurrent(lease);
+    const currentState = this.state();
+    const pageIndex = currentState.status === "ready" ? currentState.page.page : this.pageIndex();
+    return this.api.listSalesOrders({ page: pageIndex, size: 50, sort: "createdAt,desc" }).pipe(
+      tap((page) => {
+        if (!current()) return;
+        this.pageIndex.set(page.page);
+        this.write({ status: "ready", page, message: null }, lease);
+      }),
+      map(() => current()),
+      catchError((error: unknown) => {
+        if (!current()) return of(false);
+        if (error instanceof NexaApiError && (error.kind === "unauthenticated" || error.kind === "forbidden")) {
+          if (error.kind === "unauthenticated") this.sessions.expireSessionIfCurrent(lease);
+          else if (error.problem?.code === "ACCESS_CONTEXT_INVALID") this.sessions.invalidateContextIfCurrent(lease);
+          this.write({ status: "error", page: null, message: "Your current Buyer membership cannot read orders." }, lease);
+          return of(false);
+        }
+        return of(true);
+      }),
+    );
   }
 
   private write(state: SalesOrdersState, lease: PortalLease | null): void {

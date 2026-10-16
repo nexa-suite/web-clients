@@ -15,7 +15,11 @@ function authenticatedBuyer(permissions: readonly string[]): PortalSessionState 
   return {
     status: "authenticated",
     session: {
-      membership: { roles: ["BUYER"], permissions },
+      surface: "PORTAL",
+      user: { userId: "user-1" },
+      tenant: { tenantId: "tenant-1" },
+      workspace: { workspaceId: "workspace-1" },
+      membership: { membershipId: "membership-1", roles: ["BUYER"], permissions },
     } as SessionResponse,
   };
 }
@@ -81,5 +85,71 @@ describe("PortalShellComponent delivery navigation", () => {
     fixture.detectChanges();
 
     expect(deliveriesLink(fixture)).toBeUndefined();
+  });
+
+  it("shows separate Buyer pages only from capabilities returned for the active session", () => {
+    const { fixture } = createShell(
+      authenticatedBuyer([
+        "catalog.read",
+        "payment.read",
+        "buyer.sales.read",
+        "buyer.order.read",
+        "document.read",
+        TRACKING_READ,
+      ]),
+    );
+
+    const links = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLAnchorElement>(
+        ".buyer-navigation a[routerLink]",
+      ),
+    );
+    const targets = links.map((link) => link.getAttribute("routerlink"));
+    expect(targets).toEqual([
+      "/deliveries",
+      "/catalog",
+      "/wallet",
+      "/requests",
+      "/orders",
+      "/documents",
+    ]);
+    expect(new Set(targets).size).toBe(targets.length);
+    expect(links.map((link) => link.textContent?.trim())).toEqual([
+      "My deliveries",
+      "Catalog",
+      "My wallet",
+      "My requests",
+      "My orders",
+      "Documents",
+    ]);
+  });
+
+  it("does not expose capability navigation from role names or incomplete scope", () => {
+    const { fixture, state } = createShell(
+      authenticatedBuyer(["catalog.read", "buyer.sales.read"]),
+    );
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '.buyer-navigation a[routerLink="/catalog"]',
+      ),
+    ).not.toBeNull();
+
+    state.set({
+      status: "authenticated",
+      session: {
+        surface: "PORTAL",
+        membership: {
+          roles: ["BUYER"],
+          permissions: ["catalog.read", "buyer.sales.read"],
+        },
+      } as SessionResponse,
+    });
+    fixture.detectChanges();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '.buyer-navigation a[routerLink]',
+      ),
+    ).toBeNull();
   });
 });

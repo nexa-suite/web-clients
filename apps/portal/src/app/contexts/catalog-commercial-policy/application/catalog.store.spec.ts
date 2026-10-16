@@ -9,7 +9,7 @@ import { CatalogStore } from './catalog.store';
 
 describe('CatalogStore', () => {
   let store: CatalogStore;
-  const api = { list: vi.fn(), detail: vi.fn() };
+  const api = { list: vi.fn(), detail: vi.fn(), filterOptions: vi.fn() };
   const initialLease: PortalSessionLease = {
     epoch: 1,
     scope: { userId: 'user-1', tenantId: 'tenant-1', workspaceId: 'workspace-1', membershipId: 'membership-1', surface: 'PORTAL' },
@@ -35,6 +35,7 @@ describe('CatalogStore', () => {
   beforeEach(() => {
     api.list.mockReset();
     api.detail.mockReset();
+    api.filterOptions.mockReset();
     sessionState = signal<PortalSessionState>({ status: 'authenticated', session: sessionResponse('membership-1') });
     currentLease = signal<PortalSessionLease | null>(initialLease);
     const isSessionLeaseCurrent = (lease: PortalSessionLease) => {
@@ -121,6 +122,20 @@ describe('CatalogStore', () => {
 
     expect(store.detail().kind).toBe('not-found');
     expect(store.detail().errorMessage).toContain('current catalog');
+  });
+
+  it('loads server-provided brand and category reference options in the current Buyer scope', async () => {
+    api.filterOptions
+      .mockResolvedValueOnce([{ id: 'brand-1', name: 'Northwind' }])
+      .mockResolvedValueOnce([{ id: 'category-1', name: 'Grocery' }]);
+
+    await store.loadFilterOptions();
+
+    expect(api.filterOptions).toHaveBeenNthCalledWith(1, 'brand');
+    expect(api.filterOptions).toHaveBeenNthCalledWith(2, 'category');
+    expect(store.brands()).toEqual([{ id: 'brand-1', name: 'Northwind' }]);
+    expect(store.categories()).toEqual([{ id: 'category-1', name: 'Grocery' }]);
+    expect(store.filterOptionsError()).toBeNull();
   });
 
   it('does not publish an in-flight query after a new Portal session becomes current', async () => {

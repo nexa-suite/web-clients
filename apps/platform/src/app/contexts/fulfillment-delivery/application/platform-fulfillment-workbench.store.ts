@@ -1,6 +1,7 @@
 import { Injectable, DestroyRef, computed, inject, signal } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { Router } from "@angular/router";
+import { Observable, catchError, forkJoin, map, of, switchMap, tap } from "rxjs";
 import {
   NexaApiError,
   NexaCommandRetryStore,
@@ -103,6 +104,8 @@ export class PlatformFulfillmentWorkbenchStore {
   private boardRequestVersion = 0;
   private orderRequestVersion = 0;
   private startRequestVersion = 0;
+  private candidateRequestVersion = 0;
+  private candidatePage = 0;
   private readonly snapshot = signal<FulfillmentWorkbenchState>(idleState(null));
 
   readonly state = computed<FulfillmentWorkbenchState>(() => {
@@ -136,16 +139,7 @@ export class PlatformFulfillmentWorkbenchStore {
       session.status === "authenticated"
         ? session.session.membership?.permissions
         : undefined;
-    return (
-      permissions?.some((permission) =>
-        [
-          "sales.dashboard.read",
-          "sales.purchase_request.read",
-          "sales.order.read",
-          "client.read",
-        ].includes(permission),
-      ) ?? false
-    );
+    return permissions?.includes("sales.order.read") === true;
   });
 
   readonly canStartFulfillment = computed(() => {
@@ -167,6 +161,7 @@ export class PlatformFulfillmentWorkbenchStore {
   });
 
   refresh(): void {
+    this.candidatePage = 0;
     this.orderRequestVersion += 1;
     const lease = this.sessions.captureSessionLease();
     const version = ++this.boardRequestVersion;
@@ -370,20 +365,137 @@ export class PlatformFulfillmentWorkbenchStore {
     this.loadBoards(lease, version);
   }
 
-  private loadBoards(lease: PlatformSessionLease, version: number): void {
+  /** Refreshes only server-backed board projections and preserves selected work/form state. */
+  refreshBoardsForPolling(lease: PlatformSessionLease): Observable<boolean> {
+    if (!this.isBoardRequestCurrent(this.boardRequestVersion, lease)) return of(false);
+    const version = ++this.boardRequestVersion;
+    const candidates$ = this.reads
+      .listOrderFulfillmentCandidates(this.candidatePage, 25)
+      .pipe(
+        switchMap((value) => {
+          const lastPage = Math.max(0, Math.ceil(value.total / value.size) - 1);
+          if (value.page <= lastPage) return of(value);
+          this.candidatePage = lastPage;
+          return this.reads.listOrderFulfillmentCandidates(lastPage, 25);
+        }),
+      );
+
+    return forkJoin({
+      candidates: candidates$,
+      warehouseWork: this.reads.listFulfillmentWork(),
+      dispatchReadiness: this.reads.listDispatchReadiness(),
+    }).pipe(
+      tap(({ candidates, warehouseWork, dispatchReadiness }) => {
+        if (!this.isBoardRequestCurrent(version, lease)) return;
+        this.candidatePage = candidates.page;
+        this.snapshot.update((current) => ({
+          ...current,
+          candidates: { status: "ready", value: candidates },
+          warehouseWork: { status: "ready", value: warehouseWork },
+          dispatchReadiness: { status: "ready", value: dispatchReadiness },
+        }));
+      }),
+      map(() => this.isBoardRequestCurrent(version, lease)),
+      catchError((error: unknown) => {
+        if (!this.isBoardRequestCurrent(version, lease)) return of(false);
+        this.handleSessionError(error, lease);
+        if (isAccessDenied(error)) {
+          if (error instanceof NexaApiError && error.kind === "forbidden") {
+            this.snapshot.update((current) => ({
+              ...current,
+              candidates: {
+                status: "error",
+                message: "Your active membership cannot read fulfillment work.",
+                retryable: false,
+              },
+              warehouseWork: {
+                status: "error",
+                message: "Your active membership cannot read fulfillment work.",
+                retryable: false,
+              },
+              dispatchReadiness: {
+                status: "error",
+                message: "Your active membership cannot read fulfillment work.",
+                retryable: false,
+              },
+              order: { status: "idle" },
+              start: { status: "idle" },
+            }));
+          }
+          return of(false);
+        }
+        return of(true);
+      }),
+    );
+  }
+
+  readonly canChangeCandidatePage = computed(() => {
+    const page = this.state();
+    return (
+      page.lease !== null &&
+      page.candidates.status === "ready" &&
+      page.start.status !== "preparing" &&
+      page.start.status !== "submitting" &&
+      (page.start.status !== "error" || !page.start.retryable)
+    );
+  });
+
+  changeCandidatePage(offset: number): void {
+    const page = this.state();
+    if (
+      !this.canChangeCandidatePage() ||
+      !page.lease ||
+      page.candidates.status !== "ready"
+    )
+      return;
+    const next = page.candidates.value.page + offset;
+    if (
+      !Number.isSafeInteger(next) ||
+      next < 0 ||
+      next * page.candidates.value.size >= page.candidates.value.total
+    )
+      return;
+    this.candidatePage = next;
+    this.orderRequestVersion += 1;
+    this.snapshot.update((current) => ({
+      ...current,
+      candidates: { status: "loading" },
+      order: { status: "idle" },
+      start: { status: "idle" },
+    }));
+    this.loadCandidates(page.lease, this.boardRequestVersion);
+  }
+
+  private loadCandidates(lease: PlatformSessionLease, version: number): void {
+    const requestVersion = ++this.candidateRequestVersion;
     this.reads
-      .listOrderFulfillmentCandidates()
+      .listOrderFulfillmentCandidates(this.candidatePage, 25)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (value) => {
-          if (!this.isBoardRequestCurrent(version, lease)) return;
+          if (
+            requestVersion !== this.candidateRequestVersion ||
+            !this.isBoardRequestCurrent(version, lease)
+          )
+            return;
+          const lastPage = Math.max(0, Math.ceil(value.total / value.size) - 1);
+          if (value.page > lastPage) {
+            this.candidatePage = lastPage;
+            this.loadCandidates(lease, version);
+            return;
+          }
+          this.candidatePage = value.page;
           this.snapshot.update((current) => ({
             ...current,
             candidates: { status: "ready", value },
           }));
         },
         error: (error: unknown) => {
-          if (!this.isBoardRequestCurrent(version, lease)) return;
+          if (
+            requestVersion !== this.candidateRequestVersion ||
+            !this.isBoardRequestCurrent(version, lease)
+          )
+            return;
           this.handleSessionError(error, lease);
           this.snapshot.update((current) => ({
             ...current,
@@ -391,6 +503,10 @@ export class PlatformFulfillmentWorkbenchStore {
           }));
         },
       });
+  }
+
+  private loadBoards(lease: PlatformSessionLease, version: number): void {
+    this.loadCandidates(lease, version);
     this.reads
       .listFulfillmentWork()
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -512,6 +628,13 @@ export class PlatformFulfillmentWorkbenchStore {
 
 function isForbidden(error: unknown): boolean {
   return error instanceof NexaApiError && error.kind === "forbidden";
+}
+
+function isAccessDenied(error: unknown): boolean {
+  return (
+    error instanceof NexaApiError &&
+    (error.kind === "unauthenticated" || error.kind === "forbidden")
+  );
 }
 
 function salesOrderIfMatchFromVersion(version: number): string | null {

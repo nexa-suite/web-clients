@@ -48,6 +48,7 @@ describe("BuyerPurchaseRequestsPageComponent", () => {
       listPurchaseRequests: vi.fn().mockReturnValue(requests instanceof Subject ? requests : of(requests)),
     };
     const sessions = {
+      state: signal({ status: "authenticated", session: scopedBuyerSession(["buyer.sales.read"]) }),
       captureSessionLease: vi.fn(() => lease),
       isSessionLeaseCurrent: vi.fn(() => leaseCurrent()),
     };
@@ -108,6 +109,7 @@ describe("BuyerPurchaseRequestsPageComponent", () => {
         .mockReturnValueOnce(of(laterPage)),
     };
     const sessions = {
+      state: signal({ status: "authenticated", session: scopedBuyerSession(["buyer.sales.read"]) }),
       captureSessionLease: vi.fn(() => lease),
       isSessionLeaseCurrent: vi.fn(() => true),
     };
@@ -138,3 +140,13 @@ describe("BuyerPurchaseRequestsPageComponent", () => {
     expect(api.listPurchaseRequests).toHaveBeenNthCalledWith(2, expect.objectContaining({ page: 1, size: 50 }));
   });
 });
+
+function scopedBuyerSession(permissions: readonly string[]) {
+  return {
+    surface: "PORTAL",
+    user: { userId: "buyer-user" },
+    tenant: { tenantId: "tenant-1" },
+    workspace: { workspaceId: "workspace-1" },
+    membership: { membershipId: "buyer-membership-1", roles: ["BUYER"], permissions },
+  };
+}

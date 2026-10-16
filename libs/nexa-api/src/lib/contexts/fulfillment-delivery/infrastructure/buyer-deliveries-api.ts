@@ -1,7 +1,7 @@
 import { HttpClient } from "@angular/common/http";
 import { inject, Injectable } from "@angular/core";
 import { NEXA_API_HTTP_CONFIGURATION } from "../../../http/nexa-http";
-import type { BuyerDeliveryEventResponse, BuyerDeliveryPageResponse, BuyerDeliveryResponse } from "../contracts/buyer-delivery.contracts";
+import type { BuyerDeliveryEventResponse, BuyerDeliveryLiveLocationResponse, BuyerDeliveryPageResponse, BuyerDeliveryResponse } from "../contracts/buyer-delivery.contracts";
 
 @Injectable({ providedIn: "root" })
 export class NexaBuyerDeliveriesApi {
@@ -15,6 +15,9 @@ export class NexaBuyerDeliveriesApi {
   }
   events(id: string) {
     return this.http.get<readonly BuyerDeliveryEventResponse[]>(`${this.path(id)}/events`);
+  }
+  liveLocation(id: string) {
+    return this.http.get<BuyerDeliveryLiveLocationResponse>(`${this.path(id)}/live-location`);
   }
   private path(id: string): string {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {

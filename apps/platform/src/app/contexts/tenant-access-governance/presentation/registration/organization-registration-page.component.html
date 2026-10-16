@@ -1,0 +1,115 @@
+<main id="main-content" class="registration-page" tabindex="-1">
+  <div class="registration-layout">
+    <aside class="registration-guide">
+      <nexa-logo variant="inverse" alt="Nexa" />
+      <p class="eyebrow">ALTA DE EMPRESA</p>
+      <h1>Prepara el espacio de tu equipo</h1>
+      <p>Registra tu empresa y solicita su activación para comenzar a trabajar con Nexa.</p>
+      <ol aria-label="Pasos del registro">
+        @for (item of steps; track item.title; let index = $index) {
+          <li>
+            <button type="button" (click)="store.navigate(index + 1)"
+              [disabled]="!store.draft() || store.busy() || store.unknownOutcome() || index > (store.draft()?.lastCompletedStep ?? 0)"
+              [attr.aria-current]="store.step() === index + 1 ? 'step' : null">
+              <span class="step-number">{{ index + 1 }}</span>
+              <span>{{ item.title }}</span>
+              @if ((store.draft()?.completedSteps ?? []).includes(index + 1)) { <span class="completed">Guardado</span> }
+            </button>
+          </li>
+        }
+      </ol>
+      <a routerLink="/sign-in">Ya tengo un espacio · Iniciar sesión</a>
+    </aside>
+
+    <section class="registration-content" aria-labelledby="registration-heading" [attr.aria-busy]="store.busy()">
+      @if (!store.draft()) {
+        <p class="eyebrow">TU EMPRESA EN NEXA</p>
+        <h2 id="registration-heading">Comienza tu registro</h2>
+        <p>Necesitarás los datos de tu empresa, el almacén inicial y el correo de la persona fundadora.</p>
+        <div class="registration-notice">Podrás revisar cada paso antes de enviarlo. La solicitud requiere activación de Nexa.</div>
+        <nexa-button [loading]="store.busy()" [disabled]="store.busy() || store.creationUnknown() || store.accessUnavailable()" (click)="store.create()">Crear borrador de registro</nexa-button>
+      } @else if (store.draft()?.status !== 'DRAFT') {
+        <nexa-status-chip [tone]="store.draft()?.status === 'ACTIVE' ? 'success' : 'info'">{{ statusLabel() }}</nexa-status-chip>
+        <h2 id="registration-heading">Estado de tu solicitud</h2>
+        @switch (store.draft()?.status) {
+          @case ('PENDING_ACTIVATION') { <p>Tu solicitud está pendiente de activación. Todavía no puedes acceder al espacio.</p> }
+          @case ('ACTIVE') { <p>La empresa fue activada. Revisa el correo de la cuenta fundadora para establecer la contraseña y acceder.</p> }
+          @case ('REJECTED') { <p>La solicitud no fue aprobada. Este registro ya no admite cambios.</p> }
+          @default { <p>Consulta el estado vigente antes de continuar.</p> }
+        }
+        <dl class="summary"><dt>Referencia de registro</dt><dd>{{ store.draft()?.registrationId }}</dd></dl>
+        <nexa-button variant="secondary" [disabled]="store.busy()" (click)="store.refresh()">Actualizar estado</nexa-button>
+        @if (store.draft()?.status === 'ACTIVE') { <a routerLink="/sign-in">Ir a iniciar sesión</a> }
+      } @else {
+        <div class="content-heading">
+          <p class="eyebrow">PASO {{ store.step() }} DE 6</p>
+          <nexa-status-chip tone="neutral">{{ statusLabel() }}</nexa-status-chip>
+        </div>
+        <h2 id="registration-heading">{{ current().title }}</h2>
+        <p>{{ current().description }}</p>
+        <p class="session-note">El acceso a este borrador se mantiene en memoria durante esta sesión. Si recargas o cierras la página, no se conserva en este dispositivo.</p>
+        @if (store.step() < 6) {
+          <form (submit)="save($event)" novalidate>
+            @for (field of current().fields; track field.key) {
+              @if (field.options; as options) {
+                <div class="select-field">
+                  <label [for]="field.key">{{ field.label }}</label>
+                  <select [id]="field.key" [value]="values()[field.key] || ''" [disabled]="!store.editable()"
+                    [required]="!field.optional" (change)="choose(field.key, $event)">
+                    <option value="">Selecciona una opción</option>
+                    @for (option of options; track option.value) { <option [value]="option.value">{{ option.label }}</option> }
+                  </select>
+                </div>
+              } @else {
+                <nexa-text-field [id]="field.key" [label]="field.label" [type]="field.type || 'text'"
+                  [helper]="field.helper || ''" [required]="!field.optional" [disabled]="!store.editable()"
+                  [value]="values()[field.key] || ''" (valueChange)="setValue(field.key, $event)" />
+              }
+            }
+            @if (validation()) { <p role="alert" class="error">{{ validation() }}</p> }
+            <div class="actions">
+              @if (store.step() > 1) { <nexa-button type="button" variant="secondary" [disabled]="!store.editable()" (click)="store.navigate(store.step() - 1)">Volver</nexa-button> }
+              <nexa-button type="submit" [loading]="store.busy()" [disabled]="!store.editable()">Guardar y continuar</nexa-button>
+            </div>
+          </form>
+        } @else {
+          @for (item of steps; track item.title; let index = $index) {
+            @if (index < 5) {
+              <section class="summary-section" [attr.aria-label]="item.title">
+                <div class="content-heading"><h3>{{ item.title }}</h3><button type="button" [disabled]="!store.editable()" (click)="store.navigate(index + 1)">Editar</button></div>
+                <dl class="summary">
+                  @for (field of item.fields; track field.key) {
+                    <dt>{{ field.label }}</dt><dd>{{ savedValue(index + 1, field) || 'Sin indicar' }}</dd>
+                  }
+                </dl>
+              </section>
+            }
+          }
+          @if (store.terms; as terms) {
+            <section class="terms" aria-label="Términos del registro">
+              <h3>{{ terms.title }}</h3>
+              <p class="terms-text">{{ terms.text }}</p>
+              <small>Versión {{ terms.version }}</small>
+              <label class="acceptance"><input type="checkbox" [checked]="termsAccepted()" [disabled]="!store.editable()" (change)="toggleTerms($event)" />He leído y acepto estos términos.</label>
+              <nexa-button variant="secondary" [disabled]="!store.editable() || !termsAccepted()" (click)="saveTerms()">Guardar aceptación</nexa-button>
+            </section>
+          } @else {
+            <aside class="registration-notice" role="status">Los términos de registro todavía no están publicados. Tus datos pueden quedar guardados como borrador; el envío estará disponible cuando puedas revisar y aceptar los términos vigentes.</aside>
+          }
+          <div class="actions">
+            <nexa-button variant="secondary" [disabled]="!store.editable()" (click)="store.navigate(5)">Volver</nexa-button>
+            <nexa-button [disabled]="!store.editable() || !hasAcceptedCurrentTerms()" [loading]="store.busy()" (click)="store.submit()">Solicitar activación</nexa-button>
+          </div>
+        }
+      }
+      @if (store.message()) { <p role="status" class="notice">{{ store.message() }}</p> }
+      @if (store.error()) { <p role="alert" class="error">{{ store.error() }}</p> }
+      @if (store.unknownOutcome()) {
+        <nexa-button [disabled]="store.busy()" [loading]="store.busy()" (click)="store.retry()">Recuperar el mismo envío</nexa-button>
+      }
+      @if (store.draft()?.status === 'DRAFT') {
+        <nexa-button variant="quiet" [disabled]="store.busy()" (click)="store.refresh()">Consultar borrador guardado</nexa-button>
+      }
+    </section>
+  </div>
+</main>

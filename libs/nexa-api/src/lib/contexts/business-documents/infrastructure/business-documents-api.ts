@@ -1,9 +1,12 @@
-import { HttpClient, HttpHeaders } from "@angular/common/http";
+import { HttpClient, HttpHeaders, type HttpResponse } from "@angular/common/http";
 import { inject, Injectable } from "@angular/core";
+import { map } from "rxjs";
 import { NEXA_API_HTTP_CONFIGURATION } from "../../../http/nexa-http";
 import type {
   BusinessDocumentPageResponse,
   BusinessDocumentGenerationRequestResponse,
+  BusinessDocumentEvidenceResponse,
+  BusinessDocumentEvidenceResourceResponse,
   BusinessDocumentResponse,
   BusinessDocumentsQuery,
   OrderSummaryPdfGenerationRequest,
@@ -53,6 +56,41 @@ export class NexaBusinessDocumentsApi {
     );
   }
 
+  uploadWarehouseEvidence(
+    warehouseId: string,
+    file: File,
+    idempotencyKey: string,
+  ) {
+    const subjectId = requiredDocumentId(warehouseId);
+    const key = requiredIdempotencyKey(idempotencyKey);
+    if (typeof File === "undefined" || !(file instanceof File) || file.size <= 0) {
+      throw new Error("A non-empty business evidence file is required.");
+    }
+
+    const body = new FormData();
+    body.append("subjectType", "WAREHOUSE");
+    body.append("subjectId", subjectId);
+    body.append("file", file, file.name);
+
+    return this.http
+      .post<BusinessDocumentEvidenceResponse>(
+        `${this.config.apiBaseUrl}/business-document-evidence`,
+        body,
+        {
+          headers: new HttpHeaders({ "Idempotency-Key": key }),
+          observe: "response",
+        },
+      )
+      .pipe(map((response) => mapEvidenceResource(response)));
+  }
+
+  getEvidence(evidenceId: string) {
+    const id = requiredDocumentId(evidenceId);
+    return this.http.get<BusinessDocumentEvidenceResponse>(
+      `${this.config.apiBaseUrl}/business-document-evidence/${encodeURIComponent(id)}`,
+    );
+  }
+
   requestOrderSummaryPdf(salesOrderId: string, idempotencyKey: string) {
     const subjectId = requiredDocumentId(salesOrderId);
     const key = requiredIdempotencyKey(idempotencyKey);
@@ -76,6 +114,13 @@ export class NexaBusinessDocumentsApi {
       { observe: "response", responseType: "blob" },
     );
   }
+}
+
+function mapEvidenceResource(
+  response: HttpResponse<BusinessDocumentEvidenceResponse>,
+): BusinessDocumentEvidenceResourceResponse {
+  if (!response.body) throw new Error("Business evidence response body is missing.");
+  return { body: response.body, status: response.status };
 }
 
 function requiredDocumentId(value: string): string {

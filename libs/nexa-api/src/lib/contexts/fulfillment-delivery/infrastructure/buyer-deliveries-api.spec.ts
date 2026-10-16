@@ -33,6 +33,26 @@ describe("Buyer delivery query transport", () => {
     http.verify();
   });
 
+  it("reads the authorized live-location projection for one delivery", () => {
+    TestBed.configureTestingModule({ providers: [provideNexaHttp({ apiBaseUrl: "/api/v1", surface: "PORTAL" }), provideHttpClientTesting()] });
+    const http = TestBed.inject(HttpTestingController);
+    TestBed.inject(NexaBuyerDeliveriesApi).liveLocation(deliveryId).subscribe();
+    const request = http.expectOne(`/api/v1/buyer/deliveries/${deliveryId}/live-location`);
+    expect(request.request.method).toBe("GET");
+    request.flush({
+      deliveryId,
+      location: {
+        sampleId: "00000000-0000-4000-8000-000000000002",
+        latitude: -12.0464,
+        longitude: -77.0428,
+        accuracyMeters: 5,
+        capturedAt: "2026-10-09T12:00:00Z",
+        expiresAt: "2026-10-09T12:15:00Z",
+      },
+    });
+    http.verify();
+  });
+
   it("rejects an identifier that cannot match the API UUID route", () => {
     TestBed.configureTestingModule({ providers: [provideNexaHttp({ apiBaseUrl: "/api/v1", surface: "PORTAL" }), provideHttpClientTesting()] });
     const http = TestBed.inject(HttpTestingController);

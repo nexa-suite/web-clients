@@ -70,6 +70,20 @@ describe("Buyer Sales Commitment pages", () => {
     return {
       provide: PortalSessionStore,
       useValue: {
+        state: signal({
+          status: "authenticated",
+          session: {
+            surface: "PORTAL",
+            user: { userId: "buyer-user" },
+            tenant: { tenantId: "tenant-1" },
+            workspace: { workspaceId: "workspace-1" },
+            membership: {
+              membershipId: "buyer-membership-1",
+              roles: ["BUYER"],
+              permissions: ["buyer.sales.read", "buyer.order.read"],
+            },
+          },
+        }),
         captureSessionLease: vi.fn(() => lease),
         isSessionLeaseCurrent: vi.fn(() => leaseCurrent()),
       },

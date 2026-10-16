@@ -1,4 +1,5 @@
-.sales-commitment-page { display: grid; gap: 1.15rem; max-width: 76rem; margin: 0 auto; padding: 1.5rem; }
+.sales-commitment-page { display: grid; min-width: 0; gap: 1.15rem; max-width: 76rem; margin: 0 auto; }
+.sales-commitment-page > nexa-surface { --nexa-surface-padding: var(--nexa-panel-padding, var(--nexa-space-4)); }
 .sales-commitment-page__heading, .sales-commitment-page__section-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
 .sales-commitment-page__heading h1 { margin: .25rem 0; }
 .sales-commitment-page__heading p, .sales-commitment-page__section-heading p { color: var(--nexa-color-text-secondary, #5b6472); }
@@ -16,4 +17,4 @@
 .sales-commitment-page__back { color: var(--nexa-color-link, #215ec9); }
 .sales-commitment-page__notice { padding: .9rem 1rem; border-radius: .5rem; background: var(--nexa-color-surface-subtle, #f4f6f9); }
 .sales-commitment-page__button-link { justify-self: start; padding: .7rem 1rem; border-radius: .5rem; background: var(--nexa-color-action-primary, #215ec9); color: #fff; text-decoration: none; }
-@media (max-width: 620px) { .sales-commitment-page { padding: 1rem; } .sales-commitment-page__heading, .sales-commitment-page__section-heading { flex-direction: column; } .sales-commitment-page__facts { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .sales-commitment-page__heading, .sales-commitment-page__section-heading { flex-direction: column; } .sales-commitment-page__facts { grid-template-columns: 1fr; } }

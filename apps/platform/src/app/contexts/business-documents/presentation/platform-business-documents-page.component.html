@@ -9,7 +9,7 @@
       </p>
     </div>
     <div class="document-page-actions">
-      @if (store.canGenerate()) {
+      @if (canGenerateOrderSummary()) {
         <nexa-button variant="secondary" routerLink="order-summary"
           >Request an order summary PDF</nexa-button
         >

@@ -160,6 +160,9 @@ const authenticationGuard = read(
 const platformShell = read(
   "apps/platform/src/app/shell/platform-shell.component.ts",
 );
+const platformAccessPolicy = read(
+  "apps/platform/src/app/core/platform-access-policy.ts",
+);
 const platformShellTemplate = read(
   "apps/platform/src/app/shell/platform-shell.component.html",
 );
@@ -269,8 +272,9 @@ assert(
   "Platform UI roles and capabilities must not authorize routes.",
 );
 assert(
-  /membership\?\.permissions/.test(platformShell),
-  "Platform shell navigation hints must use API-returned membership permissions.",
+  /canAccessPlatformFeature/.test(platformShell) &&
+    /membership\?\.permissions/.test(platformAccessPolicy),
+  "Platform shell navigation hints must use API-returned membership permissions through the focused access policy.",
 );
 assert(
   !/\broles\b/.test(platformShell),

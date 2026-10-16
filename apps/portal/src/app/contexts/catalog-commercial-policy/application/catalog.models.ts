@@ -39,6 +39,11 @@ export interface BuyerCatalogPage {
   readonly totalPages: number;
 }
 
+export interface CatalogFilterOption {
+  readonly id: string;
+  readonly name: string;
+}
+
 export interface CatalogPageState {
   readonly kind: "idle" | "loading" | "results" | "empty" | "error";
   readonly page: BuyerCatalogPage | null;

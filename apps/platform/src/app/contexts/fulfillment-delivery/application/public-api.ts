@@ -1,9 +1,13 @@
 import type { Routes } from "@angular/router";
+import { PLATFORM_ACCESS_RULES } from "../../../core/platform-access-policy";
+import { requirePlatformCapability } from "../../../core/platform-capability.guard";
 
 /** Platform entry point for the order-to-warehouse fulfillment workbench. */
 export const PLATFORM_FULFILLMENT_ROUTES: Routes = [
   {
     path: "fulfillment-delivery",
+    canActivate: [requirePlatformCapability],
+    data: { platformAccessRule: PLATFORM_ACCESS_RULES.fulfillment },
     loadComponent: () =>
       import("../presentation/platform-fulfillment-delivery.component").then(
         (module) => module.PlatformFulfillmentDeliveryComponent,

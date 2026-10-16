@@ -5,6 +5,7 @@
 .page-kicker { margin: 0 0 var(--nexa-space-2); color: var(--nexa-color-text-muted); font-size: var(--nexa-font-size-xs); font-weight: 700; letter-spacing: .08em; }
 .page-intro { margin: var(--nexa-space-2) 0 0; color: var(--nexa-color-text-secondary); line-height: 1.55; }
 nexa-surface { min-width: 0; }
+.catalog-page > nexa-surface[tone="soft"] { --nexa-surface-padding: var(--nexa-panel-padding, var(--nexa-space-4)); }
 .catalog-search { display: grid; grid-template-columns: minmax(210px, 2fr) repeat(2, minmax(130px, 1fr)) minmax(170px, 1.1fr); gap: var(--nexa-space-3); align-items: end; }
 .cold-chain-filter { display: grid; gap: var(--nexa-space-1); color: var(--nexa-color-text-secondary); font-size: var(--nexa-font-size-sm); }
 .cold-chain-filter select { width: 100%; min-height: 42px; padding: 0 var(--nexa-space-3); border: 1px solid var(--nexa-color-border-interactive); border-radius: var(--nexa-radius-control); color: var(--nexa-color-text-primary); background: var(--nexa-surface-card); font: inherit; }

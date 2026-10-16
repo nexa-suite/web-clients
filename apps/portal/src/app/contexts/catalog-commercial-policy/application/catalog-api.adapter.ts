@@ -11,6 +11,7 @@ import type {
   BuyerCatalogPage,
   BuyerCatalogPrice,
   CatalogSearch,
+  CatalogFilterOption,
 } from "./catalog.models";
 
 @Injectable({ providedIn: "root" })
@@ -48,6 +49,38 @@ export class CatalogApiAdapter {
       this.api.getCatalogItem(catalogItemId),
     );
     return mapCatalogItem(response);
+  }
+
+  async filterOptions(kind: "brand" | "category"): Promise<readonly CatalogFilterOption[]> {
+    const options: CatalogFilterOption[] = [];
+    let total = 0;
+    let page = 0;
+    do {
+      const response = await firstValueFrom(this.api.filterOptions(kind, "", page, 100));
+      if (
+        !Number.isSafeInteger(response.page) ||
+        response.page !== page ||
+        !Number.isSafeInteger(response.size) ||
+        response.size < 1 ||
+        response.size > 100 ||
+        !Number.isSafeInteger(response.total) ||
+        response.total < response.items.length ||
+        response.items.length > response.size
+      ) {
+        throw new NexaApiError("unknown", null, null);
+      }
+      if (page === 0) total = response.total;
+      else if (response.total !== total) throw new NexaApiError("unknown", null, null);
+      options.push(...response.items);
+      if (options.length < total && response.items.length === 0) {
+        throw new NexaApiError("unknown", null, null);
+      }
+      page += 1;
+    } while (options.length < total);
+
+    const unique = [...new Map(options.map((option) => [option.id, option])).values()];
+    if (unique.length !== total) throw new NexaApiError("unknown", null, null);
+    return unique;
   }
 }
 

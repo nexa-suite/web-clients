@@ -91,6 +91,38 @@
         }
       }
 
+      @if (page.candidates.status === "ready") {
+        <nav
+          class="fulfillment-panel__heading"
+          aria-label="Order candidate pages"
+        >
+          <nexa-button
+            type="button"
+            variant="secondary"
+            size="compact"
+            [disabled]="
+              !workbench.canChangeCandidatePage() ||
+              page.candidates.value.page === 0
+            "
+            (click)="changeCandidatePage(-1)"
+            >Previous orders</nexa-button
+          >
+          <span>Page {{ page.candidates.value.page + 1 }}</span>
+          <nexa-button
+            type="button"
+            variant="secondary"
+            size="compact"
+            [disabled]="
+              !workbench.canChangeCandidatePage() ||
+              (page.candidates.value.page + 1) * page.candidates.value.size >=
+                page.candidates.value.total
+            "
+            (click)="changeCandidatePage(1)"
+            >Next orders</nexa-button
+          >
+        </nav>
+      }
+
       <section
         class="fulfillment-detail"
         aria-labelledby="selected-order-title"
