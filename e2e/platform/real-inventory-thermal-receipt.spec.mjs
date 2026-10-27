@@ -8,7 +8,7 @@ import {
 const API_PREFIX = '/api/v1';
 const RECEIPT_PATH = `${API_PREFIX}/inventory/inbound-receipts`;
 const EVIDENCE_PATH = `${API_PREFIX}/business-document-evidence`;
-const THERMAL_ZONE_CODE = 'DEMO-THERMAL';
+const THERMAL_ZONE_CODE = 'CHILLED-A';
 
 test.afterEach(async ({ page }) => {
   for (const label of ['Password', 'Work email or user ID', 'Workspace slug']) {
@@ -40,8 +40,8 @@ test('records a temperature-excursion receipt after its warehouse photo is avail
   const stockPanel = inventoryPanels.nth(0);
   const receiptPanel = inventoryPanels.nth(1);
   const stockWarehouse = stockPanel.getByLabel('Warehouse');
-  await expect(stockWarehouse).toContainText('WH-DEMO-E2E');
-  const warehouseOption = stockWarehouse.locator('option').filter({ hasText: 'WH-DEMO-E2E' }).first();
+  await expect(stockWarehouse).toContainText('ICISA-COLD-01');
+  const warehouseOption = stockWarehouse.locator('option').filter({ hasText: 'ICISA-COLD-01' }).first();
   const warehouseId = await warehouseOption.getAttribute('value');
   if (!warehouseId) throw new Error('The granted demo warehouse option has no API identifier.');
 
@@ -75,33 +75,28 @@ test('records a temperature-excursion receipt after its warehouse photo is avail
 
   const catalogPicker = stockPanel.locator('.catalog-picker');
   const searchCatalog = catalogPicker.getByRole('button', { name: 'Search catalog' });
+  const catalogCapture = await installCatalogResponseCapture(page);
   let catalogPage;
   let catalogItem;
-  let catalogResponsePromise = page.waitForResponse((response) => {
-    const url = new URL(response.url());
-    return response.request().method() === 'GET' && url.pathname === `${API_PREFIX}/catalog-items`;
-  });
+  let catalogCapturePromise = catalogCapture.next();
   await searchCatalog.click();
-  let catalogResponse = await catalogResponsePromise;
-  expect(catalogResponse.status()).toBe(200);
-  catalogPage = await catalogResponse.json();
+  let { status: catalogStatus, body: firstCatalogPage } = await catalogCapturePromise;
+  catalogPage = firstCatalogPage;
+  expect(catalogStatus).toBe(200);
   catalogItem = catalogPage.items?.find((item) => item.status === 'ACTIVE'
     && item.coldChainRequirement === 'REFRIGERATED'
     && item.skuCode?.trim() && item.unitOfMeasure?.trim());
 
   while (!catalogItem && catalogPage.page + 1 < catalogPage.totalPages) {
-    catalogResponsePromise = page.waitForResponse((response) => {
-      const url = new URL(response.url());
-      return response.request().method() === 'GET' && url.pathname === `${API_PREFIX}/catalog-items`;
-    });
+    catalogCapturePromise = catalogCapture.next();
     await catalogPicker.getByRole('button', { name: 'Next' }).click();
-    catalogResponse = await catalogResponsePromise;
-    expect(catalogResponse.status()).toBe(200);
-    catalogPage = await catalogResponse.json();
+    ({ status: catalogStatus, body: catalogPage } = await catalogCapturePromise);
+    expect(catalogStatus).toBe(200);
     catalogItem = catalogPage.items?.find((item) => item.status === 'ACTIVE'
       && item.coldChainRequirement === 'REFRIGERATED'
       && item.skuCode?.trim() && item.unitOfMeasure?.trim());
   }
+  await catalogCapture.dispose();
 
   expect(catalogItem, 'The API catalog must expose an active refrigerated SKU with a unit.').toBeTruthy();
   const catalogSelect = catalogPicker.getByLabel('Catalog item / SKU');
@@ -155,15 +150,24 @@ test('records a temperature-excursion receipt after its warehouse photo is avail
     const isReceipt = url.pathname === RECEIPT_PATH && method === 'POST';
     if (!isEvidenceUpload && !isEvidenceStatus && !isReceipt) return;
 
+    let requestBody = null;
+    if (isReceipt) {
+      try { requestBody = response.request().postDataJSON(); } catch {}
+    }
     const event = {
+      response,
       sequence: networkEvents.length,
       method,
       pathname: url.pathname,
       status: response.status(),
+      requestBody,
       body: null,
+      bodyPromise: null,
     };
     networkEvents.push(event);
-    responseBodies.push(response.json().then((body) => { event.body = body; }).catch(() => {}));
+    const bodyPromise = response.json().then((body) => { event.body = body; return body; }).catch(() => null);
+    event.bodyPromise = bodyPromise;
+    responseBodies.push(bodyPromise);
   });
 
   const uploadResponsePromise = page.waitForResponse((response) =>
@@ -183,7 +187,10 @@ test('records a temperature-excursion receipt after its warehouse photo is avail
   await receiptPanel.getByRole('button', { name: 'Record receipt' }).click();
   const uploadResponse = await uploadResponsePromise;
   expect(uploadResponse.status()).toBe(201);
-  const uploadedEvidence = await uploadResponse.json();
+  const uploadEvent = networkEvents.find((event) => event.pathname === EVIDENCE_PATH && event.method === 'POST');
+  await Promise.all(responseBodies);
+  const uploadedEvidence = uploadEvent?.body;
+  expect(uploadedEvidence).toBeTruthy();
   expect(uploadedEvidence.subjectType).toBe('WAREHOUSE');
   expect(uploadedEvidence.subjectId).toBe(warehouseId);
   expect(uploadedEvidence.originalFilename).toBe('thermal-receipt.png');
@@ -196,13 +203,14 @@ test('records a temperature-excursion receipt after its warehouse photo is avail
       if (new URL(response.url()).pathname !== `${EVIDENCE_PATH}/${evidenceId}`
         || response.request().method() !== 'GET'
         || response.status() !== 200) return false;
-      try {
-        return (await response.json()).lifecycleStatus === 'AVAILABLE';
-      } catch {
-        return false;
-      }
+      const event = networkEvents.find((candidate) => candidate.response === response);
+      const body = await event?.bodyPromise;
+      return body?.lifecycleStatus === 'AVAILABLE';
     }, { timeout: 120_000 });
     expect(availableStatus.status()).toBe(200);
+    const availableEvent = networkEvents.find((event) => event.response === availableStatus);
+    await Promise.all(responseBodies);
+    expect(availableEvent?.body?.lifecycleStatus).toBe('AVAILABLE');
   }
 
   const receiptResponse = await receiptResponsePromise;
@@ -218,18 +226,29 @@ test('records a temperature-excursion receipt after its warehouse photo is avail
   expect(receiptRequest.quantity).toBe(1);
   expect(receiptRequest.temperatureReading).toBe(temperature);
   expect(receiptRequest.temperatureEvidenceObjectId).toBe(evidenceId);
-  const createdLot = await receiptResponse.json();
+  const inboundEvent = networkEvents.find((event) =>
+    event.pathname === RECEIPT_PATH && event.method === 'POST' && event.requestBody?.batchNumber === batchNumber);
+  await Promise.all(responseBodies);
+  const createdLot = inboundEvent?.body;
+  expect(createdLot).toBeTruthy();
   expect(createdLot.status).toBe('HOLD');
   expect(createdLot.available).toBe(0);
 
   await Promise.all(responseBodies);
   const availableEvent = networkEvents.find((event) =>
     event.body?.id === evidenceId && event.body?.lifecycleStatus === 'AVAILABLE');
-  const inboundEvent = networkEvents.find((event) =>
-    event.pathname === RECEIPT_PATH && event.body?.batchNumber === batchNumber);
+  const capturedInboundEvent = networkEvents.find((event) =>
+    event.pathname === RECEIPT_PATH && event.requestBody?.batchNumber === batchNumber);
   expect(availableEvent, 'The evidence scanner must report AVAILABLE before receipt creation.').toBeTruthy();
-  expect(inboundEvent).toBeTruthy();
-  expect(availableEvent.sequence).toBeLessThan(inboundEvent.sequence);
+  expect(capturedInboundEvent).toBeTruthy();
+  expect(availableEvent.sequence).toBeLessThan(capturedInboundEvent.sequence);
+
+  const refreshedLotsResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'GET' && url.pathname === `${API_PREFIX}/inventory/lots`;
+  });
+  await page.getByRole('button', { name: 'Refresh lots' }).click();
+  expect((await refreshedLotsResponsePromise).status()).toBe(200);
 
   const lotsPanel = stockPanel;
   const lotRow = lotsPanel.getByRole('row').filter({ hasText: batchNumber });
@@ -254,4 +273,43 @@ test('records a temperature-excursion receipt after its warehouse photo is avail
 
 function utcDateOffset(days) {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+async function installCatalogResponseCapture(page) {
+  const pattern = `**${API_PREFIX}/catalog-items**`;
+  const waiters = [];
+  const handler = async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (request.method() !== 'GET' || url.pathname !== `${API_PREFIX}/catalog-items`) {
+      await route.continue();
+      return;
+    }
+    const waiter = waiters.shift();
+    if (!waiter) {
+      await route.continue();
+      return;
+    }
+    try {
+      const upstream = await route.fetch();
+      let body;
+      try {
+        body = await upstream.json();
+      } catch (error) {
+        await route.abort('failed').catch(() => {});
+        waiter.reject(error);
+        return;
+      }
+      await route.fulfill({ response: upstream });
+      waiter.resolve({ status: upstream.status(), body });
+    } catch (error) {
+      await route.abort('failed').catch(() => {});
+      waiter.reject(error);
+    }
+  };
+  await page.route(pattern, handler);
+  return {
+    next: () => new Promise((resolve, reject) => waiters.push({ resolve, reject })),
+    dispose: () => page.unroute(pattern, handler),
+  };
 }

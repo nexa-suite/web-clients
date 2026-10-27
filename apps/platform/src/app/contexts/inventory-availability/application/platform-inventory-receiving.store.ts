@@ -633,14 +633,15 @@ export class PlatformInventoryReceivingStore {
         current.idempotencyKey,
       ));
       if (!this.isCurrent(lease, generation)) return null;
-      if (response.status !== 201 || !matchesEvidenceIdentity(response.body, current, null)) {
+      const evidence = normalizeBusinessDocumentEvidence(response.body);
+      if (response.status !== 201 || !evidence || !matchesEvidenceIdentity(evidence, current, null)) {
         throw new Error("The API response did not confirm the expected warehouse photo upload.");
       }
-      current = { ...current, evidenceId: response.body.id };
+      current = { ...current, evidenceId: evidence.id };
       this.pendingEvidenceUpload.set(current);
-      this.evidenceStatus.set(response.body);
+      this.evidenceStatus.set(evidence);
       this.persistPendingEvidence(current);
-      const available = this.applyEvidenceStatus(response.body, current);
+      const available = this.applyEvidenceStatus(evidence, current);
       if (available) return available;
     }
     const evidenceId = current.evidenceId;
@@ -662,7 +663,9 @@ export class PlatformInventoryReceivingStore {
         if (!this.isCurrent(lease, generation)) return null;
         const response = await firstValueFrom(this.businessDocuments.getEvidence(evidenceId));
         if (!this.isCurrent(lease, generation)) return null;
-        const available = this.applyEvidenceStatus(response, pending);
+        const evidence = normalizeBusinessDocumentEvidence(response);
+        if (!evidence) throw new Error("The API evidence response is invalid.");
+        const available = this.applyEvidenceStatus(evidence, pending);
         if (available) return available;
         delayMs = Math.min(delayMs * 2, 15_000);
       }
@@ -705,20 +708,27 @@ export class PlatformInventoryReceivingStore {
   }
 
   private persistPendingEvidence(pending: PendingEvidenceUpload): void {
-    this.retries.write(pending.storageKey, JSON.stringify({
-      idempotencyKey: pending.idempotencyKey,
-      warehouseId: pending.warehouseId,
-      originalFilename: pending.originalFilename,
-      declaredContentType: pending.declaredContentType,
-      byteSize: pending.byteSize,
-      checksumSha256: pending.checksumSha256,
-      evidenceId: pending.evidenceId,
-    }));
+    this.retries.writeInventoryEvidence(
+      pending.storageKey,
+      JSON.stringify({
+        idempotencyKey: pending.idempotencyKey,
+        warehouseId: pending.warehouseId,
+        originalFilename: pending.originalFilename,
+        declaredContentType: pending.declaredContentType,
+        byteSize: pending.byteSize,
+        checksumSha256: pending.checksumSha256,
+        evidenceId: pending.evidenceId,
+      }),
+      BUSINESS_DOCUMENT_EVIDENCE_MAX_BYTES,
+    );
   }
 
   private restorePendingEvidence(lease: PlatformSessionLease): PendingEvidenceUpload | null {
     const storageKey = evidenceStorageKey(lease);
-    const stored = this.retries.read(storageKey);
+    const stored = this.retries.readInventoryEvidence(
+      storageKey,
+      BUSINESS_DOCUMENT_EVIDENCE_MAX_BYTES,
+    );
     if (!stored) return null;
     try {
       const value = JSON.parse(stored) as Omit<PendingEvidenceUpload, "storageKey">;
@@ -1202,6 +1212,18 @@ function matchesEvidenceIdentity(
     value.declaredContentType === pending.declaredContentType &&
     value.byteSize === pending.byteSize &&
     (value.checksumSha256 === null || value.checksumSha256.toLowerCase() === pending.checksumSha256);
+}
+
+function normalizeBusinessDocumentEvidence(value: unknown): BusinessDocumentEvidenceResponse | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const evidence = value as Record<string, unknown>;
+  const normalized = {
+    ...evidence,
+    requestedByMembershipId: evidence["requestedByMembershipId"] === undefined
+      ? null
+      : evidence["requestedByMembershipId"],
+  };
+  return isBusinessDocumentEvidence(normalized) ? normalized : null;
 }
 
 function isBusinessDocumentEvidence(value: unknown): value is BusinessDocumentEvidenceResponse {

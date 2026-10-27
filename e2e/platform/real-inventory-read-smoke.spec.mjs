@@ -12,7 +12,7 @@ test.afterEach(async ({ page }) => {
   }
 });
 
-test('reads the seeded warehouse receipt through scoped inventory UI', async ({ page }) => {
+test('reads a seeded warehouse inventory lot through scoped inventory UI', async ({ page }) => {
   const warehouseOperator = platformAccountDefinitions.find((account) => account.key === 'warehouseOperator');
   if (!warehouseOperator) throw new Error('The local warehouse identity definition is missing.');
   const credentials = getPlatformAccountCredentials(warehouseOperator);
@@ -31,10 +31,10 @@ test('reads the seeded warehouse receipt through scoped inventory UI', async ({ 
   await expect(page.getByRole('heading', { name: 'Inventory and receiving' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Lots by warehouse' })).toBeVisible();
   const warehouseSelect = page.locator('.inventory-panel').first().getByLabel('Warehouse');
-  await expect(warehouseSelect).toContainText('WH-DEMO-E2E');
-  const warehouseOption = warehouseSelect.locator('option').filter({ hasText: 'WH-DEMO-E2E' }).first();
+  await expect(warehouseSelect).toContainText('ICISA-COLD-01');
+  const warehouseOption = warehouseSelect.locator('option').filter({ hasText: 'ICISA-COLD-01' }).first();
   const warehouseId = await warehouseOption.getAttribute('value');
   if (!warehouseId) throw new Error('The authorized demo warehouse option has no API identifier.');
   await warehouseSelect.selectOption(warehouseId);
-  await expect(page.getByRole('cell', { name: 'DEMO-RECEIVING-001' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: /^LOCAL-FOUNDATION-/ }).first()).toBeVisible();
 });

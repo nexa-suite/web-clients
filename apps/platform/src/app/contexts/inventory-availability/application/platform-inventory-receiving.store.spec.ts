@@ -7,6 +7,7 @@ import {
   NexaBuyerCatalogApi,
   NexaCommandRetryStore,
   NexaWarehouseInventoryApi,
+  BUSINESS_DOCUMENT_EVIDENCE_MAX_BYTES,
   type BuyerCatalogItemSummaryResponse,
   type ReceiveWarehouseStockRequest,
   type SessionResponse,
@@ -83,7 +84,16 @@ describe("PlatformInventoryReceivingStore", () => {
         { provide: NexaWarehouseInventoryApi, useValue: inventory },
         { provide: NexaBuyerCatalogApi, useValue: catalog },
         { provide: NexaBusinessDocumentsApi, useValue: { uploadWarehouseEvidence: vi.fn(), getEvidence: vi.fn() } },
-        { provide: NexaCommandRetryStore, useValue: { read: () => null, write: vi.fn(), remove: vi.fn() } },
+        {
+          provide: NexaCommandRetryStore,
+          useValue: {
+            read: () => null,
+            write: vi.fn(),
+            readInventoryEvidence: () => null,
+            writeInventoryEvidence: vi.fn(),
+            remove: vi.fn(),
+          },
+        },
       ],
     });
     const store = TestBed.inject(PlatformInventoryReceivingStore);
@@ -164,7 +174,13 @@ describe("PlatformInventoryReceivingStore", () => {
       listCatalog: vi.fn(() => of({ items: [item], page: 0, size: 25, totalItems: 1, totalPages: 1, sort: { field: "itemName", direction: "asc" } })),
       getCatalogItem: vi.fn(() => of(item)),
     };
-    const retries = { read: vi.fn(() => null), write: vi.fn(), remove: vi.fn() };
+    const retries = {
+      read: vi.fn(() => null),
+      write: vi.fn(),
+      readInventoryEvidence: vi.fn(() => null),
+      writeInventoryEvidence: vi.fn(),
+      remove: vi.fn(),
+    };
     TestBed.configureTestingModule({
       providers: [
         PlatformInventoryReceivingStore,
@@ -207,7 +223,7 @@ describe("PlatformInventoryReceivingStore", () => {
     TestBed.resetTestingModule();
   });
 
-  it("retries unknown photo upload with same key and bytes, waits for AVAILABLE, then sends a separate frozen receipt", async () => {
+  it("normalizes omitted requester metadata while retrying the same photo and sending a separate frozen receipt", async () => {
     const photoChecksum = "ab".repeat(32);
     vi.stubGlobal("crypto", {
       randomUUID: vi.fn()
@@ -241,7 +257,6 @@ describe("PlatformInventoryReceivingStore", () => {
       scannedAt: lifecycleStatus === "AVAILABLE" ? "2026-10-15T12:00:01Z" : null,
       failureCode: null,
       updatedAt: "2026-10-15T12:00:01Z",
-      requestedByMembershipId: "membership-receiver",
     });
     const receive = vi.fn((request: ReceiveWarehouseStockRequest, _idempotencyKey: string) => of({
       body: {
@@ -292,7 +307,13 @@ describe("PlatformInventoryReceivingStore", () => {
       status: 201,
     }));
     const getEvidence = vi.fn(() => of(evidenceResponse(photoChecksum, "AVAILABLE")));
-    const retries = { read: vi.fn(() => null), write: vi.fn(), remove: vi.fn() };
+    const retries = {
+      read: vi.fn(() => null),
+      write: vi.fn(),
+      readInventoryEvidence: vi.fn(() => null),
+      writeInventoryEvidence: vi.fn(),
+      remove: vi.fn(),
+    };
     TestBed.configureTestingModule({
       providers: [
         PlatformInventoryReceivingStore,
@@ -340,7 +361,12 @@ describe("PlatformInventoryReceivingStore", () => {
     expect(receive).not.toHaveBeenCalled();
     expect(store.pendingReceipt()).toBeNull();
     expect(store.pendingEvidenceUpload()?.evidenceId).toBeNull();
-    const persistedUpload = retries.write.mock.calls[0]?.[1] as string;
+    expect(retries.writeInventoryEvidence).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      BUSINESS_DOCUMENT_EVIDENCE_MAX_BYTES,
+    );
+    const persistedUpload = retries.writeInventoryEvidence.mock.calls[0]?.[1] as string;
     expect(persistedUpload).not.toContain("photo-bytes");
     expect(persistedUpload).toContain(photoChecksum);
 
@@ -354,6 +380,7 @@ describe("PlatformInventoryReceivingStore", () => {
     expect(uploadWarehouseEvidence.mock.calls[1]?.[2]).toBe(uploadWarehouseEvidence.mock.calls[0]?.[2]);
     expect(uploadWarehouseEvidence.mock.calls[1]?.[1]).not.toBe(uploadWarehouseEvidence.mock.calls[0]?.[1]);
     expect(store.availableEvidence()?.id).toBe(evidenceId);
+    expect(store.availableEvidence()?.requestedByMembershipId).toBeNull();
     expect(receive).not.toHaveBeenCalled();
 
     await store.submitReceipt();

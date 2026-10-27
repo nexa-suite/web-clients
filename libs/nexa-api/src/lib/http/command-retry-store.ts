@@ -1,6 +1,5 @@
 import { DOCUMENT } from "@angular/common";
 import { Injectable, inject } from "@angular/core";
-import { BUSINESS_DOCUMENT_EVIDENCE_MAX_BYTES } from "../contexts/business-documents/contracts/business-document.contracts";
 
 const BUYER_SUBMIT_PREFIX = "nexa:buyer:purchase-request-submit:";
 const PLATFORM_REVIEW_PREFIX = "nexa:platform:purchase-request-command:";
@@ -40,7 +39,19 @@ export class NexaCommandRetryStore {
   private readonly removed = new Set<string>();
 
   read(key: string): string | null {
+    return this.readWithEvidencePolicy(key);
+  }
+
+  readInventoryEvidence(key: string, maximumBytes: number): string | null {
+    return this.readWithEvidencePolicy(key, maximumBytes);
+  }
+
+  private readWithEvidencePolicy(
+    key: string,
+    maximumEvidenceBytes?: number,
+  ): string | null {
     assertAllowedKey(key);
+    assertEvidencePolicy(key, maximumEvidenceBytes);
     if (this.removed.has(key)) return null;
 
     const storage = this.sessionStorage();
@@ -48,7 +59,7 @@ export class NexaCommandRetryStore {
       try {
         const value = storage.getItem(key);
         if (value !== null) {
-          if (isAllowedValue(key, value)) {
+          if (isAllowedValue(key, value, maximumEvidenceBytes)) {
             this.memory.set(key, value);
             return value;
           }
@@ -66,12 +77,27 @@ export class NexaCommandRetryStore {
     }
 
     const value = this.memory.get(key);
-    return value !== undefined && isAllowedValue(key, value) ? value : null;
+    return value !== undefined && isAllowedValue(key, value, maximumEvidenceBytes)
+      ? value
+      : null;
   }
 
   write(key: string, value: string): void {
+    this.writeWithEvidencePolicy(key, value);
+  }
+
+  writeInventoryEvidence(key: string, value: string, maximumBytes: number): void {
+    this.writeWithEvidencePolicy(key, value, maximumBytes);
+  }
+
+  private writeWithEvidencePolicy(
+    key: string,
+    value: string,
+    maximumEvidenceBytes?: number,
+  ): void {
     assertAllowedKey(key);
-    if (!isAllowedValue(key, value)) {
+    assertEvidencePolicy(key, maximumEvidenceBytes);
+    if (!isAllowedValue(key, value, maximumEvidenceBytes)) {
       throw new TypeError(
         "The retry value is not an allowed Nexa command payload.",
       );
@@ -200,7 +226,30 @@ function allowedPrefixFor(key: string): string | null {
   return prefix;
 }
 
-function isAllowedValue(key: string, value: string): boolean {
+function assertEvidencePolicy(key: string, maximumEvidenceBytes?: number): void {
+  const isInventoryEvidence = key.startsWith(PLATFORM_INVENTORY_EVIDENCE_PREFIX);
+  if (
+    isInventoryEvidence &&
+    (typeof maximumEvidenceBytes !== "number" ||
+      !Number.isSafeInteger(maximumEvidenceBytes) ||
+      maximumEvidenceBytes <= 0)
+  ) {
+    throw new TypeError(
+      "Inventory evidence retry keys require an explicit positive byte limit.",
+    );
+  }
+  if (!isInventoryEvidence && maximumEvidenceBytes !== undefined) {
+    throw new TypeError(
+      "Inventory evidence byte limits only apply to inventory evidence retry keys.",
+    );
+  }
+}
+
+function isAllowedValue(
+  key: string,
+  value: string,
+  maximumEvidenceBytes?: number,
+): boolean {
   if (
     typeof value !== "string" ||
     value.length === 0 ||
@@ -235,7 +284,8 @@ function isAllowedValue(key: string, value: string): boolean {
     return isPendingInventoryReceipt(value);
   }
   if (key.startsWith(PLATFORM_INVENTORY_EVIDENCE_PREFIX)) {
-    return isPendingInventoryEvidence(value);
+    return maximumEvidenceBytes !== undefined &&
+      isPendingInventoryEvidence(value, maximumEvidenceBytes);
   }
   if (key.startsWith(PLATFORM_REVIEW_PREFIX)) {
     return isPendingReviewCommand(value);
@@ -330,7 +380,7 @@ interface PendingInventoryEvidenceUpload {
   readonly evidenceId: string | null;
 }
 
-function isPendingInventoryEvidence(value: string): boolean {
+function isPendingInventoryEvidence(value: string, maximumBytes: number): boolean {
   let parsed: unknown;
   try {
     parsed = JSON.parse(value);
@@ -355,7 +405,7 @@ function isPendingInventoryEvidence(value: string): boolean {
     typeof command.byteSize !== "number" ||
     !Number.isSafeInteger(command.byteSize) ||
     command.byteSize <= 0 ||
-    command.byteSize > BUSINESS_DOCUMENT_EVIDENCE_MAX_BYTES ||
+    command.byteSize > maximumBytes ||
     typeof command.checksumSha256 !== "string" ||
     !/^[a-f0-9]{64}$/.test(command.checksumSha256) ||
     (command.evidenceId !== null &&
