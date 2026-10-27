@@ -142,7 +142,7 @@ async function signInPlatformAccount(page, credentials, onContextSelected) {
   expect(await membership.inputValue()).toBeTruthy();
   const selectedContext = waitForApiResponse(page, 'POST', '/me/access-context-selections');
   const selectedSession = waitForApiResponse(page, 'GET', '/session');
-  const selectionButton = page.getByTestId('select-access-context-button');
+  const selectionButton = page.getByTestId('select-access-context-button').getByRole('button');
   await page.getByRole('button', { name: 'Use this context' }).click();
   const selected = await selectedContext;
   expect(selected.status).toBe(200);
