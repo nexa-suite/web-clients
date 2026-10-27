@@ -3,13 +3,13 @@ import {
   getPlatformAccountCredentials,
   getPlatformWorkspaceSlug,
   getPortalBuyerCredentials,
+  platformApiBaseUrl,
   platformAccountDefinitions,
 } from '../../tooling/playwright/local-environment.mjs';
 
 const apiPrefix = '/api/v1';
 const platformOrigin = 'http://localhost:4200';
 const portalOrigin = process.env.NEXA_PORTAL_E2E_BASE_URL ?? 'http://localhost:4300';
-const expectedWarehouseId = '4c4ebd06-54d6-33ab-8186-1ba45b4539ee';
 const apiOriginPattern = /^http:\/\/(?:localhost|127\.0\.0\.1):(?:4200|4300|8080)\/api\/v1\//;
 const apiResponseCaptures = new WeakMap();
 
@@ -142,8 +142,117 @@ async function signInPlatformAccount(page, credentials) {
   expect(await membership.inputValue()).toBeTruthy();
   const selectedContext = waitForApiResponse(page, 'POST', '/me/access-context-selections');
   await page.getByRole('button', { name: 'Use this context' }).click();
-  expect((await selectedContext).status).toBe(200);
-  return session.body;
+  const selected = await selectedContext;
+  expect(selected.status).toBe(200);
+  expect(selected.body.tokenType).toBe('Bearer');
+  expect(typeof selected.body.accessToken === 'string' && selected.body.accessToken.length > 0).toBe(true);
+  expect(selected.body.session?.surface).toBe('PLATFORM');
+  expect(selected.body.session?.membershipId === session.body.membership?.membershipId).toBe(true);
+  return {
+    ...session.body,
+    accessToken: selected.body.accessToken,
+    scopedContext: selected.body.session,
+  };
+}
+
+async function fixtureApiRequest(accessToken, path, { method = 'GET', body, ifMatch } = {}) {
+  const headers = { authorization: `Bearer ${accessToken}` };
+  if (body !== undefined) headers['content-type'] = 'application/json';
+  if (ifMatch !== undefined) headers['if-match'] = ifMatch;
+  const response = await fetch(`${platformApiBaseUrl}${path}`, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  let responseBody;
+  if (response.status !== 204) {
+    try {
+      responseBody = await response.json();
+    } catch {
+      responseBody = undefined;
+    }
+  }
+  return { status: response.status, body: responseBody };
+}
+
+async function signOutPlatformAccount(page) {
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Sign in to your workspace' })).toBeVisible();
+}
+
+function expectMatchingSelectedScope(reference, candidate) {
+  expect(candidate.scopedContext?.surface).toBe('PLATFORM');
+  expect(
+    candidate.scopedContext?.tenantId === reference.scopedContext?.tenantId
+      && candidate.scopedContext?.workspaceId === reference.scopedContext?.workspaceId,
+  ).toBe(true);
+}
+
+async function ensureLogisticsFixtureWarehouseGrant(page, {
+  companyOwnerCredentials,
+  warehouseCredentials,
+  logisticsCredentials,
+}) {
+  const logisticsAccess = await signInPlatformAccount(page, logisticsCredentials);
+  const logisticsMembershipId = expectSessionPermissions(logisticsAccess, [
+    'dispatch.read',
+    'dispatch.schedule',
+    'dispatch.assign',
+    'dispatch.complete',
+    'logistics.read',
+  ]);
+  await signOutPlatformAccount(page);
+
+  const warehouseAccess = await signInPlatformAccount(page, warehouseCredentials);
+  expectSessionPermissions(warehouseAccess, ['warehouse.read']);
+  expectMatchingSelectedScope(logisticsAccess, warehouseAccess);
+  const warehouses = await fixtureApiRequest(
+    warehouseAccess.accessToken,
+    '/warehouses?page=0&size=100&sort=code,asc',
+  );
+  expect(warehouses.status).toBe(200);
+  const fixtureWarehouses = (warehouses.body?.items ?? []).filter((warehouse) =>
+    warehouse.code === 'ICISA-COLD-01' && warehouse.status === 'ACTIVE');
+  expect(fixtureWarehouses).toHaveLength(1);
+  const fixtureWarehouse = fixtureWarehouses[0];
+  expect(typeof fixtureWarehouse.id === 'string' && fixtureWarehouse.id.length > 0).toBe(true);
+  await signOutPlatformAccount(page);
+
+  const ownerAccess = await signInPlatformAccount(page, companyOwnerCredentials);
+  expectSessionPermissions(ownerAccess, ['tenant.role.assign']);
+  expectMatchingSelectedScope(logisticsAccess, ownerAccess);
+  const existingGrants = await fixtureApiRequest(
+    ownerAccess.accessToken,
+    `/warehouses/${encodeURIComponent(fixtureWarehouse.id)}/access-grants`,
+  );
+  expect(existingGrants.status).toBe(200);
+  const existingGrant = (existingGrants.body ?? []).find((grant) =>
+    grant.membershipId === logisticsMembershipId);
+  if (existingGrant?.status !== 'ACTIVE') {
+    if (process.env.GITHUB_ACTIONS !== 'true'
+      || process.env.NEXA_SECURITY_LOAD_COMPOSE_STARTED !== 'true') {
+      throw new Error(
+        'A non-active Logistics Warehouse grant requires the disposable GitHub Actions fixture; preconfigure an active grant before running local E2E.',
+      );
+    }
+    const granted = await fixtureApiRequest(
+      ownerAccess.accessToken,
+      `/warehouses/${encodeURIComponent(fixtureWarehouse.id)}/access-grants`,
+      {
+        method: 'POST',
+        body: { membershipId: logisticsMembershipId },
+        ifMatch: existingGrant ? `"${existingGrant.version}"` : undefined,
+      },
+    );
+    expect(granted.status).toBe(200);
+    expect(
+      granted.body?.status === 'ACTIVE'
+        && granted.body?.warehouseId === fixtureWarehouse.id
+        && granted.body?.membershipId === logisticsMembershipId,
+    ).toBe(true);
+  }
+  await signOutPlatformAccount(page);
+  return fixtureWarehouse.id;
 }
 
 function futureDeliveryDate(daysAhead = 14) {
@@ -205,6 +314,11 @@ test('fulfills a real Buyer order through dispatch, refreshes Buyer tracking, an
     throw new Error('The live fulfillment flow requires configured Company Owner, Sales, Warehouse, and Logistics identities.');
   }
 
+  const expectedWarehouseId = await ensureLogisticsFixtureWarehouseGrant(page, {
+    companyOwnerCredentials,
+    warehouseCredentials,
+    logisticsCredentials,
+  });
   const { account, catalog } = await signInBuyer(page);
   const candidateIndex = catalog.items.findIndex((item) =>
     typeof item.sellableSkuId === 'string'

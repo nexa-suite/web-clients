@@ -45,15 +45,20 @@ test('records a temperature-excursion receipt after its warehouse photo is avail
   const warehouseId = await warehouseOption.getAttribute('value');
   if (!warehouseId) throw new Error('The granted demo warehouse option has no API identifier.');
 
-  const zonesResponsePromise = page.waitForResponse((response) => {
-    const url = new URL(response.url());
-    return response.request().method() === 'GET'
-      && url.pathname === `${API_PREFIX}/warehouses/${warehouseId}/zones`;
-  });
-  await stockWarehouse.selectOption(warehouseId);
-  const zonesResponse = await zonesResponsePromise;
-  expect(zonesResponse.status()).toBe(200);
-  const zonesPage = await zonesResponse.json();
+  const zonesCapture = await installJsonApiResponseCapture(
+    page,
+    `${API_PREFIX}/warehouses/${warehouseId}/zones`,
+  );
+  const zonesResponsePromise = zonesCapture.next();
+  let zonesResponse;
+  try {
+    await stockWarehouse.selectOption(warehouseId);
+    zonesResponse = await zonesResponsePromise;
+  } finally {
+    await zonesCapture.dispose();
+  }
+  expect(zonesResponse.status).toBe(200);
+  const zonesPage = zonesResponse.body;
   const zone = zonesPage.items?.find((candidate) => candidate.code === THERMAL_ZONE_CODE);
   expect(zone).toBeTruthy();
   expect(zone.warehouseId).toBe(warehouseId);
@@ -276,12 +281,16 @@ function utcDateOffset(days) {
 }
 
 async function installCatalogResponseCapture(page) {
-  const pattern = `**${API_PREFIX}/catalog-items**`;
+  return installJsonApiResponseCapture(page, `${API_PREFIX}/catalog-items`);
+}
+
+async function installJsonApiResponseCapture(page, path) {
+  const pattern = `**${path}**`;
   const waiters = [];
   const handler = async (route) => {
     const request = route.request();
     const url = new URL(request.url());
-    if (request.method() !== 'GET' || url.pathname !== `${API_PREFIX}/catalog-items`) {
+    if (request.method() !== 'GET' || url.pathname !== path) {
       await route.continue();
       return;
     }
