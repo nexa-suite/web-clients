@@ -98,6 +98,59 @@ describe("NexaSalesCommitmentApi", () => {
     requests.flush({ items: [], page: 0, size: 25, total: 0 });
   });
 
+  it("reads Buyer request activity and the current material change proposal", () => {
+    api.listPurchaseRequestEvents("request/one").subscribe();
+    const events = http.expectOne(
+      "/api/v1/purchase-requests/request%2Fone/events",
+    );
+    expect(events.request.method).toBe("GET");
+    events.flush([]);
+
+    api.getCurrentMaterialChange("request/one").subscribe();
+    const proposal = http.expectOne(
+      "/api/v1/purchase-requests/request%2Fone/material-changes/current",
+    );
+    expect(proposal.request.method).toBe("GET");
+    proposal.flush({
+      id: "proposal-1",
+      purchaseRequestId: "request/one",
+      status: "PROPOSED",
+      requestVersion: 4,
+    });
+  });
+
+  it("sends Buyer material-change decisions and withdrawal with ETag and idempotency", () => {
+    const request = { id: "request-1", version: 5, status: "CHANGES_PROPOSED" };
+
+    api.acceptPurchaseRequestMaterialChange("request-1", "proposal/1", '"4"', "accept-key").subscribe();
+    const accept = http.expectOne(
+      "/api/v1/purchase-requests/request-1/material-changes/proposal%2F1/acceptances",
+    );
+    expect(accept.request.method).toBe("POST");
+    expect(accept.request.body).toBeNull();
+    expect(accept.request.headers.get("If-Match")).toBe('"4"');
+    expect(accept.request.headers.get("Idempotency-Key")).toBe("accept-key");
+    accept.flush(request, { headers: { ETag: '"5"' } });
+
+    api.rejectPurchaseRequestMaterialChange("request-1", "proposal-1", '"5"', "reject-key").subscribe();
+    const reject = http.expectOne(
+      "/api/v1/purchase-requests/request-1/material-changes/proposal-1/rejections",
+    );
+    expect(reject.request.method).toBe("POST");
+    expect(reject.request.body).toBeNull();
+    expect(reject.request.headers.get("If-Match")).toBe('"5"');
+    expect(reject.request.headers.get("Idempotency-Key")).toBe("reject-key");
+    reject.flush(request, { headers: { ETag: '"6"' } });
+
+    api.withdrawPurchaseRequest("request-1", '"6"', "withdraw-key").subscribe();
+    const withdraw = http.expectOne("/api/v1/purchase-requests/request-1/withdrawals");
+    expect(withdraw.request.method).toBe("POST");
+    expect(withdraw.request.body).toBeNull();
+    expect(withdraw.request.headers.get("If-Match")).toBe('"6"');
+    expect(withdraw.request.headers.get("Idempotency-Key")).toBe("withdraw-key");
+    withdraw.flush({ ...request, status: "WITHDRAWN", version: 7 }, { headers: { ETag: '"7"' } });
+  });
+
   it("rejects invalid version and key values before making a request", () => {
     let versionFailure: unknown;
     let keyFailure: unknown;

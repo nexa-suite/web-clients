@@ -13,6 +13,7 @@ export type {
   PurchaseRequestDraftRoute,
   PurchaseRequestDraftSummary,
   PurchaseRequestDraftWarehouseSelection,
+  PurchaseRequestEvent,
   PurchaseRequestLine,
   PurchaseRequestPage,
   PurchaseRequestPageQuery,

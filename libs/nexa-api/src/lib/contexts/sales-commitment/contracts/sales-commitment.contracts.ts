@@ -128,6 +128,15 @@ export interface PurchaseRequestDetail extends Omit<PurchaseRequestSummary, "lin
   readonly expiresAt: string | null;
 }
 
+export interface PurchaseRequestEvent {
+  readonly eventId: string;
+  readonly eventType: string;
+  readonly fromStatus: string | null;
+  readonly toStatus: string | null;
+  readonly actorMembershipId: string;
+  readonly occurredAt: string;
+}
+
 export interface MaterialChangeTerms {
   readonly priority: string | null;
   readonly requestedDeliveryDate: string | null;

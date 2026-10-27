@@ -323,4 +323,30 @@ describe("NexaCommandRetryStore", () => {
     expect(store.read(reviewKey)).toBeNull();
     expect(storage.removeItem).toHaveBeenCalledWith(reviewKey);
   });
+
+  it("persists Buyer request decisions only under a hashed membership scope", () => {
+    const hash = "a".repeat(64);
+    const key =
+      "nexa:buyer:purchase-request-command:tenant:workspace:membership:" + hash;
+    const pending = JSON.stringify({
+      action: "accept-material-change",
+      etag: '"4"',
+      fingerprint: "b".repeat(64),
+      idempotencyKey:
+        "buyer-pr-command-123e4567-e89b-42d3-a456-426614174000",
+      proposalId: "123e4567-e89b-42d3-a456-426614174001",
+      requestVersion: 4,
+    });
+
+    store.write(key, pending);
+
+    expect(store.read(key)).toBe(pending);
+    expect(store.read(key.replace(":membership:", ":other-membership:"))).toBeNull();
+    expect(() =>
+      store.write(
+        key,
+        pending.replace('"requestVersion":4', '"requestVersion":4,"accessToken":"secret"'),
+      ),
+    ).toThrow("The retry value is not an allowed Nexa command payload.");
+  });
 });

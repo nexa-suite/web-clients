@@ -2,6 +2,8 @@ import { DOCUMENT } from "@angular/common";
 import { Injectable, inject } from "@angular/core";
 
 const BUYER_SUBMIT_PREFIX = "nexa:buyer:purchase-request-submit:";
+const BUYER_PURCHASE_REQUEST_COMMAND_PREFIX =
+  "nexa:buyer:purchase-request-command:";
 const PLATFORM_REVIEW_PREFIX = "nexa:platform:purchase-request-command:";
 const PLATFORM_MATERIAL_CHANGE_PREFIX =
   "nexa:platform:purchase-request-material-change:";
@@ -150,6 +152,7 @@ function assertAllowedKey(key: string): void {
 function allowedPrefixFor(key: string): string | null {
   const prefix = [
     BUYER_SUBMIT_PREFIX,
+    BUYER_PURCHASE_REQUEST_COMMAND_PREFIX,
     PLATFORM_REVIEW_PREFIX,
     PLATFORM_MATERIAL_CHANGE_PREFIX,
     PLATFORM_FULFILLMENT_PREFIX,
@@ -170,6 +173,7 @@ function allowedPrefixFor(key: string): string | null {
 
   const expectedSegments = new Map([
     [BUYER_SUBMIT_PREFIX, 4],
+    [BUYER_PURCHASE_REQUEST_COMMAND_PREFIX, 4],
     [PLATFORM_REVIEW_PREFIX, 4],
     [PLATFORM_MATERIAL_CHANGE_PREFIX, 4],
     [PLATFORM_FULFILLMENT_PREFIX, 6],
@@ -196,7 +200,8 @@ function allowedPrefixFor(key: string): string | null {
       prefix === PLATFORM_CATALOG_COMMAND_PREFIX ||
       prefix === PLATFORM_WALLET_REFUND_PREFIX ||
       prefix === BUYER_WALLET_RECHARGE_PREFIX ||
-      prefix === PLATFORM_MATERIAL_CHANGE_PREFIX) &&
+      prefix === PLATFORM_MATERIAL_CHANGE_PREFIX ||
+      prefix === BUYER_PURCHASE_REQUEST_COMMAND_PREFIX) &&
     !/^[a-f0-9]{64}$/.test(segments.at(-1) ?? "")
   ) {
     return null;
@@ -260,6 +265,9 @@ function isAllowedValue(
 
   if (key.startsWith(BUYER_SUBMIT_PREFIX)) {
     return /^buyer-pr-submit-[a-z0-9-]{8,256}$/.test(value);
+  }
+  if (key.startsWith(BUYER_PURCHASE_REQUEST_COMMAND_PREFIX)) {
+    return isPendingBuyerPurchaseRequestCommand(value);
   }
   if (key.startsWith(BUYER_WALLET_RECHARGE_PENDING_PREFIX)) {
     return isPendingWalletRecharge(value);
@@ -446,6 +454,45 @@ interface PendingMaterialChangeCommand {
   readonly idempotencyKey: string;
   readonly requestVersion: number;
   readonly fingerprint: string;
+}
+
+interface PendingBuyerPurchaseRequestCommand {
+  readonly action: "accept-material-change" | "reject-material-change" | "withdraw";
+  readonly etag: string;
+  readonly fingerprint: string;
+  readonly idempotencyKey: string;
+  readonly proposalId: string | null;
+  readonly requestVersion: number;
+}
+
+function isPendingBuyerPurchaseRequestCommand(value: string): boolean {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return false;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+  const command = parsed as Partial<PendingBuyerPurchaseRequestCommand>;
+  const keys = Object.keys(parsed).sort().join(",");
+  if (
+    keys !== "action,etag,fingerprint,idempotencyKey,proposalId,requestVersion" ||
+    (command.action !== "accept-material-change" &&
+      command.action !== "reject-material-change" &&
+      command.action !== "withdraw") ||
+    typeof command.etag !== "string" ||
+    !/^(?:W\/)?"[^"\r\n]*"$/.test(command.etag) ||
+    typeof command.idempotencyKey !== "string" ||
+    !/^buyer-pr-command-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      command.idempotencyKey,
+    ) ||
+    (command.action === "withdraw" ? command.proposalId !== null : !isUuid(command.proposalId ?? "")) ||
+    !Number.isSafeInteger(command.requestVersion) ||
+    (command.requestVersion as number) < 0 ||
+    typeof command.fingerprint !== "string" ||
+    !/^[a-f0-9]{64}$/.test(command.fingerprint)
+  ) return false;
+  return JSON.stringify(parsed) === value;
 }
 
 function isPendingMaterialChangeCommand(value: string): boolean {
