@@ -120,7 +120,7 @@ async function signInBuyer(page) {
   return { account: accountBody, catalog: catalogBody };
 }
 
-async function signInPlatformAccount(page, credentials) {
+async function signInPlatformAccount(page, credentials, onContextSelected) {
   await page.goto(`${platformOrigin}/sign-in`);
   await expect(page.getByRole('heading', { name: 'Sign in to your workspace' })).toBeVisible();
   await page.getByLabel('Workspace slug').fill(getPlatformWorkspaceSlug());
@@ -141,9 +141,16 @@ async function signInPlatformAccount(page, credentials) {
   await expect(membership).toBeVisible();
   expect(await membership.inputValue()).toBeTruthy();
   const selectedContext = waitForApiResponse(page, 'POST', '/me/access-context-selections');
+  const selectedSession = waitForApiResponse(page, 'GET', '/session');
+  const selectionButton = page.getByTestId('select-access-context-button');
   await page.getByRole('button', { name: 'Use this context' }).click();
   const selected = await selectedContext;
   expect(selected.status).toBe(200);
+  onContextSelected?.();
+  const currentSession = await selectedSession;
+  expect(currentSession.status).toBe(200);
+  expect(currentSession.body.membership?.membershipId).toBe(selected.body.session?.membershipId);
+  await expect(selectionButton).toHaveAttribute('aria-busy', 'false');
   expect(selected.body.tokenType).toBe('Bearer');
   expect(typeof selected.body.accessToken === 'string' && selected.body.accessToken.length > 0).toBe(true);
   expect(selected.body.session?.surface).toBe('PLATFORM');
@@ -153,6 +160,43 @@ async function signInPlatformAccount(page, credentials) {
     accessToken: selected.body.accessToken,
     scopedContext: selected.body.session,
   };
+}
+
+async function withPlatformFixtureAccount(browser, credentials, action) {
+  const context = await browser.newContext();
+  let fixturePage;
+  let activeContext = false;
+  let operationFailed = false;
+  try {
+    fixturePage = await context.newPage();
+    await installApiResponseCapture(fixturePage);
+    const accountAccess = await signInPlatformAccount(
+      fixturePage,
+      credentials,
+      () => { activeContext = true; },
+    );
+    return await action(accountAccess);
+  } catch (error) {
+    operationFailed = true;
+    throw error;
+  } finally {
+    let cleanupFailed = false;
+    if (fixturePage && activeContext) {
+      try {
+        await signOutPlatformAccount(fixturePage);
+      } catch {
+        cleanupFailed = true;
+      }
+    }
+    try {
+      await context.close();
+    } catch {
+      cleanupFailed = true;
+    }
+    if (cleanupFailed && !operationFailed) {
+      throw new Error('Temporary platform fixture session cleanup could not be confirmed.');
+    }
+  }
 }
 
 async function fixtureApiRequest(accessToken, path, { method = 'GET', body, ifMatch } = {}) {
@@ -176,8 +220,13 @@ async function fixtureApiRequest(accessToken, path, { method = 'GET', body, ifMa
 }
 
 async function signOutPlatformAccount(page) {
+  const signOutResponse = page.waitForResponse((response) => {
+    const request = response.request();
+    return new URL(response.url()).pathname === `${apiPrefix}/authentication/sign-out`
+      && request.method() === 'POST';
+  });
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Sign in to your workspace' })).toBeVisible();
+  expect((await signOutResponse).status()).toBe(204);
 }
 
 function expectMatchingSelectedScope(reference, candidate) {
@@ -188,47 +237,49 @@ function expectMatchingSelectedScope(reference, candidate) {
   ).toBe(true);
 }
 
-async function ensureLogisticsFixtureWarehouseGrant(page, {
+async function ensureLogisticsFixtureWarehouseGrant(browser, {
   companyOwnerCredentials,
   warehouseCredentials,
   logisticsCredentials,
 }) {
-  const logisticsAccess = await signInPlatformAccount(page, logisticsCredentials);
-  const logisticsMembershipId = expectSessionPermissions(logisticsAccess, [
-    'dispatch.read',
-    'dispatch.schedule',
-    'dispatch.assign',
-    'dispatch.complete',
-    'logistics.read',
-  ]);
-  await signOutPlatformAccount(page);
+  const logistics = await withPlatformFixtureAccount(browser, logisticsCredentials, (logisticsAccess) => ({
+    membershipId: expectSessionPermissions(logisticsAccess, [
+      'dispatch.read',
+      'dispatch.schedule',
+      'dispatch.assign',
+      'dispatch.complete',
+      'logistics.read',
+    ]),
+    scopedContext: logisticsAccess.scopedContext,
+  }));
 
-  const warehouseAccess = await signInPlatformAccount(page, warehouseCredentials);
-  expectSessionPermissions(warehouseAccess, ['warehouse.read']);
-  expectMatchingSelectedScope(logisticsAccess, warehouseAccess);
-  const warehouses = await fixtureApiRequest(
-    warehouseAccess.accessToken,
-    '/warehouses?page=0&size=100&sort=code,asc',
-  );
-  expect(warehouses.status).toBe(200);
-  const fixtureWarehouses = (warehouses.body?.items ?? []).filter((warehouse) =>
-    warehouse.code === 'ICISA-COLD-01' && warehouse.status === 'ACTIVE');
-  expect(fixtureWarehouses).toHaveLength(1);
-  const fixtureWarehouse = fixtureWarehouses[0];
-  expect(typeof fixtureWarehouse.id === 'string' && fixtureWarehouse.id.length > 0).toBe(true);
-  await signOutPlatformAccount(page);
+  const warehouse = await withPlatformFixtureAccount(browser, warehouseCredentials, async (warehouseAccess) => {
+    expectSessionPermissions(warehouseAccess, ['warehouse.read']);
+    expectMatchingSelectedScope(logistics, warehouseAccess);
+    const warehouses = await fixtureApiRequest(
+      warehouseAccess.accessToken,
+      '/warehouses?page=0&size=100&sort=code,asc',
+    );
+    expect(warehouses.status).toBe(200);
+    const fixtureWarehouses = (warehouses.body?.items ?? []).filter((candidate) =>
+      candidate.code === 'ICISA-COLD-01' && candidate.status === 'ACTIVE');
+    expect(fixtureWarehouses).toHaveLength(1);
+    const fixtureWarehouse = fixtureWarehouses[0];
+    expect(typeof fixtureWarehouse.id === 'string' && fixtureWarehouse.id.length > 0).toBe(true);
+    return { id: fixtureWarehouse.id, scopedContext: warehouseAccess.scopedContext };
+  });
 
-  const ownerAccess = await signInPlatformAccount(page, companyOwnerCredentials);
-  expectSessionPermissions(ownerAccess, ['tenant.role.assign']);
-  expectMatchingSelectedScope(logisticsAccess, ownerAccess);
-  const existingGrants = await fixtureApiRequest(
-    ownerAccess.accessToken,
-    `/warehouses/${encodeURIComponent(fixtureWarehouse.id)}/access-grants`,
-  );
-  expect(existingGrants.status).toBe(200);
-  const existingGrant = (existingGrants.body ?? []).find((grant) =>
-    grant.membershipId === logisticsMembershipId);
-  if (existingGrant?.status !== 'ACTIVE') {
+  await withPlatformFixtureAccount(browser, companyOwnerCredentials, async (ownerAccess) => {
+    expectSessionPermissions(ownerAccess, ['tenant.role.assign']);
+    expectMatchingSelectedScope(logistics, ownerAccess);
+    expectMatchingSelectedScope(warehouse, ownerAccess);
+    const grantsPath = `/warehouses/${encodeURIComponent(warehouse.id)}/access-grants`;
+    const existingGrants = await fixtureApiRequest(ownerAccess.accessToken, grantsPath);
+    expect(existingGrants.status).toBe(200);
+    const existingGrant = (existingGrants.body ?? []).find((grant) =>
+      grant.membershipId === logistics.membershipId);
+    if (existingGrant?.status === 'ACTIVE') return;
+
     if (process.env.GITHUB_ACTIONS !== 'true'
       || process.env.NEXA_SECURITY_LOAD_COMPOSE_STARTED !== 'true') {
       throw new Error(
@@ -237,22 +288,21 @@ async function ensureLogisticsFixtureWarehouseGrant(page, {
     }
     const granted = await fixtureApiRequest(
       ownerAccess.accessToken,
-      `/warehouses/${encodeURIComponent(fixtureWarehouse.id)}/access-grants`,
+      grantsPath,
       {
         method: 'POST',
-        body: { membershipId: logisticsMembershipId },
+        body: { membershipId: logistics.membershipId },
         ifMatch: existingGrant ? `"${existingGrant.version}"` : undefined,
       },
     );
     expect(granted.status).toBe(200);
     expect(
       granted.body?.status === 'ACTIVE'
-        && granted.body?.warehouseId === fixtureWarehouse.id
-        && granted.body?.membershipId === logisticsMembershipId,
+        && granted.body?.warehouseId === warehouse.id
+        && granted.body?.membershipId === logistics.membershipId,
     ).toBe(true);
-  }
-  await signOutPlatformAccount(page);
-  return fixtureWarehouse.id;
+  });
+  return warehouse.id;
 }
 
 function futureDeliveryDate(daysAhead = 14) {
@@ -292,7 +342,7 @@ async function runFulfillmentCommand(page, buttonName, path, ifMatch, expectedSt
   return response;
 }
 
-test('fulfills a real Buyer order through dispatch, refreshes Buyer tracking, and issues its order summary', async ({ page }) => {
+test('fulfills a real Buyer order through dispatch, refreshes Buyer tracking, and issues its order summary', async ({ browser, page }) => {
   test.setTimeout(180_000);
   const requestedQuantity = Number(process.env.NEXA_E2E_REQUEST_QUANTITY ?? 1);
   if (!Number.isSafeInteger(requestedQuantity) || requestedQuantity < 1 || requestedQuantity > 10) {
@@ -314,7 +364,7 @@ test('fulfills a real Buyer order through dispatch, refreshes Buyer tracking, an
     throw new Error('The live fulfillment flow requires configured Company Owner, Sales, Warehouse, and Logistics identities.');
   }
 
-  const expectedWarehouseId = await ensureLogisticsFixtureWarehouseGrant(page, {
+  const expectedWarehouseId = await ensureLogisticsFixtureWarehouseGrant(browser, {
     companyOwnerCredentials,
     warehouseCredentials,
     logisticsCredentials,

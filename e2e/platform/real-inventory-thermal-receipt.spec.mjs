@@ -9,8 +9,10 @@ const API_PREFIX = '/api/v1';
 const RECEIPT_PATH = `${API_PREFIX}/inventory/inbound-receipts`;
 const EVIDENCE_PATH = `${API_PREFIX}/business-document-evidence`;
 const THERMAL_ZONE_CODE = 'CHILLED-A';
+const inventoryResponseCaptures = new WeakMap();
 
 test.afterEach(async ({ page }) => {
+  await inventoryResponseCaptures.get(page)?.dispose();
   for (const label of ['Password', 'Work email or user ID', 'Workspace slug']) {
     const field = page.getByLabel(label);
     if (await field.count()) await field.fill('').catch(() => {});
@@ -145,35 +147,8 @@ test('records a temperature-excursion receipt after its warehouse photo is avail
   });
   await expect(receiptPanel.getByRole('status')).toContainText('Selected thermal-receipt.png');
 
-  const networkEvents = [];
-  const responseBodies = [];
-  page.on('response', (response) => {
-    const url = new URL(response.url());
-    const method = response.request().method();
-    const isEvidenceUpload = url.pathname === EVIDENCE_PATH && method === 'POST';
-    const isEvidenceStatus = url.pathname.startsWith(`${EVIDENCE_PATH}/`) && method === 'GET';
-    const isReceipt = url.pathname === RECEIPT_PATH && method === 'POST';
-    if (!isEvidenceUpload && !isEvidenceStatus && !isReceipt) return;
-
-    let requestBody = null;
-    if (isReceipt) {
-      try { requestBody = response.request().postDataJSON(); } catch {}
-    }
-    const event = {
-      response,
-      sequence: networkEvents.length,
-      method,
-      pathname: url.pathname,
-      status: response.status(),
-      requestBody,
-      body: null,
-      bodyPromise: null,
-    };
-    networkEvents.push(event);
-    const bodyPromise = response.json().then((body) => { event.body = body; return body; }).catch(() => null);
-    event.bodyPromise = bodyPromise;
-    responseBodies.push(bodyPromise);
-  });
+  const responseCapture = await installInventoryResponseCapture(page);
+  const networkEvents = responseCapture.events;
 
   const uploadResponsePromise = page.waitForResponse((response) =>
     new URL(response.url()).pathname === EVIDENCE_PATH
@@ -193,9 +168,9 @@ test('records a temperature-excursion receipt after its warehouse photo is avail
   const uploadResponse = await uploadResponsePromise;
   expect(uploadResponse.status()).toBe(201);
   const uploadEvent = networkEvents.find((event) => event.pathname === EVIDENCE_PATH && event.method === 'POST');
-  await Promise.all(responseBodies);
+  expect(uploadEvent, 'The uploaded evidence response must be captured before it reaches the UI.').toBeTruthy();
   const uploadedEvidence = uploadEvent?.body;
-  expect(uploadedEvidence).toBeTruthy();
+  expect(uploadedEvidence, uploadEvent?.bodyError ?? 'The evidence upload must return a JSON evidence record.').toBeTruthy();
   expect(uploadedEvidence.subjectType).toBe('WAREHOUSE');
   expect(uploadedEvidence.subjectId).toBe(warehouseId);
   expect(uploadedEvidence.originalFilename).toBe('thermal-receipt.png');
@@ -208,13 +183,19 @@ test('records a temperature-excursion receipt after its warehouse photo is avail
       if (new URL(response.url()).pathname !== `${EVIDENCE_PATH}/${evidenceId}`
         || response.request().method() !== 'GET'
         || response.status() !== 200) return false;
-      const event = networkEvents.find((candidate) => candidate.response === response);
-      const body = await event?.bodyPromise;
-      return body?.lifecycleStatus === 'AVAILABLE';
+      const event = networkEvents.find((candidate) =>
+        candidate.pathname === `${EVIDENCE_PATH}/${evidenceId}`
+          && candidate.method === 'GET'
+          && candidate.status === 200
+          && candidate.body?.lifecycleStatus === 'AVAILABLE');
+      return Boolean(event);
     }, { timeout: 120_000 });
     expect(availableStatus.status()).toBe(200);
-    const availableEvent = networkEvents.find((event) => event.response === availableStatus);
-    await Promise.all(responseBodies);
+    const availableEvent = networkEvents.find((event) =>
+      event.pathname === `${EVIDENCE_PATH}/${evidenceId}`
+        && event.method === 'GET'
+        && event.status === 200
+        && event.body?.lifecycleStatus === 'AVAILABLE');
     expect(availableEvent?.body?.lifecycleStatus).toBe('AVAILABLE');
   }
 
@@ -233,13 +214,12 @@ test('records a temperature-excursion receipt after its warehouse photo is avail
   expect(receiptRequest.temperatureEvidenceObjectId).toBe(evidenceId);
   const inboundEvent = networkEvents.find((event) =>
     event.pathname === RECEIPT_PATH && event.method === 'POST' && event.requestBody?.batchNumber === batchNumber);
-  await Promise.all(responseBodies);
+  expect(inboundEvent, 'The inbound receipt response must be captured before it reaches the UI.').toBeTruthy();
   const createdLot = inboundEvent?.body;
-  expect(createdLot).toBeTruthy();
+  expect(createdLot, inboundEvent?.bodyError ?? 'The inbound receipt must return a JSON lot record.').toBeTruthy();
   expect(createdLot.status).toBe('HOLD');
   expect(createdLot.available).toBe(0);
 
-  await Promise.all(responseBodies);
   const availableEvent = networkEvents.find((event) =>
     event.body?.id === evidenceId && event.body?.lifecycleStatus === 'AVAILABLE');
   const capturedInboundEvent = networkEvents.find((event) =>
@@ -321,4 +301,56 @@ async function installJsonApiResponseCapture(page, path) {
     next: () => new Promise((resolve, reject) => waiters.push({ resolve, reject })),
     dispose: () => page.unroute(pattern, handler),
   };
+}
+
+async function installInventoryResponseCapture(page) {
+  const pattern = `**${API_PREFIX}/**`;
+  const events = [];
+  const handler = async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const method = request.method();
+    const isEvidenceUpload = url.pathname === EVIDENCE_PATH && method === 'POST';
+    const isEvidenceStatus = url.pathname.startsWith(`${EVIDENCE_PATH}/`) && method === 'GET';
+    const isReceipt = url.pathname === RECEIPT_PATH && method === 'POST';
+    if (!isEvidenceUpload && !isEvidenceStatus && !isReceipt) {
+      await route.continue();
+      return;
+    }
+
+    try {
+      const upstream = await route.fetch();
+      let body = null;
+      let bodyError = null;
+      if (upstream.status() !== 204) {
+        try {
+          body = await upstream.json();
+        } catch {
+          bodyError = 'Response body was not valid JSON.';
+        }
+      }
+
+      let requestBody = null;
+      if (isReceipt) {
+        try { requestBody = request.postDataJSON(); } catch {}
+      }
+      events.push({
+        sequence: events.length,
+        method,
+        pathname: url.pathname,
+        status: upstream.status(),
+        requestBody,
+        body,
+        bodyError,
+      });
+      await route.fulfill({ response: upstream });
+    } catch (error) {
+      await route.abort('failed').catch(() => {});
+      throw error;
+    }
+  };
+  await page.route(pattern, handler);
+  const capture = { events, dispose: () => page.unroute(pattern, handler) };
+  inventoryResponseCaptures.set(page, capture);
+  return capture;
 }
