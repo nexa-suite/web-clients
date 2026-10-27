@@ -43,6 +43,7 @@
 }
 
 .context-grid nexa-surface {
+  --nexa-surface-padding: var(--nexa-panel-padding, var(--nexa-space-4));
   min-width: 0;
 }
 

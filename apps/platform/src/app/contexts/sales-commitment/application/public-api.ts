@@ -1,4 +1,5 @@
 export { PlatformPurchaseRequestReviewStore } from "./platform-purchase-request-review.store";
+export { PlatformPurchaseRequestMaterialChangeStore } from "./platform-purchase-request-material-change.store";
 export {
   PlatformConfirmedSalesOrdersQuery,
 } from "./platform-confirmed-sales-orders.query";

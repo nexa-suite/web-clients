@@ -23,7 +23,7 @@
     } @else if (view.status === 'error') {
       <nexa-surface tone="inset"><nexa-button variant="secondary" (click)="refresh()">Try again</nexa-button></nexa-surface>
     } @else if (view.status === 'ready') {
-      <nexa-surface tone="default">
+      <nexa-surface class="platform-governance-page__panel" tone="default">
         <div class="platform-governance-page__section-heading">
           <div><h2>Role definitions</h2><p>New custom roles are scoped to the active Workspace; existing tenant-wide API roles remain read-only.</p></div>
           @if (store.canManageRoleDefinitions() && !draft()) { <nexa-button (click)="startCreate()">Create custom role</nexa-button> }
@@ -52,7 +52,7 @@
 
       @if (draft(); as editor) {
         @if (store.canManageRoleDefinitions()) {
-          <nexa-surface tone="default">
+          <nexa-surface class="platform-governance-page__panel" tone="default">
             <section class="platform-governance-page__form" aria-labelledby="role-editor-title">
               <h2 id="role-editor-title">{{ editor.roleId ? 'Edit custom role' : 'Create custom role' }}</h2>
               @if (!editor.roleId) {

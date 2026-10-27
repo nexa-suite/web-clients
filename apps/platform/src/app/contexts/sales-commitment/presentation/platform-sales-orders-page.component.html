@@ -1,0 +1,208 @@
+<section
+  class="platform-sales-page"
+  aria-labelledby="sales-orders-title"
+  [attr.aria-busy]="state().busy"
+>
+  <header class="platform-sales-page__heading">
+    <div>
+      <p class="platform-sales-page__eyebrow">SALES</p>
+      <h1 id="sales-orders-title">Sales orders</h1>
+      <p>Orders returned by the active workspace.</p>
+    </div>
+    <nexa-button variant="secondary" [disabled]="state().busy" (click)="load()"
+      >Refresh</nexa-button
+    >
+  </header>
+  @if (state().error) {
+    <p role="alert">{{ state().error }}</p>
+  }
+  @if (state().busy) {
+    <p role="status">Loading Sales Orders…</p>
+  }
+  @if (state().page; as results) {
+    <nexa-surface
+      ><form class="platform-sales-page__actions" (ngSubmit)="load()">
+        <label
+          >Search orders
+          <input
+            name="search"
+            [(ngModel)]="search"
+            placeholder="Order number or customer" /></label
+        ><label
+          >Status
+          <select name="status" [(ngModel)]="status">
+            <option value="">All statuses</option>
+            <option value="PENDING">Pending</option>
+            <option value="CONFIRMED">Confirmed</option>
+            <option value="IN_FULFILLMENT">In fulfillment</option>
+            <option value="PARTIALLY_FULFILLED">Partially fulfilled</option>
+            <option value="FULFILLED">Fulfilled</option>
+            <option value="PARTIALLY_DELIVERED">Partially delivered</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select></label
+        ><nexa-button type="submit">Search</nexa-button>
+      </form>
+      @if (clientAccountId) {
+        <p>
+          Showing orders for the selected client.
+          <a routerLink="/sales/orders">Show all clients</a>
+        </p>
+      }
+      <p>{{ results.total }} orders</p>
+      @if (!results.items.length) {
+        <p>No orders match these filters.</p>
+      }
+      <div class="platform-sales-page__table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Client</th>
+              <th>Status</th>
+              <th>Delivery date</th>
+              <th>Total</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (order of results.items; track order.id) {
+              <tr>
+                <td>{{ order.number || order.id }}</td>
+                <td>
+                  @if (canViewClient()) {
+                    <a
+                      routerLink="/clients"
+                      [queryParams]="{ clientId: order.clientAccountId }"
+                      >View client</a
+                    >
+                  } @else {
+                    {{ order.clientAccountId }}
+                  }
+                </td>
+                <td>{{ order.status }}</td>
+                <td>{{ order.requestedDeliveryDate }}</td>
+                <td>{{ order.currency }} {{ order.total }}</td>
+                <td>
+                  <a
+                    [routerLink]="['/sales/orders', order.id]"
+                    [queryParams]="
+                      clientAccountId
+                        ? { clientAccountId: clientAccountId }
+                        : {}
+                    "
+                    >Details</a
+                  >
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <nav class="platform-sales-page__actions" aria-label="Sales order pages">
+        <nexa-button
+          variant="secondary"
+          [disabled]="results.page === 0"
+          (click)="load(results.page - 1)"
+          >Previous</nexa-button
+        ><span>Page {{ results.page + 1 }}</span
+        ><nexa-button
+          variant="secondary"
+          [disabled]="(results.page + 1) * results.size >= results.total"
+          (click)="load(results.page + 1)"
+          >Next</nexa-button
+        >
+      </nav>
+    </nexa-surface>
+  }
+  @if (state().order; as order) {
+    <a
+      routerLink="/sales/orders"
+      [queryParams]="
+        clientAccountId ? { clientAccountId: clientAccountId } : {}
+      "
+      >Back to orders</a
+    >
+    <nexa-surface
+      ><h2>{{ order.number || order.id }}</h2>
+      <dl class="platform-sales-page__facts">
+        <div>
+          <dt>Status</dt>
+          <dd>{{ order.status }}</dd>
+        </div>
+        <div>
+          <dt>Requested delivery</dt>
+          <dd>{{ order.requestedDeliveryDate }}</dd>
+        </div>
+        <div>
+          <dt>Total</dt>
+          <dd>{{ order.currency }} {{ order.total }}</dd>
+        </div>
+        <div>
+          <dt>Payment option</dt>
+          <dd>{{ order.paymentOption || "Not provided" }}</dd>
+        </div>
+        <div>
+          <dt>Version</dt>
+          <dd>{{ order.version }}</dd>
+        </div>
+      </dl>
+      <nav class="platform-sales-page__actions" aria-label="Order context">
+        @if (canViewClient()) {
+          <a
+            routerLink="/clients"
+            [queryParams]="{ clientId: order.clientAccountId }"
+            >View client</a
+          >
+        }
+        @if (canViewRequests() && order.sourcePurchaseRequestId) {
+          <a
+            [routerLink]="[
+              '/sales/purchase-requests',
+              order.sourcePurchaseRequestId,
+            ]"
+            >Source purchase request</a
+          >
+        }
+        @if (canViewFulfillment() && order.status === "CONFIRMED") {
+          <a routerLink="/fulfillment-delivery">Open fulfillment board</a>
+        }
+      </nav></nexa-surface
+    >
+    <nexa-surface
+      ><h2>Order lines</h2>
+      @if (!order.lines.length) {
+        <p>No lines returned.</p>
+      }
+      <div class="platform-sales-page__table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>SKU</th>
+              <th>Quantity</th>
+              <th>Unit price</th>
+              <th>Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of order.lines; track $index) {
+              <tr>
+                <td>
+                  {{ line.itemName || line.presentation || "Catalog item" }}
+                </td>
+                <td>{{ line.skuCode || "—" }}</td>
+                <td>{{ line.quantity }} {{ line.unit }}</td>
+                <td>
+                  {{ line.unitPriceCurrency }} {{ line.unitPriceAmount ?? "—" }}
+                </td>
+                <td>{{ line.lineSubtotal ?? "—" }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div></nexa-surface
+    >
+  }
+</section>

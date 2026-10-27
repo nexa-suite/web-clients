@@ -184,6 +184,11 @@ describe("PlatformActiveContextComponent", () => {
     sessionState.set({ status: "authenticated", session: switchedSession });
     selection.next(switchedSession);
     selection.complete();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(submit.disabled).toBe(false);
+    expect(submit.getAttribute("aria-busy")).toBe("false");
   });
   it("returns to sign-in after the active session becomes unavailable", async () => {
     sessionState.set({ status: "unauthenticated" });

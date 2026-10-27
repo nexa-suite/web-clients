@@ -16,6 +16,10 @@ import { NexaButton, NexaLogo } from "nexa-ui";
 import { firstValueFrom } from "rxjs";
 import { PortalBuyerEligibilityService } from "../contexts/customer-buyer-relationships/application/public-api";
 import { PortalSessionStore } from "../contexts/tenant-access-governance/application/public-api";
+import {
+  canAccessPortalFeature,
+  PORTAL_ACCESS_RULES,
+} from "../core/portal-access-policy";
 
 @Component({
   selector: "portal-shell",
@@ -29,15 +33,24 @@ export class PortalShellComponent {
   protected readonly session = inject(PortalSessionStore);
   private readonly buyerEligibility = inject(PortalBuyerEligibilityService);
   private readonly router = inject(Router);
-  protected readonly canViewDeliveries = computed(() => {
-    const current = this.session.state();
-    return (
-      current.status === "authenticated" &&
-      (current.session.membership?.permissions ?? []).includes(
-        "buyer.tracking.read",
-      )
-    );
-  });
+  protected readonly canViewCatalog = computed(() =>
+    this.canAccess(PORTAL_ACCESS_RULES.catalog),
+  );
+  protected readonly canViewWallet = computed(() =>
+    this.canAccess(PORTAL_ACCESS_RULES.wallet),
+  );
+  protected readonly canViewRequests = computed(() =>
+    this.canAccess(PORTAL_ACCESS_RULES.purchaseRequests),
+  );
+  protected readonly canViewOrders = computed(() =>
+    this.canAccess(PORTAL_ACCESS_RULES.orders),
+  );
+  protected readonly canViewDocuments = computed(() =>
+    this.canAccess(PORTAL_ACCESS_RULES.documents),
+  );
+  protected readonly canViewDeliveries = computed(() =>
+    this.canAccess(PORTAL_ACCESS_RULES.deliveries),
+  );
   private readonly mainContent =
     viewChild.required<ElementRef<HTMLElement>>("mainContent");
   protected readonly accountName = computed(() => {
@@ -63,5 +76,11 @@ export class PortalShellComponent {
     } catch {
       // The session store preserves a valid local session when sign-out is unconfirmed.
     }
+  }
+
+  private canAccess(rule: (typeof PORTAL_ACCESS_RULES)[keyof typeof PORTAL_ACCESS_RULES]): boolean {
+    const current = this.session.state();
+    return current.status === "authenticated" &&
+      canAccessPortalFeature(current.session, rule);
   }
 }

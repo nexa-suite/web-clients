@@ -8,6 +8,18 @@ interface FakeStorage {
   removeItem: ReturnType<typeof vi.fn>;
 }
 
+function pendingInventoryEvidence(byteSize: number): string {
+  return JSON.stringify({
+    idempotencyKey: "123e4567-e89b-42d3-a456-426614174000",
+    warehouseId: "00000000-0000-4000-8000-000000000005",
+    originalFilename: "receiving.jpg",
+    declaredContentType: "image/jpeg",
+    byteSize,
+    checksumSha256: "a".repeat(64),
+    evidenceId: null,
+  });
+}
+
 describe("NexaCommandRetryStore", () => {
   const buyerKey =
     "nexa:buyer:purchase-request-submit:tenant:workspace:membership:draft";
@@ -17,6 +29,10 @@ describe("NexaCommandRetryStore", () => {
     "nexa.platform.fulfillment-start:user:tenant:workspace:membership:order:%224%22";
   const documentKey =
     "nexa:platform:order-summary-generation:user:tenant:workspace:membership:order";
+  const inventoryReceiptKey =
+    "nexa:platform:inventory-receipt:00000000-0000-4000-8000-000000000001:00000000-0000-4000-8000-000000000002:00000000-0000-4000-8000-000000000003:00000000-0000-4000-8000-000000000004";
+  const inventoryEvidenceKey =
+    "nexa:platform:inventory-evidence:00000000-0000-4000-8000-000000000001:00000000-0000-4000-8000-000000000002:00000000-0000-4000-8000-000000000003:00000000-0000-4000-8000-000000000004";
   let values: Map<string, string>;
   let storage: FakeStorage;
   let store: NexaCommandRetryStore;
@@ -119,6 +135,96 @@ describe("NexaCommandRetryStore", () => {
     expect(() => store.read(key.replace(hash, "refund-25.00"))).toThrow();
     expect(() => store.write(key, '{"amountPEN":25}')).toThrow();
     expect(() => store.write(key.replace(hash, "d".repeat(63)), idempotencyKey)).toThrow();
+  });
+
+  it("persists a strictly scoped frozen inventory receipt for exact retry", () => {
+    const frozen = JSON.stringify({
+      idempotencyKey: "123e4567-e89b-42d3-a456-426614174000",
+      request: {
+        warehouseId: "00000000-0000-4000-8000-000000000005",
+        zoneId: "00000000-0000-4000-8000-000000000006",
+        catalogItemId: "CAT-0001",
+        batchNumber: "BATCH-0001",
+        expirationDate: "2027-06-30",
+        productionDate: "2026-06-30",
+        receivedAt: "2026-10-15T12:00:00Z",
+        quantity: 5,
+        unit: "kg",
+        temperatureReading: 4,
+        notes: null,
+        skuId: null,
+      },
+    });
+
+    store.write(inventoryReceiptKey, frozen);
+
+    expect(store.read(inventoryReceiptKey)).toBe(frozen);
+    expect(storage.setItem).toHaveBeenCalledWith(inventoryReceiptKey, frozen);
+    expect(() => store.write(inventoryReceiptKey.replace(/:[^:]+$/, "member"), frozen)).toThrow();
+    expect(() => store.write(inventoryReceiptKey, frozen.replace('"notes":null', '"accessToken":"secret","notes":null'))).toThrow();
+  });
+
+  it("persists only scoped photo metadata and hash for an inventory evidence retry", () => {
+    const pending = pendingInventoryEvidence(11);
+
+    store.writeInventoryEvidence(inventoryEvidenceKey, pending, 11);
+
+    expect(store.readInventoryEvidence(inventoryEvidenceKey, 11)).toBe(pending);
+    expect(() =>
+      store.writeInventoryEvidence(
+        inventoryEvidenceKey,
+        pending.replace('"evidenceId":null', '"evidenceId":null,"fileBytes":"photo"'),
+        11,
+      ),
+    ).toThrow();
+    expect(() =>
+      store.writeInventoryEvidence(
+        inventoryEvidenceKey.replace(/:[^:]+$/, "member"),
+        pending,
+        11,
+      ),
+    ).toThrow();
+  });
+
+  it("enforces the explicit evidence byte limit on write and persisted read", () => {
+    const atLimit = pendingInventoryEvidence(11);
+    const overLimit = pendingInventoryEvidence(12);
+
+    store.writeInventoryEvidence(inventoryEvidenceKey, atLimit, 11);
+    expect(store.readInventoryEvidence(inventoryEvidenceKey, 11)).toBe(atLimit);
+    expect(() => store.writeInventoryEvidence(inventoryEvidenceKey, overLimit, 11)).toThrow(
+      "The retry value is not an allowed Nexa command payload.",
+    );
+
+    values.set(inventoryEvidenceKey, overLimit);
+    expect(store.readInventoryEvidence(inventoryEvidenceKey, 11)).toBeNull();
+    expect(storage.removeItem).toHaveBeenCalledWith(inventoryEvidenceKey);
+  });
+
+  it("revalidates inventory evidence byte limit on the in-memory fallback", () => {
+    const overLimit = pendingInventoryEvidence(12);
+    store.writeInventoryEvidence(inventoryEvidenceKey, overLimit, 12);
+    storage.getItem.mockImplementation(() => {
+      throw new DOMException("Storage is unavailable", "SecurityError");
+    });
+
+    expect(store.readInventoryEvidence(inventoryEvidenceKey, 11)).toBeNull();
+  });
+
+  it("fails closed when inventory evidence uses generic read or write without a byte policy", () => {
+    const pending = pendingInventoryEvidence(11);
+
+    expect(() => store.write(inventoryEvidenceKey, pending)).toThrow(
+      "Inventory evidence retry keys require an explicit positive byte limit.",
+    );
+    expect(() => store.read(inventoryEvidenceKey)).toThrow(
+      "Inventory evidence retry keys require an explicit positive byte limit.",
+    );
+    expect(() => store.writeInventoryEvidence(inventoryEvidenceKey, pending, 0)).toThrow(
+      "Inventory evidence retry keys require an explicit positive byte limit.",
+    );
+    expect(storage.getItem).not.toHaveBeenCalled();
+    expect(storage.setItem).not.toHaveBeenCalled();
   });
 
   it("keeps an idempotency key in memory when session storage is blocked", () => {

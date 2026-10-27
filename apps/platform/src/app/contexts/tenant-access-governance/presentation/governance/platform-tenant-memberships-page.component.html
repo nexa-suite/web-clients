@@ -27,7 +27,7 @@
       <nexa-surface tone="inset"><nexa-button variant="secondary" (click)="refresh()">Try again</nexa-button></nexa-surface>
     } @else if (view.status === 'ready') {
       @if (store.canInviteMembers()) {
-        <nexa-surface tone="default">
+        <nexa-surface class="platform-governance-page__panel" tone="default">
           <section class="platform-governance-page__form" aria-labelledby="invite-member-title">
             <h2 id="invite-member-title">Invite a teammate</h2>
             <div class="platform-governance-page__fields">
@@ -51,7 +51,7 @@
         </nexa-surface>
       }
 
-      <nexa-surface tone="default">
+      <nexa-surface class="platform-governance-page__panel" tone="default">
         <div class="platform-governance-page__section-heading">
           <div><h2>Workspace memberships</h2><p>{{ view.memberships.length }} membership(s) in this workspace</p></div>
         </div>
@@ -94,7 +94,7 @@
         } @else { <p>No memberships were returned for this workspace.</p> }
       </nexa-surface>
 
-      <nexa-surface tone="default">
+      <nexa-surface class="platform-governance-page__panel" tone="default">
         <div class="platform-governance-page__section-heading"><div><h2>Invitations</h2><p>Page {{ (view.invitations?.page ?? 0) + 1 }}</p></div></div>
         @if (view.invitations?.items?.length) {
           <div class="platform-governance-page__table-wrap">

@@ -3,16 +3,25 @@ import { Injectable, inject } from "@angular/core";
 
 const BUYER_SUBMIT_PREFIX = "nexa:buyer:purchase-request-submit:";
 const PLATFORM_REVIEW_PREFIX = "nexa:platform:purchase-request-command:";
+const PLATFORM_MATERIAL_CHANGE_PREFIX =
+  "nexa:platform:purchase-request-material-change:";
 const PLATFORM_FULFILLMENT_PREFIX = "nexa.platform.fulfillment-start:";
 const PLATFORM_ORDER_SUMMARY_PREFIX = "nexa:platform:order-summary-generation:";
-const PLATFORM_FULFILLMENT_COMMAND_PREFIX = "nexa:platform:fulfillment-command:";
+const PLATFORM_FULFILLMENT_COMMAND_PREFIX =
+  "nexa:platform:fulfillment-command:";
 const BUYER_BANK_TRANSFER_PREFIX = "nexa:buyer:bank-transfer:";
 const PLATFORM_MEMBER_INVITATION_PREFIX = "nexa:platform:member-invitation:";
-const PLATFORM_CREDIT_CONFIGURATION_PREFIX = "nexa:platform:credit-configuration:";
+const PLATFORM_CREDIT_CONFIGURATION_PREFIX =
+  "nexa:platform:credit-configuration:";
+const PLATFORM_CATALOG_COMMAND_PREFIX = "nexa:platform:catalog-command:";
+const PLATFORM_INVENTORY_RECEIPT_PREFIX = "nexa:platform:inventory-receipt:";
+const PLATFORM_INVENTORY_EVIDENCE_PREFIX = "nexa:platform:inventory-evidence:";
 const PLATFORM_WALLET_REFUND_PREFIX = "nexa:platform:wallet-refund:";
 const BUYER_WALLET_RECHARGE_PREFIX = "nexa:buyer:wallet-recharge:";
-const BUYER_WALLET_RECHARGE_PENDING_PREFIX = "nexa:buyer:wallet-recharge-pending:";
-const BUYER_WALLET_RECHARGE_STATUS_PREFIX = "nexa:buyer:wallet-recharge-status:";
+const BUYER_WALLET_RECHARGE_PENDING_PREFIX =
+  "nexa:buyer:wallet-recharge-pending:";
+const BUYER_WALLET_RECHARGE_STATUS_PREFIX =
+  "nexa:buyer:wallet-recharge-status:";
 const MAX_STORAGE_KEY_LENGTH = 2_048;
 const MAX_STORAGE_VALUE_LENGTH = 65_536;
 
@@ -30,7 +39,19 @@ export class NexaCommandRetryStore {
   private readonly removed = new Set<string>();
 
   read(key: string): string | null {
+    return this.readWithEvidencePolicy(key);
+  }
+
+  readInventoryEvidence(key: string, maximumBytes: number): string | null {
+    return this.readWithEvidencePolicy(key, maximumBytes);
+  }
+
+  private readWithEvidencePolicy(
+    key: string,
+    maximumEvidenceBytes?: number,
+  ): string | null {
     assertAllowedKey(key);
+    assertEvidencePolicy(key, maximumEvidenceBytes);
     if (this.removed.has(key)) return null;
 
     const storage = this.sessionStorage();
@@ -38,7 +59,7 @@ export class NexaCommandRetryStore {
       try {
         const value = storage.getItem(key);
         if (value !== null) {
-          if (isAllowedValue(key, value)) {
+          if (isAllowedValue(key, value, maximumEvidenceBytes)) {
             this.memory.set(key, value);
             return value;
           }
@@ -56,12 +77,27 @@ export class NexaCommandRetryStore {
     }
 
     const value = this.memory.get(key);
-    return value !== undefined && isAllowedValue(key, value) ? value : null;
+    return value !== undefined && isAllowedValue(key, value, maximumEvidenceBytes)
+      ? value
+      : null;
   }
 
   write(key: string, value: string): void {
+    this.writeWithEvidencePolicy(key, value);
+  }
+
+  writeInventoryEvidence(key: string, value: string, maximumBytes: number): void {
+    this.writeWithEvidencePolicy(key, value, maximumBytes);
+  }
+
+  private writeWithEvidencePolicy(
+    key: string,
+    value: string,
+    maximumEvidenceBytes?: number,
+  ): void {
     assertAllowedKey(key);
-    if (!isAllowedValue(key, value)) {
+    assertEvidencePolicy(key, maximumEvidenceBytes);
+    if (!isAllowedValue(key, value, maximumEvidenceBytes)) {
       throw new TypeError(
         "The retry value is not an allowed Nexa command payload.",
       );
@@ -115,12 +151,16 @@ function allowedPrefixFor(key: string): string | null {
   const prefix = [
     BUYER_SUBMIT_PREFIX,
     PLATFORM_REVIEW_PREFIX,
+    PLATFORM_MATERIAL_CHANGE_PREFIX,
     PLATFORM_FULFILLMENT_PREFIX,
     PLATFORM_ORDER_SUMMARY_PREFIX,
     PLATFORM_FULFILLMENT_COMMAND_PREFIX,
     BUYER_BANK_TRANSFER_PREFIX,
     PLATFORM_MEMBER_INVITATION_PREFIX,
     PLATFORM_CREDIT_CONFIGURATION_PREFIX,
+    PLATFORM_CATALOG_COMMAND_PREFIX,
+    PLATFORM_INVENTORY_EVIDENCE_PREFIX,
+    PLATFORM_INVENTORY_RECEIPT_PREFIX,
     PLATFORM_WALLET_REFUND_PREFIX,
     BUYER_WALLET_RECHARGE_PREFIX,
     BUYER_WALLET_RECHARGE_PENDING_PREFIX,
@@ -131,12 +171,16 @@ function allowedPrefixFor(key: string): string | null {
   const expectedSegments = new Map([
     [BUYER_SUBMIT_PREFIX, 4],
     [PLATFORM_REVIEW_PREFIX, 4],
+    [PLATFORM_MATERIAL_CHANGE_PREFIX, 4],
     [PLATFORM_FULFILLMENT_PREFIX, 6],
     [PLATFORM_ORDER_SUMMARY_PREFIX, 5],
     [PLATFORM_FULFILLMENT_COMMAND_PREFIX, 7],
     [BUYER_BANK_TRANSFER_PREFIX, 6],
     [PLATFORM_MEMBER_INVITATION_PREFIX, 5],
     [PLATFORM_CREDIT_CONFIGURATION_PREFIX, 7],
+    [PLATFORM_CATALOG_COMMAND_PREFIX, 7],
+    [PLATFORM_INVENTORY_RECEIPT_PREFIX, 4],
+    [PLATFORM_INVENTORY_EVIDENCE_PREFIX, 4],
     [PLATFORM_WALLET_REFUND_PREFIX, 6],
     [BUYER_WALLET_RECHARGE_PREFIX, 5],
     [BUYER_WALLET_RECHARGE_PENDING_PREFIX, 4],
@@ -145,9 +189,25 @@ function allowedPrefixFor(key: string): string | null {
   const segments = key.slice(prefix.length).split(":");
   if (segments.length !== expectedSegments) return null;
   if (
-    (prefix === PLATFORM_FULFILLMENT_COMMAND_PREFIX || prefix === BUYER_BANK_TRANSFER_PREFIX || prefix === PLATFORM_MEMBER_INVITATION_PREFIX || prefix === PLATFORM_CREDIT_CONFIGURATION_PREFIX || prefix === PLATFORM_WALLET_REFUND_PREFIX || prefix === BUYER_WALLET_RECHARGE_PREFIX) &&
+    (prefix === PLATFORM_FULFILLMENT_COMMAND_PREFIX ||
+      prefix === BUYER_BANK_TRANSFER_PREFIX ||
+      prefix === PLATFORM_MEMBER_INVITATION_PREFIX ||
+      prefix === PLATFORM_CREDIT_CONFIGURATION_PREFIX ||
+      prefix === PLATFORM_CATALOG_COMMAND_PREFIX ||
+      prefix === PLATFORM_WALLET_REFUND_PREFIX ||
+      prefix === BUYER_WALLET_RECHARGE_PREFIX ||
+      prefix === PLATFORM_MATERIAL_CHANGE_PREFIX) &&
     !/^[a-f0-9]{64}$/.test(segments.at(-1) ?? "")
-  ) return null;
+  ) {
+    return null;
+  }
+  if (
+    (prefix === PLATFORM_INVENTORY_RECEIPT_PREFIX ||
+      prefix === PLATFORM_INVENTORY_EVIDENCE_PREFIX) &&
+    !segments.every(isUuid)
+  ) {
+    return null;
+  }
   for (const segment of segments) {
     if (!segment) return null;
     try {
@@ -166,7 +226,30 @@ function allowedPrefixFor(key: string): string | null {
   return prefix;
 }
 
-function isAllowedValue(key: string, value: string): boolean {
+function assertEvidencePolicy(key: string, maximumEvidenceBytes?: number): void {
+  const isInventoryEvidence = key.startsWith(PLATFORM_INVENTORY_EVIDENCE_PREFIX);
+  if (
+    isInventoryEvidence &&
+    (typeof maximumEvidenceBytes !== "number" ||
+      !Number.isSafeInteger(maximumEvidenceBytes) ||
+      maximumEvidenceBytes <= 0)
+  ) {
+    throw new TypeError(
+      "Inventory evidence retry keys require an explicit positive byte limit.",
+    );
+  }
+  if (!isInventoryEvidence && maximumEvidenceBytes !== undefined) {
+    throw new TypeError(
+      "Inventory evidence byte limits only apply to inventory evidence retry keys.",
+    );
+  }
+}
+
+function isAllowedValue(
+  key: string,
+  value: string,
+  maximumEvidenceBytes?: number,
+): boolean {
   if (
     typeof value !== "string" ||
     value.length === 0 ||
@@ -186,20 +269,211 @@ function isAllowedValue(key: string, value: string): boolean {
     key.startsWith(PLATFORM_ORDER_SUMMARY_PREFIX) ||
     key.startsWith(PLATFORM_FULFILLMENT_COMMAND_PREFIX) ||
     key.startsWith(BUYER_BANK_TRANSFER_PREFIX) ||
-    key.startsWith(PLATFORM_MEMBER_INVITATION_PREFIX)
-    || key.startsWith(PLATFORM_CREDIT_CONFIGURATION_PREFIX)
-    || key.startsWith(PLATFORM_WALLET_REFUND_PREFIX)
-    || key.startsWith(BUYER_WALLET_RECHARGE_PREFIX)
-    || key.startsWith(BUYER_WALLET_RECHARGE_STATUS_PREFIX)
+    key.startsWith(PLATFORM_MEMBER_INVITATION_PREFIX) ||
+    key.startsWith(PLATFORM_CREDIT_CONFIGURATION_PREFIX) ||
+    key.startsWith(PLATFORM_CATALOG_COMMAND_PREFIX) ||
+    key.startsWith(PLATFORM_WALLET_REFUND_PREFIX) ||
+    key.startsWith(BUYER_WALLET_RECHARGE_PREFIX) ||
+    key.startsWith(BUYER_WALLET_RECHARGE_STATUS_PREFIX)
   ) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       value,
     );
   }
+  if (key.startsWith(PLATFORM_INVENTORY_RECEIPT_PREFIX)) {
+    return isPendingInventoryReceipt(value);
+  }
+  if (key.startsWith(PLATFORM_INVENTORY_EVIDENCE_PREFIX)) {
+    return maximumEvidenceBytes !== undefined &&
+      isPendingInventoryEvidence(value, maximumEvidenceBytes);
+  }
   if (key.startsWith(PLATFORM_REVIEW_PREFIX)) {
     return isPendingReviewCommand(value);
   }
+  if (key.startsWith(PLATFORM_MATERIAL_CHANGE_PREFIX)) {
+    return isPendingMaterialChangeCommand(value);
+  }
   return false;
+}
+
+interface PendingInventoryReceipt {
+  readonly idempotencyKey: string;
+  readonly request: {
+    readonly warehouseId: string;
+    readonly zoneId: string;
+    readonly catalogItemId: string;
+    readonly batchNumber: string;
+    readonly expirationDate: string;
+    readonly quantity: number;
+    readonly unit: string;
+    readonly temperatureReading: number | null;
+    readonly notes: string | null;
+    readonly skuId: string | null;
+    readonly productionDate: string;
+    readonly receivedAt: string;
+  };
+}
+
+function isPendingInventoryReceipt(value: string): boolean {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return false;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    return false;
+  const command = parsed as Partial<PendingInventoryReceipt>;
+  if (
+    Object.keys(parsed).sort().join(",") !== "idempotencyKey,request" ||
+    typeof command.idempotencyKey !== "string" ||
+    !isUuid(command.idempotencyKey) ||
+    !command.request ||
+    typeof command.request !== "object" ||
+    Array.isArray(command.request)
+  ) {
+    return false;
+  }
+  const request = command.request as PendingInventoryReceipt["request"];
+  const requestRecord = request as unknown as Record<string, unknown>;
+  const evidenceId = requestRecord["temperatureEvidenceObjectId"];
+  const requestKeys = Object.keys(requestRecord).sort().join(",");
+  if (
+    requestKeys !==
+      "batchNumber,catalogItemId,expirationDate,notes,productionDate,quantity,receivedAt,skuId,temperatureReading,unit,warehouseId,zoneId" &&
+    requestKeys !==
+      "batchNumber,catalogItemId,expirationDate,notes,productionDate,quantity,receivedAt,skuId,temperatureEvidenceObjectId,temperatureReading,unit,warehouseId,zoneId"
+  ) {
+    return false;
+  }
+  return (
+    isUuid(request.warehouseId) &&
+    isUuid(request.zoneId) &&
+    (request.skuId === null || isUuid(request.skuId)) &&
+    (!Object.hasOwn(requestRecord, "temperatureEvidenceObjectId") ||
+      evidenceId === null ||
+      (typeof evidenceId === "string" && isUuid(evidenceId))) &&
+    isBoundedText(request.catalogItemId, 64) &&
+    isBoundedText(request.batchNumber, 80) &&
+    isBoundedText(request.unit, 32) &&
+    isDateOnly(request.expirationDate) &&
+    isDateOnly(request.productionDate) &&
+    isIsoInstant(request.receivedAt) &&
+    typeof request.quantity === "number" &&
+    Number.isFinite(request.quantity) &&
+    request.quantity > 0 &&
+    (request.temperatureReading === null ||
+      (typeof request.temperatureReading === "number" &&
+        Number.isFinite(request.temperatureReading))) &&
+    (request.notes === null ||
+      (typeof request.notes === "string" && request.notes.length <= 2000))
+  );
+}
+
+interface PendingInventoryEvidenceUpload {
+  readonly idempotencyKey: string;
+  readonly warehouseId: string;
+  readonly originalFilename: string;
+  readonly declaredContentType: string;
+  readonly byteSize: number;
+  readonly checksumSha256: string;
+  readonly evidenceId: string | null;
+}
+
+function isPendingInventoryEvidence(value: string, maximumBytes: number): boolean {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return false;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+  const command = parsed as Partial<PendingInventoryEvidenceUpload>;
+  const keys = Object.keys(parsed).sort().join(",");
+  if (
+    keys !==
+      "byteSize,checksumSha256,declaredContentType,evidenceId,idempotencyKey,originalFilename,warehouseId" ||
+    typeof command.idempotencyKey !== "string" ||
+    !isUuid(command.idempotencyKey) ||
+    typeof command.warehouseId !== "string" ||
+    !isUuid(command.warehouseId) ||
+    typeof command.originalFilename !== "string" ||
+    !isBoundedText(command.originalFilename, 255) ||
+    typeof command.declaredContentType !== "string" ||
+    !isBoundedText(command.declaredContentType, 160) ||
+    !command.declaredContentType.toLowerCase().startsWith("image/") ||
+    typeof command.byteSize !== "number" ||
+    !Number.isSafeInteger(command.byteSize) ||
+    command.byteSize <= 0 ||
+    command.byteSize > maximumBytes ||
+    typeof command.checksumSha256 !== "string" ||
+    !/^[a-f0-9]{64}$/.test(command.checksumSha256) ||
+    (command.evidenceId !== null &&
+      (typeof command.evidenceId !== "string" || !isUuid(command.evidenceId)))
+  ) {
+    return false;
+  }
+  return JSON.stringify(parsed) === value;
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function isBoundedText(value: string, maximum: number): boolean {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    value.length <= maximum &&
+    !/[\u0000-\u001f\u007f]/.test(value)
+  );
+}
+
+function isDateOnly(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function isIsoInstant(value: string): boolean {
+  return typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/.test(value) &&
+    !Number.isNaN(Date.parse(value));
+}
+
+interface PendingMaterialChangeCommand {
+  readonly etag: string;
+  readonly idempotencyKey: string;
+  readonly requestVersion: number;
+  readonly fingerprint: string;
+}
+
+function isPendingMaterialChangeCommand(value: string): boolean {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return false;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    return false;
+  const command = parsed as Partial<PendingMaterialChangeCommand>;
+  const keys = Object.keys(parsed).sort();
+  if (
+    keys.join(",") !== "etag,fingerprint,idempotencyKey,requestVersion" ||
+    typeof command.etag !== "string" ||
+    !/^(?:W\/)?"[^"\r\n]*"$/.test(command.etag) ||
+    typeof command.idempotencyKey !== "string" ||
+    !/^sales-pr-material-change-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      command.idempotencyKey,
+    ) ||
+    !Number.isSafeInteger(command.requestVersion) ||
+    (command.requestVersion as number) < 0 ||
+    typeof command.fingerprint !== "string" ||
+    !/^[a-f0-9]{64}$/.test(command.fingerprint)
+  )
+    return false;
+  return JSON.stringify(parsed) === value;
 }
 
 function isPendingWalletRecharge(value: string): boolean {
@@ -209,18 +483,26 @@ function isPendingWalletRecharge(value: string): boolean {
   } catch {
     return false;
   }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    return false;
   const command = parsed as {
     readonly amount?: unknown;
     readonly fingerprint?: unknown;
     readonly idempotencyKey?: unknown;
   };
-  return Object.keys(parsed).join(",") === "amount,fingerprint,idempotencyKey" &&
-    typeof command.amount === "number" && Number.isFinite(command.amount) && command.amount > 0 &&
-    typeof command.fingerprint === "string" && /^[a-f0-9]{64}$/.test(command.fingerprint) &&
+  return (
+    Object.keys(parsed).join(",") === "amount,fingerprint,idempotencyKey" &&
+    typeof command.amount === "number" &&
+    Number.isFinite(command.amount) &&
+    command.amount > 0 &&
+    typeof command.fingerprint === "string" &&
+    /^[a-f0-9]{64}$/.test(command.fingerprint) &&
     typeof command.idempotencyKey === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(command.idempotencyKey) &&
-    JSON.stringify(parsed) === value;
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      command.idempotencyKey,
+    ) &&
+    JSON.stringify(parsed) === value
+  );
 }
 
 function isPendingReviewCommand(value: string): boolean {

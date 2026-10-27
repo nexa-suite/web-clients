@@ -46,11 +46,13 @@ export class BuyerWalletPageComponent implements OnDestroy {
         this.stripeCheckout.set(null);
       }
     });
-    void this.credit.load();
     this.payments.clear();
     this.transfer.clear();
-    void this.receivables.load();
-    if (this.wallet.canRead()) void this.wallet.load();
+    if (this.wallet.canRead()) {
+      void this.credit.load();
+      void this.receivables.load();
+      void this.wallet.load();
+    }
     if (this.wallet.canRecharge()) void this.wallet.loadLastRecharge();
   }
   ngOnDestroy(): void {
@@ -58,11 +60,12 @@ export class BuyerWalletPageComponent implements OnDestroy {
     this.stripeCheckout.set(null);
   }
   protected refresh(): void {
+    if (!this.wallet.canRead()) return;
     this.payments.clear();
     void this.receivables.load();
     void this.credit.load();
-    if (this.wallet.canRead()) void this.wallet.load(this.walletPage());
-    if (this.wallet.canRead()) void this.wallet.readRechargeStatus();
+    void this.wallet.load(this.walletPage());
+    void this.wallet.readRechargeStatus();
   }
 
   protected async createRecharge(): Promise<void> {

@@ -22,3 +22,18 @@ export interface BuyerDeliveryEventResponse {
   readonly type: string;
   readonly occurredAt: string;
 }
+
+/** Current, server-authorized location sample for an active Buyer Delivery. */
+export interface BuyerDeliveryLiveLocationResponse {
+  readonly deliveryId: string;
+  readonly location: BuyerDeliveryLocationSample | null;
+}
+
+export interface BuyerDeliveryLocationSample {
+  readonly sampleId: string;
+  readonly latitude: number;
+  readonly longitude: number;
+  readonly accuracyMeters: number;
+  readonly capturedAt: string;
+  readonly expiresAt: string;
+}

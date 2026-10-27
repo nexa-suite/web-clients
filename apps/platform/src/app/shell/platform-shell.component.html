@@ -5,27 +5,89 @@
       <span class="platform-shell__brand-divider" aria-hidden="true"></span>
       <span class="platform-shell__product-name">Nexa Platform</span>
       @if (
+        canViewClients ||
+        canViewCatalog ||
+        canViewCatalogManagement ||
         canViewOperationsOverview ||
-        canViewSalesCommitment ||
+        canViewSalesOrders || canViewSalesCommitment ||
         canViewFulfillment ||
-        canViewDocuments || canViewTenantAccess || canViewTenantRoles || canConfigureCredit || canManageWalletRefunds
-        || canManageSupportConsents || canManageWarehouseAccessGrants
+        canViewInventory ||
+        canViewDocuments ||
+        canViewTenantAccess ||
+        canViewTenantRoles ||
+        canConfigureCredit ||
+        canManageWalletRefunds ||
+        canManageSupportConsents ||
+        canManageWarehouseAccessGrants ||
+        canGenerateOrderSummary
       ) {
         <nav
           class="platform-shell__navigation"
           aria-label="Platform navigation"
         >
+          @if (canViewClients) {
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/clients"
+              routerLinkActive="platform-shell__navigation-link--active"
+              ariaCurrentWhenActive="page"
+              >Client accounts</a
+            >
+          }
+          @if (canViewCatalog) {
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/catalog"
+              routerLinkActive="platform-shell__navigation-link--active"
+              [routerLinkActiveOptions]="{ exact: true }"
+              ariaCurrentWhenActive="page"
+              >Catalog</a
+            >
+          }
+          @if (canViewCatalogManagement) {
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/catalog/manage"
+              routerLinkActive="platform-shell__navigation-link--active"
+              ariaCurrentWhenActive="page"
+              >Catalog management</a
+            >
+          }
           @if (canViewTenantAccess) {
-            <a class="platform-shell__navigation-link" routerLink="/organization/access" routerLinkActive="platform-shell__navigation-link--active" ariaCurrentWhenActive="page">Workforce access</a>
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/organization/access"
+              routerLinkActive="platform-shell__navigation-link--active"
+              ariaCurrentWhenActive="page"
+              >Workforce access</a
+            >
           }
           @if (canViewTenantRoles) {
-            <a class="platform-shell__navigation-link" routerLink="/organization/roles" routerLinkActive="platform-shell__navigation-link--active" ariaCurrentWhenActive="page">Roles and permissions</a>
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/organization/roles"
+              routerLinkActive="platform-shell__navigation-link--active"
+              ariaCurrentWhenActive="page"
+              >Roles and permissions</a
+            >
           }
           @if (canManageSupportConsents) {
-            <a class="platform-shell__navigation-link" routerLink="/organization/support-consents" routerLinkActive="platform-shell__navigation-link--active" ariaCurrentWhenActive="page">Support consent</a>
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/organization/support-consents"
+              routerLinkActive="platform-shell__navigation-link--active"
+              ariaCurrentWhenActive="page"
+              >Support consent</a
+            >
           }
           @if (canManageWarehouseAccessGrants) {
-            <a class="platform-shell__navigation-link" routerLink="/organization/warehouse-access" routerLinkActive="platform-shell__navigation-link--active" ariaCurrentWhenActive="page">Warehouse access</a>
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/organization/warehouse-access"
+              routerLinkActive="platform-shell__navigation-link--active"
+              ariaCurrentWhenActive="page"
+              >Warehouse access</a
+            >
           }
           @if (canViewOperationsOverview) {
             <a
@@ -37,6 +99,9 @@
             >
               Operations overview
             </a>
+          }
+          @if (canViewSalesOrders) {
+            <a class="platform-shell__navigation-link" routerLink="/sales/orders" routerLinkActive="platform-shell__navigation-link--active" ariaCurrentWhenActive="page">Sales orders</a>
           }
           @if (canViewSalesCommitment) {
             <a
@@ -59,6 +124,16 @@
               Fulfillment
             </a>
           }
+          @if (canViewInventory) {
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/inventory"
+              routerLinkActive="platform-shell__navigation-link--active"
+              ariaCurrentWhenActive="page"
+            >
+              Inventory
+            </a>
+          }
           @if (canViewDocuments) {
             <a
               class="platform-shell__navigation-link"
@@ -68,13 +143,23 @@
               >Documents</a
             >
           }
+          @if (canGenerateOrderSummary) {
+            <a
+              class="platform-shell__navigation-link"
+              routerLink="/documents/order-summary"
+              routerLinkActive="platform-shell__navigation-link--active"
+              ariaCurrentWhenActive="page"
+              >Generate order summary</a
+            >
+          }
           @if (canConfigureCredit) {
             <a
               class="platform-shell__navigation-link"
               routerLink="/credit-configuration"
               routerLinkActive="platform-shell__navigation-link--active"
               ariaCurrentWhenActive="page"
-            >Credit configuration</a>
+              >Credit configuration</a
+            >
           }
           @if (canManageWalletRefunds) {
             <a
@@ -82,7 +167,8 @@
               routerLink="/wallet-refunds"
               routerLinkActive="platform-shell__navigation-link--active"
               ariaCurrentWhenActive="page"
-            >Wallet refunds</a>
+              >Wallet refunds</a
+            >
           }
         </nav>
       }

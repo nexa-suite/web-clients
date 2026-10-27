@@ -2,7 +2,7 @@ import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { NexaApiError } from '@nexa/api';
 import { PortalSessionStore, type PortalSessionLease } from '../../tenant-access-governance/application/public-api';
 import { CatalogApiAdapter } from './catalog-api.adapter';
-import type { CatalogDetailState, BuyerCatalogItem, CatalogPageState, CatalogSearch } from './catalog.models';
+import type { CatalogDetailState, BuyerCatalogItem, CatalogFilterOption, CatalogPageState, CatalogSearch } from './catalog.models';
 
 const emptySearch: CatalogSearch = {
   q: '',
@@ -18,14 +18,23 @@ export class CatalogStore {
   private readonly session = inject(PortalSessionStore);
   private listRevision = 0;
   private detailRevision = 0;
+  private filterOptionRevision = 0;
 
   private readonly searchValue = signal<CatalogSearch>(emptySearch);
   private readonly pageValue = signal<CatalogPageState>({ kind: 'idle', page: null, errorMessage: null });
   private readonly detailValue = signal<CatalogDetailState>({ kind: 'idle', item: null, errorMessage: null });
   private readonly pageLeaseValue = signal<PortalSessionLease | null>(null);
   private readonly detailLeaseValue = signal<PortalSessionLease | null>(null);
+  private readonly brandsValue = signal<readonly CatalogFilterOption[]>([]);
+  private readonly categoriesValue = signal<readonly CatalogFilterOption[]>([]);
+  private readonly filterOptionsLoadingValue = signal(false);
+  private readonly filterOptionsErrorValue = signal<string | null>(null);
 
   readonly search = this.searchValue.asReadonly();
+  readonly brands = this.brandsValue.asReadonly();
+  readonly categories = this.categoriesValue.asReadonly();
+  readonly filterOptionsLoading = this.filterOptionsLoadingValue.asReadonly();
+  readonly filterOptionsError = this.filterOptionsErrorValue.asReadonly();
   readonly page = computed(() => {
     const lease = this.pageLeaseValue();
     return lease && this.session.isSessionLeaseCurrent(lease)
@@ -60,6 +69,35 @@ export class CatalogStore {
 
   async load(): Promise<void> {
     await this.loadPage({ ...this.searchValue() });
+  }
+
+  async loadFilterOptions(): Promise<void> {
+    const revision = ++this.filterOptionRevision;
+    const lease = this.session.captureSessionLease();
+    if (!lease) {
+      this.clearFilterOptions();
+      return;
+    }
+    this.filterOptionsLoadingValue.set(true);
+    this.filterOptionsErrorValue.set(null);
+    try {
+      const [brands, categories] = await Promise.all([
+        this.api.filterOptions("brand"),
+        this.api.filterOptions("category"),
+      ]);
+      if (revision !== this.filterOptionRevision || !this.session.isSessionLeaseCurrent(lease)) return;
+      this.brandsValue.set(brands);
+      this.categoriesValue.set(categories);
+    } catch {
+      if (revision !== this.filterOptionRevision || !this.session.isSessionLeaseCurrent(lease)) return;
+      this.brandsValue.set([]);
+      this.categoriesValue.set([]);
+      this.filterOptionsErrorValue.set("Catalog filters could not be loaded for this Buyer context.");
+    } finally {
+      if (revision === this.filterOptionRevision && this.session.isSessionLeaseCurrent(lease)) {
+        this.filterOptionsLoadingValue.set(false);
+      }
+    }
   }
 
   async applySearch(filters: Omit<CatalogSearch, 'page'>): Promise<void> {
@@ -133,6 +171,15 @@ export class CatalogStore {
   private clearSessionData(): void {
     this.clearPageData();
     this.clearDetailData();
+    this.clearFilterOptions();
+  }
+
+  private clearFilterOptions(): void {
+    this.filterOptionRevision++;
+    this.brandsValue.set([]);
+    this.categoriesValue.set([]);
+    this.filterOptionsLoadingValue.set(false);
+    this.filterOptionsErrorValue.set(null);
   }
 
   private clearPageData(): void {

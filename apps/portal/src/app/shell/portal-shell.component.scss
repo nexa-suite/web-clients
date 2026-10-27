@@ -12,7 +12,7 @@
   min-height: 68px;
   align-items: center;
   gap: var(--nexa-space-3) var(--nexa-space-5);
-  padding: var(--nexa-space-2) clamp(var(--nexa-space-4), 4vw, 42px);
+  padding: var(--nexa-space-2) clamp(var(--nexa-space-4), 3vw, var(--nexa-space-6));
   border-bottom: 1px solid var(--nexa-color-border-structural);
   background: var(--nexa-surface-card);
 }
@@ -32,6 +32,7 @@
 .buyer-navigation {
   display: flex;
   flex: 1;
+  flex-wrap: wrap;
   align-items: center;
   min-width: 0;
 }
@@ -84,7 +85,7 @@
 .portal-content {
   width: min(100%, 1440px);
   margin-inline: auto;
-  padding: clamp(var(--nexa-space-4), 3vw, var(--nexa-space-8));
+  padding: var(--nexa-space-6) clamp(var(--nexa-space-4), 3vw, var(--nexa-space-6));
 }
 .portal-content:focus {
   outline: none;
@@ -105,9 +106,6 @@
   }
   .account-name {
     display: none;
-  }
-  .portal-content {
-    padding: var(--nexa-space-4);
   }
 }
 @media (max-width: 360px) {

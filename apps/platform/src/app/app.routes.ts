@@ -3,19 +3,30 @@ import {
   PlatformActiveContextComponent,
   PlatformShellSessionWrapperComponent,
   PLATFORM_ACCESS_ROUTES,
+  PLATFORM_ORGANIZATION_REGISTRATION_ROUTES,
   PLATFORM_TENANT_GOVERNANCE_ROUTES,
   requirePlatformAuthentication,
   requirePlatformAuthenticationForChild,
 } from "./contexts/tenant-access-governance/presentation/public-api";
+import { PLATFORM_ACCESS_RULES } from "./core/platform-access-policy";
+import { requirePlatformCapability } from "./core/platform-capability.guard";
 import { PLATFORM_FULFILLMENT_ROUTES } from "./contexts/fulfillment-delivery/application/public-api";
+import { PLATFORM_INVENTORY_ROUTES } from "./contexts/inventory-availability/application/public-api";
 import { PLATFORM_SALES_COMMITMENT_ROUTES } from "./contexts/sales-commitment/application/public-api";
 
 import { PLATFORM_BUSINESS_DOCUMENT_ROUTES } from "./contexts/business-documents/application/public-api";
 import { PLATFORM_CREDIT_CONFIGURATION_ROUTES } from "./contexts/credit-receivables/application/public-api";
 import { PLATFORM_WALLET_REFUND_ROUTES } from "./contexts/payments/application/public-api";
 
+import { PLATFORM_CLIENT_ROUTES } from "./contexts/customer-buyer-relationships/application/public-api";
+import {
+  PLATFORM_CATALOG_MANAGEMENT_ROUTES,
+  PLATFORM_CATALOG_ROUTES,
+} from "./contexts/catalog-commercial-policy/application/public-api";
+
 export const routes: Routes = [
   ...PLATFORM_ACCESS_ROUTES,
+  ...PLATFORM_ORGANIZATION_REGISTRATION_ROUTES,
   {
     path: "",
     canActivate: [requirePlatformAuthentication],
@@ -31,14 +42,20 @@ export const routes: Routes = [
       },
       {
         path: "operations/overview",
+        canActivate: [requirePlatformCapability],
+        data: { platformAccessRule: PLATFORM_ACCESS_RULES.operationsOverview },
         loadComponent: () =>
           import("./features/operations/operations-overview.component").then(
             (module) => module.PlatformOperationsOverviewComponent,
           ),
         title: "Operations overview | Nexa Platform",
       },
+      ...PLATFORM_CLIENT_ROUTES,
+      ...PLATFORM_CATALOG_MANAGEMENT_ROUTES,
+      ...PLATFORM_CATALOG_ROUTES,
       ...PLATFORM_SALES_COMMITMENT_ROUTES,
       ...PLATFORM_FULFILLMENT_ROUTES,
+      ...PLATFORM_INVENTORY_ROUTES,
       ...PLATFORM_BUSINESS_DOCUMENT_ROUTES,
       ...PLATFORM_CREDIT_CONFIGURATION_ROUTES,
       ...PLATFORM_WALLET_REFUND_ROUTES,

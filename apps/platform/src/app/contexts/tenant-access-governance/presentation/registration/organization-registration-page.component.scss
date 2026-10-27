@@ -1,0 +1,38 @@
+:host { display: block; }
+.registration-page { min-height: 100vh; padding: clamp(var(--nexa-space-4), 4vw, var(--nexa-space-10)); background: var(--nexa-surface-page); color: var(--nexa-color-text-primary); }
+.registration-layout { display: grid; grid-template-columns: minmax(260px, .75fr) minmax(0, 1.3fr); max-width: 1120px; margin: auto; overflow: hidden; border: 1px solid var(--nexa-color-border-default); border-radius: var(--nexa-radius-panel); background: var(--nexa-surface-card); }
+.registration-guide { padding: clamp(var(--nexa-space-5), 4vw, var(--nexa-space-8)); background: var(--nexa-color-primary-950); color: var(--nexa-color-text-inverse); }
+.registration-guide nexa-logo { display: block; max-width: 140px; margin-bottom: var(--nexa-space-8); }
+h1 { font-size: clamp(1.6rem, 3vw, 2.3rem); line-height: 1.2; }
+h2 { margin: 0; font-size: clamp(1.5rem, 3vw, 2rem); }
+h3 { margin: 0; font-size: 1rem; }
+p { line-height: 1.6; }
+.eyebrow { margin: 0; font-size: .75rem; font-weight: 700; letter-spacing: .1em; }
+.registration-guide ol { display: grid; gap: var(--nexa-space-2); padding: 0; margin: var(--nexa-space-8) 0; list-style: none; }
+.registration-guide li button { display: flex; align-items: center; gap: var(--nexa-space-3); width: 100%; min-height: 48px; padding: var(--nexa-space-2); border: 1px solid transparent; border-radius: var(--nexa-radius-control); color: inherit; background: transparent; text-align: left; font: inherit; cursor: pointer; }
+.registration-guide li button[aria-current] { border-color: currentColor; background: var(--nexa-color-primary-700); }
+.registration-guide li button:disabled { opacity: .65; cursor: default; }
+.step-number { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border: 1px solid currentColor; border-radius: 50%; }
+.completed { margin-left: auto; font-size: .7rem; }
+.registration-guide a { color: inherit; line-height: 1.6; }
+.registration-content { display: grid; align-content: start; gap: var(--nexa-space-4); padding: clamp(var(--nexa-space-5), 4vw, var(--nexa-space-10)); min-width: 0; }
+.registration-content > p { margin: 0; }
+.content-heading { display: flex; justify-content: space-between; align-items: center; gap: var(--nexa-space-3); flex-wrap: wrap; }
+.content-heading button { min-height: 44px; border: 0; background: none; color: var(--nexa-color-primary-700); font: inherit; text-decoration: underline; cursor: pointer; }
+form { display: grid; gap: var(--nexa-space-5); }
+.session-note, small { color: var(--nexa-color-text-secondary); font-size: .8rem; }
+.actions { display: flex; gap: var(--nexa-space-3); flex-wrap: wrap; margin-top: var(--nexa-space-4); }
+.select-field { display: grid; gap: var(--nexa-space-2); }
+.select-field label { font-weight: 600; font-size: .875rem; }
+select { min-height: 48px; width: 100%; padding: var(--nexa-space-3); border: 1px solid var(--nexa-color-border-default); border-radius: var(--nexa-radius-control); font: inherit; color: inherit; background: var(--nexa-surface-card); }
+.summary-section { padding-block: var(--nexa-space-4); border-bottom: 1px solid var(--nexa-color-border-default); }
+.summary { display: grid; grid-template-columns: minmax(100px, .8fr) minmax(0, 1.2fr); gap: var(--nexa-space-3); font-size: .875rem; }
+dt { color: var(--nexa-color-text-secondary); } dd { margin: 0; overflow-wrap: anywhere; }
+.registration-notice, .notice { padding: var(--nexa-space-4); background: var(--nexa-surface-page); border: 1px solid var(--nexa-color-border-default); border-radius: var(--nexa-radius-control); line-height: 1.6; }
+.error { padding: var(--nexa-space-3); border-left: 3px solid currentColor; color: var(--nexa-color-danger-text); line-height: 1.5; }
+.terms { display: grid; gap: var(--nexa-space-3); } .terms-text { white-space: pre-wrap; } .acceptance { display: flex; gap: var(--nexa-space-3); align-items: center; min-height: 48px; line-height: 1.5; }
+input[type='checkbox'] { width: 20px; height: 20px; flex-shrink: 0; }
+a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--nexa-color-primary-700); outline-offset: 3px; }
+.registration-guide a:focus-visible, .registration-guide button:focus-visible { outline-color: currentColor; }
+@media (max-width: 760px) { .registration-page { padding: var(--nexa-space-3); } .registration-layout { grid-template-columns: 1fr; } .registration-guide ol { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: var(--nexa-space-5) 0; } .completed { display: none; } .registration-guide nexa-logo { margin-bottom: var(--nexa-space-5); } }
+@media (max-width: 430px) { .summary { grid-template-columns: 1fr; gap: var(--nexa-space-2); } dd { margin-bottom: var(--nexa-space-3); } .registration-guide li button { font-size: .8rem; gap: var(--nexa-space-2); } }

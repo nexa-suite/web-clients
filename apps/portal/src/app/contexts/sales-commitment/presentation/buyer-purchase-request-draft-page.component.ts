@@ -3,11 +3,15 @@ import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import { NexaButton, NexaSurface } from "nexa-ui";
 import { PortalBuyerEligibilityService } from "../../customer-buyer-relationships/application/public-api";
-import { CatalogStore } from "../../catalog-commercial-policy/application/public-api";
+import { CatalogStore, type BuyerCatalogItem } from "../../catalog-commercial-policy/application/public-api";
 import { BuyerPurchaseRequestDraftStore } from "../application/buyer-purchase-request-draft.store";
 import type { PurchaseRequestDraftLineInput, SetPurchaseRequestDraftPreferencesRequest } from "@nexa/api";
 import { PortalSessionStore, type PortalSessionLease } from "../../tenant-access-governance/application/public-api";
 import { BUYER_WALLET_CAPABILITIES_PORT } from "../../payments/application/public-api";
+import {
+  canAccessPortalFeature,
+  PORTAL_ACCESS_RULES,
+} from "../../../core/portal-access-policy";
 
 interface DraftLineForm {
   readonly skuId: string;
@@ -45,6 +49,21 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
     const lease = this.formLease();
     return lease !== null && this.sessions.isSessionLeaseCurrent(lease);
   });
+  protected readonly canWriteRequests = computed(() => {
+    const current = this.sessions.state();
+    return current.status === "authenticated" &&
+      canAccessPortalFeature(current.session, PORTAL_ACCESS_RULES.purchaseRequestWrite);
+  });
+  protected readonly canReadRequests = computed(() => {
+    const current = this.sessions.state();
+    return current.status === "authenticated" &&
+      canAccessPortalFeature(current.session, PORTAL_ACCESS_RULES.purchaseRequests);
+  });
+  protected readonly canReadCatalog = computed(() => {
+    const current = this.sessions.state();
+    return current.status === "authenticated" &&
+      canAccessPortalFeature(current.session, PORTAL_ACCESS_RULES.catalog);
+  });
   protected readonly catalog = inject(CatalogStore);
   protected readonly catalogSkuOptions = computed(() => {
     const pageItems = this.catalog.page().page?.items ?? [];
@@ -55,6 +74,17 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
     }
     return options;
   });
+  protected catalogProductSearch = "";
+  protected catalogBrandSearch = "";
+  protected catalogCategorySearch = "";
+  protected catalogColdChain = "";
+  protected readonly catalogColdChainOptions = [
+    { value: "", label: "All requirements" },
+    { value: "NONE", label: "None" },
+    { value: "REFRIGERATED", label: "Refrigerated" },
+    { value: "FROZEN", label: "Frozen" },
+  ] as const;
+  private readonly selectedCatalogSkus = new Map<string, BuyerCatalogItem>();
   private readonly eligibility = inject(PortalBuyerEligibilityService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -115,10 +145,23 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
     if (this.initializedLease && sameLease(this.initializedLease, lease)) return;
     this.initializedLease = lease;
     this.store.clear();
+    this.selectedCatalogSkus.clear();
+    const catalogSearch = this.catalog.search();
+    this.catalogProductSearch = catalogSearch.q;
+    this.catalogBrandSearch = catalogSearch.brand;
+    this.catalogCategorySearch = catalogSearch.category;
+    this.catalogColdChain = catalogSearch.coldChain;
     const draftId = this.route.snapshot.queryParamMap.get("draftId");
     if (!draftId) {
       const skuId = this.route.snapshot.queryParamMap.get("skuId") ?? "";
       if (skuId) this.lines = [{ skuId, quantity: "1", unit: "", notes: "" }];
+    }
+    if (this.canReadCatalog()) {
+      await Promise.all([
+        this.catalog.load(),
+        this.catalog.loadFilterOptions(),
+      ]);
+      if (!this.sessions.isSessionLeaseCurrent(lease)) return;
     }
     const account = this.eligibility.currentAccount();
     if (account) await this.store.loadAddresses(account.id);
@@ -158,10 +201,46 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
     this.lines = [{ skuId: "", quantity: "1", unit: "", notes: "" }];
     this.localError = "";
     this.selectedAddressId = "";
+    this.catalogProductSearch = "";
+    this.catalogBrandSearch = "";
+    this.catalogCategorySearch = "";
+    this.catalogColdChain = "";
+    this.selectedCatalogSkus.clear();
   }
 
   protected updateLine(index: number, field: keyof DraftLineForm, value: string): void {
+    if (field === "skuId" && value) {
+      const selected = this.catalogSkuOptions().find((item) => item.sellableSkuId === value);
+      if (selected) this.selectedCatalogSkus.set(value, selected);
+    }
     this.lines = this.lines.map((line, row) => row === index ? { ...line, [field]: value } : line);
+  }
+
+  protected async searchCatalog(): Promise<void> {
+    if (!this.canReadCatalog()) return;
+    await this.catalog.applySearch({
+      q: this.catalogProductSearch.trim(),
+      brand: this.catalogBrandSearch.trim(),
+      category: this.catalogCategorySearch.trim(),
+      coldChain: this.catalogColdChain as "" | "NONE" | "REFRIGERATED" | "FROZEN",
+    });
+  }
+
+  protected async clearCatalogFilters(): Promise<void> {
+    this.catalogProductSearch = "";
+    this.catalogBrandSearch = "";
+    this.catalogCategorySearch = "";
+    this.catalogColdChain = "";
+    if (!this.canReadCatalog()) return;
+    await this.catalog.applySearch({ q: "", brand: "", category: "", coldChain: "" });
+  }
+
+  protected async changeCatalogPage(offset: number): Promise<void> {
+    const page = this.catalog.page().page;
+    if (!page) return;
+    const nextPage = page.page + offset;
+    if (nextPage < 0 || nextPage >= page.totalPages) return;
+    await this.catalog.changePage(nextPage);
   }
 
   protected addLine(): void {
@@ -267,7 +346,7 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
   protected async submit(): Promise<void> {
     await this.store.submit();
     const draft = this.workflow().draft;
-    if (this.workflow().status === "submitted" && draft) {
+    if (this.canReadRequests() && this.workflow().status === "submitted" && draft) {
       await this.router.navigate(["/requests", draft.id]);
     }
   }
@@ -291,6 +370,8 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
   protected skuLabel(skuId: string): string {
     const item = this.catalogSkuOptions().find((candidate) => candidate.sellableSkuId === skuId);
     if (item) return `${item.skuCode} · ${item.itemName}`;
+    const previouslySelected = this.selectedCatalogSkus.get(skuId);
+    if (previouslySelected) return `${previouslySelected.skuCode} · ${previouslySelected.itemName} · selected from catalog`;
     const savedLine = this.workflow().draft?.lines.find((line) => line.skuId === skuId);
     if (savedLine) return `${savedLine.skuCode}${savedLine.presentation ? ` · ${savedLine.presentation}` : ""} · saved draft selection`;
     return "This SKU is not on the current catalog page";
@@ -298,6 +379,10 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
 
   protected hasCatalogSku(skuId: string): boolean {
     return this.catalogSkuOptions().some((item) => item.sellableSkuId === skuId);
+  }
+
+  protected hasPreviouslySelectedCatalogSku(skuId: string): boolean {
+    return this.selectedCatalogSkus.has(skuId);
   }
 
   protected isSavedDraftSku(skuId: string): boolean {
@@ -317,10 +402,11 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
         this.localError = "Choose a catalog SKU and enter a quantity greater than zero for each item.";
         return null;
       }
-      const isCatalogSku = this.hasCatalogSku(line.skuId.trim());
+      const isCatalogSku = this.hasCatalogSku(line.skuId.trim())
+        || this.hasPreviouslySelectedCatalogSku(line.skuId.trim());
       const isSavedDraftSku = this.workflow().draft?.lines.some((savedLine) => savedLine.skuId === line.skuId.trim()) === true;
       if (!isCatalogSku && !isSavedDraftSku) {
-        this.localError = "Choose a sellable SKU from the current catalog page before starting this request.";
+        this.localError = "Choose a sellable SKU from the catalog before starting this request.";
         return null;
       }
       normalized.push({
