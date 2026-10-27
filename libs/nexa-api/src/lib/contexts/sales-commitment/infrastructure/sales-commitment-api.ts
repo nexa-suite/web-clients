@@ -10,6 +10,7 @@ import type {
   PurchaseRequestDraftPage,
   PurchaseRequestDraftReview,
   PurchaseRequestDraftLineInput,
+  PurchaseRequestEvent,
   PurchaseRequestPage,
   PurchaseRequestPageQuery,
   ProposeMaterialChangeRequest,
@@ -121,9 +122,53 @@ export class NexaSalesCommitmentApi {
     });
   }
 
+  listPurchaseRequestEvents(requestId: string): Observable<readonly PurchaseRequestEvent[]> {
+    return this.http.get<readonly PurchaseRequestEvent[]>(
+      `${this.purchaseRequestPath(requestId)}/events`,
+    );
+  }
+
   getCurrentMaterialChange(requestId: string): Observable<MaterialChangeProposal> {
     return this.http.get<MaterialChangeProposal>(
       `${this.purchaseRequestPath(requestId)}/material-changes/current`,
+    );
+  }
+
+  acceptPurchaseRequestMaterialChange(
+    requestId: string,
+    proposalId: string,
+    etag: string,
+    idempotencyKey: string,
+  ): Observable<HttpResponse<PurchaseRequestDetail>> {
+    return this.http.post<PurchaseRequestDetail>(
+      `${this.purchaseRequestPath(requestId)}/material-changes/${encodeURIComponent(proposalId)}/acceptances`,
+      null,
+      this.commandEtagOptions(etag, idempotencyKey),
+    );
+  }
+
+  rejectPurchaseRequestMaterialChange(
+    requestId: string,
+    proposalId: string,
+    etag: string,
+    idempotencyKey: string,
+  ): Observable<HttpResponse<PurchaseRequestDetail>> {
+    return this.http.post<PurchaseRequestDetail>(
+      `${this.purchaseRequestPath(requestId)}/material-changes/${encodeURIComponent(proposalId)}/rejections`,
+      null,
+      this.commandEtagOptions(etag, idempotencyKey),
+    );
+  }
+
+  withdrawPurchaseRequest(
+    requestId: string,
+    etag: string,
+    idempotencyKey: string,
+  ): Observable<HttpResponse<PurchaseRequestDetail>> {
+    return this.http.post<PurchaseRequestDetail>(
+      `${this.purchaseRequestPath(requestId)}/withdrawals`,
+      null,
+      this.commandEtagOptions(etag, idempotencyKey),
     );
   }
 

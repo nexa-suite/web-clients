@@ -1,6 +1,6 @@
 import { signal, type WritableSignal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
-import { ActivatedRoute, provideRouter } from "@angular/router";
+import { ActivatedRoute, convertToParamMap, provideRouter } from "@angular/router";
 import { NexaSalesCommitmentApi } from "@nexa/api";
 import type { PurchaseRequestDetail, SalesOrder, SalesOrderPage } from "@nexa/api";
 import { of } from "rxjs";
@@ -92,12 +92,24 @@ describe("Buyer Sales Commitment pages", () => {
 
   it("masks an already loaded purchase request when the Buyer session lease expires", async () => {
     const leaseCurrent = signal(true);
-    const api = { getPurchaseRequest: vi.fn().mockReturnValue(of({ body: request })) };
+    const api = {
+      getPurchaseRequest: vi.fn().mockReturnValue(of({
+        body: request,
+        headers: { get: () => null },
+      })),
+      listPurchaseRequestEvents: vi.fn().mockReturnValue(of([])),
+    };
     TestBed.configureTestingModule({
       imports: [BuyerPurchaseRequestDetailPageComponent],
       providers: [
         provideRouter([]),
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => request.id } } } },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: { paramMap: { get: () => request.id } },
+            paramMap: of(convertToParamMap({ requestId: request.id })),
+          },
+        },
         { provide: NexaSalesCommitmentApi, useValue: api },
         sessionProvider(leaseCurrent),
       ],
