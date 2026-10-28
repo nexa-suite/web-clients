@@ -167,10 +167,10 @@ export class BuyerPurchaseRequestDraftStore {
     }
   }
 
-  async replaceLines(lines: readonly PurchaseRequestDraftLineInput[]): Promise<void> {
+  async replaceLines(lines: readonly PurchaseRequestDraftLineInput[]): Promise<boolean> {
     const draft = this.requireMutableDraft();
-    if (!draft) return;
-    await this.mutate((lease) =>
+    if (!draft) return false;
+    return this.mutate((lease) =>
       firstValueFrom(this.api.replaceDraftLines(draft.id, draft.version, lines)),
       leaseFor(this.sessions, this.snapshot().lease),
     );
@@ -274,15 +274,15 @@ export class BuyerPurchaseRequestDraftStore {
   private async mutate(
     action: (lease: PortalSessionLease) => Promise<{ readonly body: PurchaseRequestDraft | null }>,
     lease: PortalSessionLease,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const current = this.state();
     const draft = current.draft;
-    if (!draft || !this.sessions.isSessionLeaseCurrent(lease)) return;
+    if (!draft || !this.sessions.isSessionLeaseCurrent(lease)) return false;
     const revision = ++this.revision;
     this.write({ ...current, status: "saving", errorMessage: null }, lease);
     try {
       const response = await action(lease);
-      if (!this.isCurrent(revision, lease)) return;
+      if (!this.isCurrent(revision, lease)) return false;
       if (!response.body) throw new Error("The API returned an empty draft response.");
       this.write({
         ...this.state(),
@@ -293,23 +293,26 @@ export class BuyerPurchaseRequestDraftStore {
       }, lease);
       try {
         const review = await firstValueFrom(this.api.getDraftReview(response.body.id));
-        if (!this.isCurrent(revision, lease)) return;
+        if (!this.isCurrent(revision, lease)) return false;
         this.write({ ...this.state(), review }, lease);
+        return true;
       } catch {
-        if (!this.isCurrent(revision, lease)) return;
+        if (!this.isCurrent(revision, lease)) return false;
         this.write({
           ...this.state(),
           status: "error",
           errorMessage: "Your draft change was saved, but the latest review checks could not be loaded. Refresh the checks before submitting.",
         }, lease);
+        return true;
       }
     } catch {
-      if (!this.isCurrent(revision, lease)) return;
+      if (!this.isCurrent(revision, lease)) return false;
       this.write({
         ...this.state(),
         status: "error",
         errorMessage: "This change could not be confirmed. Reload the draft before editing it again so the current version is used.",
       }, lease);
+      return false;
     }
   }
 

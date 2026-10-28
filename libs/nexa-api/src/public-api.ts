@@ -104,6 +104,7 @@ export type {
   BuyerCatalogItemDetailResponse,
   CatalogMoneyResponse,
 } from "./lib/contexts/catalog-commercial-policy/contracts/buyer-catalog.contracts";
+export * from "./lib/contexts/customer-buyer-relationships/buyer-favorites/public-api";
 
 export { normalizeNexaApiBaseUrl } from "./lib/http/api-base-url";
 export { NexaWalletRefundsApi } from "./lib/contexts/payments/infrastructure/wallet-refunds-api";

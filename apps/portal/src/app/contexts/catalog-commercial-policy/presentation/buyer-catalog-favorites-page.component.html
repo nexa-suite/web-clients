@@ -1,0 +1,228 @@
+<section class="buyer-favorites" aria-labelledby="buyer-favorites-heading">
+  <header class="buyer-favorites__header">
+    <div>
+      <p class="buyer-favorites__eyebrow">BUYER CATALOG</p>
+      <h1 id="buyer-favorites-heading">Saved products</h1>
+      <p>Keep the products your business orders most within easy reach.</p>
+    </div>
+    <nexa-button variant="secondary" routerLink="/catalog">
+      <i class="pi pi-arrow-left" aria-hidden="true"></i>
+      Browse catalog
+    </nexa-button>
+  </header>
+
+  @if (store.state().actionError; as actionError) {
+    <p class="buyer-favorites__error" role="alert">{{ actionError }}</p>
+  }
+
+  <nexa-surface class="buyer-favorites__content">
+    @switch (store.state().status) {
+      @case ("idle") {
+        <p class="buyer-favorites__message" role="status">
+          Saved products are unavailable for this Buyer session.
+        </p>
+      }
+      @case ("loading") {
+        <p class="buyer-favorites__message" role="status">
+          Loading your saved products…
+        </p>
+      }
+      @case ("error") {
+        <div class="buyer-favorites__message" role="alert">
+          <span>We couldn’t load your saved products.</span>
+          <p>{{ store.state().errorMessage }}</p>
+          <nexa-button variant="secondary" (click)="store.load(true)">
+            Try again
+          </nexa-button>
+        </div>
+      }
+      @case ("ready") {
+        @if (store.state().items.length === 0) {
+          <div class="buyer-favorites__empty">
+            <span class="buyer-favorites__empty-icon" aria-hidden="true">
+              <i class="pi pi-heart"></i>
+            </span>
+            <h2>No saved products yet</h2>
+            <p>
+              Save products from the catalog and they’ll be waiting here when
+              you’re ready to place a request.
+            </p>
+            <nexa-button routerLink="/catalog">Explore the catalog</nexa-button>
+          </div>
+        } @else {
+          <div class="buyer-favorites__summary">
+            <p>
+              {{ store.state().items.length }}
+              {{
+                store.state().items.length === 1
+                  ? "saved product"
+                  : "saved products"
+              }}
+            </p>
+            <nexa-button
+              variant="quiet"
+              size="compact"
+              [disabled]="store.state().pendingSkuIds.size > 0"
+              (click)="store.load(true)"
+            >
+              <i class="pi pi-refresh" aria-hidden="true"></i> Refresh
+            </nexa-button>
+          </div>
+          <div class="buyer-favorites__grid">
+            @for (
+              favorite of store.state().items;
+              track favorite.sellableSkuId
+            ) {
+              <article class="favorite-card">
+                <div
+                  class="favorite-card__art"
+                  [class.has-image]="!!imageUrl(favorite)"
+                >
+                  @if (imageUrl(favorite); as src) {
+                    <img
+                      [src]="src"
+                      [alt]="
+                        favorite.currentOffer?.itemName ??
+                        'Saved catalog product'
+                      "
+                      loading="lazy"
+                      decoding="async"
+                      (error)="$any($event.target).hidden = true"
+                    />
+                  }
+                  <span class="favorite-card__fallback" aria-hidden="true">
+                    <i class="pi pi-box"></i>
+                  </span>
+                </div>
+
+                @if (favorite.currentOffer; as offer) {
+                  <div class="favorite-card__copy">
+                    <div class="favorite-card__brand-line">
+                      @if (offer.brandName) {
+                        <span class="favorite-card__brand">{{
+                          offer.brandName
+                        }}</span>
+                      }
+                      @if (offer.categoryName) {
+                        <span class="favorite-card__category">{{
+                          offer.categoryName
+                        }}</span>
+                      }
+                    </div>
+                    <h2>{{ offer.itemName }}</h2>
+                    @if (offer.presentation) {
+                      <p class="favorite-card__presentation">
+                        {{ offer.presentation }}
+                      </p>
+                    }
+                    <p class="favorite-card__sku">
+                      @if (offer.skuCode) {
+                        SKU {{ offer.skuCode }}
+                      } @else {
+                        SKU not listed
+                      }
+                    </p>
+                    <div class="favorite-card__commercial">
+                      <div>
+                        <span class="favorite-card__label">Current price</span>
+                        @if (offer.currentPrice; as price) {
+                          <strong
+                            >{{ price.currency }} {{ price.amount }}</strong
+                          >
+                        } @else {
+                          <span class="favorite-card__unavailable"
+                            >Price unavailable</span
+                          >
+                        }
+                      </div>
+                      <div>
+                        <span class="favorite-card__label">Availability</span>
+                        <nexa-status-chip
+                          [tone]="availabilityTone(offer.availabilityStatus)"
+                        >
+                          {{ availabilityLabel(offer.availabilityStatus) }}
+                        </nexa-status-chip>
+                        @if (offer.sellableAvailability !== null) {
+                          <small
+                            >{{ offer.sellableAvailability }}
+                            {{ offer.unitOfMeasure || "units" }}</small
+                          >
+                        }
+                      </div>
+                    </div>
+                    <p class="favorite-card__saved">
+                      Saved {{ favorite.favoritedAt | date: "mediumDate" }}
+                    </p>
+                  </div>
+                  <div class="favorite-card__actions">
+                    <nexa-button
+                      class="favorite-card__view"
+                      [fullWidth]="true"
+                      [routerLink]="'/catalog/' + offer.catalogItemId"
+                      >View product</nexa-button
+                    >
+                    @if (canManageFavorites()) {
+                      <button
+                        class="favorite-card__remove"
+                        type="button"
+                        [disabled]="store.isPending(favorite.sellableSkuId)"
+                        [attr.aria-label]="
+                          'Remove ' + offer.itemName + ' from saved products'
+                        "
+                        (click)="remove(favorite.sellableSkuId)"
+                      >
+                        <i class="pi pi-heart-fill" aria-hidden="true"></i>
+                        {{
+                          store.isPending(favorite.sellableSkuId)
+                            ? "Removing…"
+                            : "Remove"
+                        }}
+                      </button>
+                    }
+                  </div>
+                } @else {
+                  <div
+                    class="favorite-card__copy favorite-card__copy--unavailable"
+                  >
+                    <span class="favorite-card__brand"
+                      >No longer in the catalog</span
+                    >
+                    <h2>This saved offer is unavailable</h2>
+                    <p>
+                      The current Buyer catalog no longer has an active offer
+                      for this SKU.
+                      @if (canManageFavorites()) {
+                        You can remove it from your saved products.
+                      }
+                    </p>
+                    <p class="favorite-card__sku">
+                      Saved {{ favorite.favoritedAt | date: "mediumDate" }}
+                    </p>
+                  </div>
+                  <div class="favorite-card__actions">
+                    @if (canManageFavorites()) {
+                      <button
+                        class="favorite-card__remove"
+                        type="button"
+                        [disabled]="store.isPending(favorite.sellableSkuId)"
+                        [attr.aria-label]="'Remove unavailable SKU from saved products'"
+                        (click)="remove(favorite.sellableSkuId)"
+                      >
+                        <i class="pi pi-heart-fill" aria-hidden="true"></i>
+                        {{
+                          store.isPending(favorite.sellableSkuId)
+                            ? "Removing…"
+                            : "Remove saved item"
+                        }}
+                      </button>
+                    }
+                  </div>
+                }
+              </article>
+            }
+          </div>
+        }
+      }
+    }
+  </nexa-surface>
+</section>

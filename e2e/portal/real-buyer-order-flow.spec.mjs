@@ -116,7 +116,7 @@ async function signInBuyer(page) {
   const catalogBody = catalog.body;
   expect(sessionBody.surface).toBe('PORTAL');
   expect(accountBody.buyerMembershipId).toBe(sessionBody.membership?.membershipId);
-  await expect(page.getByRole('heading', { name: 'Browse catalog SKUs' })).toBeVisible();
+  await expect(page.getByTestId('portal-catalog-heading')).toBeVisible();
   return { account: accountBody, catalog: catalogBody };
 }
 
@@ -373,7 +373,8 @@ test('fulfills a real Buyer order through dispatch, refreshes Buyer tracking, an
   const candidateIndex = catalog.items.findIndex((item) =>
     typeof item.sellableSkuId === 'string'
       && item.sellableSkuId.length > 0
-      && Number(item.sellableAvailability) >= requestedQuantity);
+      && Number(item.sellableAvailability) >= requestedQuantity
+      && item.availabilityStatus !== 'OUT_OF_STOCK');
   expect(candidateIndex, 'Seeded Buyer catalog needs an active SKU with enough availability for the fixture quantity.').toBeGreaterThanOrEqual(0);
   const catalogItem = catalog.items[candidateIndex];
   const catalogDetailResponse = waitForApiResponse(page, 'GET', `/catalog-items/${catalogItem.catalogItemId}`);
@@ -383,15 +384,19 @@ test('fulfills a real Buyer order through dispatch, refreshes Buyer tracking, an
   const sellableItem = catalogDetail.body;
   expect(sellableItem.sellableSkuId).toBe(catalogItem.sellableSkuId);
   expect(Number(sellableItem.sellableAvailability)).toBeGreaterThanOrEqual(requestedQuantity);
-  const requestSkuLink = page.getByRole('link', { name: 'Request this SKU', exact: true });
-  await expect(requestSkuLink).toBeVisible();
-  await expect(requestSkuLink).toHaveAttribute(
+  expect(sellableItem.availabilityStatus).not.toBe('OUT_OF_STOCK');
+  const addToRequestButton = page.getByRole('button', { name: 'Add to request', exact: true });
+  await expect(addToRequestButton).toBeVisible();
+  await addToRequestButton.click();
+  const reviewRequestLink = page.getByRole('link', { name: 'Review request · 1', exact: true });
+  await expect(reviewRequestLink).toBeVisible();
+  await expect(reviewRequestLink).toHaveAttribute(
     'href',
-    `/requests/new?skuId=${encodeURIComponent(sellableItem.sellableSkuId)}`,
+    '/requests/new',
   );
 
   const addressesResponse = waitForApiResponse(page, 'GET', `/client-accounts/${account.id}/addresses`);
-  await requestSkuLink.click();
+  await reviewRequestLink.click();
   await expect(page.getByRole('heading', { name: 'Build your request' })).toBeVisible();
   await page.getByLabel('Quantity', { exact: true }).first().fill(String(requestedQuantity));
   const addressesResult = await addressesResponse;

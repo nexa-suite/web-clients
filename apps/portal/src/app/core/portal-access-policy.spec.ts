@@ -43,9 +43,93 @@ describe("Portal access policy", () => {
     const session = portalSession({
       membership: { roles: ["BUYER"], permissions: ["buyer.sales.read"] },
     });
-    expect(canAccessPortalFeature(session, PORTAL_ACCESS_RULES.purchaseRequests)).toBe(true);
-    expect(canAccessPortalFeature(session, PORTAL_ACCESS_RULES.orders)).toBe(false);
-    expect(canAccessPortalFeature(session, PORTAL_ACCESS_RULES.wallet)).toBe(false);
+    expect(
+      canAccessPortalFeature(session, PORTAL_ACCESS_RULES.purchaseRequests),
+    ).toBe(true);
+    expect(canAccessPortalFeature(session, PORTAL_ACCESS_RULES.orders)).toBe(
+      false,
+    );
+    expect(canAccessPortalFeature(session, PORTAL_ACCESS_RULES.wallet)).toBe(
+      false,
+    );
+  });
+
+  it("separates catalog-favorite read and write grants", () => {
+    const catalogOnly = portalSession({
+      membership: { roles: ["BUYER"], permissions: ["catalog.read"] },
+    });
+    expect(
+      canAccessPortalFeature(catalogOnly, PORTAL_ACCESS_RULES.catalog),
+    ).toBe(true);
+    expect(
+      canAccessPortalFeature(
+        catalogOnly,
+        PORTAL_ACCESS_RULES.catalogFavoritesRead,
+      ),
+    ).toBe(false);
+    expect(
+      canAccessPortalFeature(
+        catalogOnly,
+        PORTAL_ACCESS_RULES.catalogFavoritesWrite,
+      ),
+    ).toBe(false);
+
+    const readOnly = portalSession({
+      membership: {
+        roles: ["BUYER"],
+        permissions: ["catalog.read", "buyer.sales.read"],
+      },
+    });
+    expect(
+      canAccessPortalFeature(
+        readOnly,
+        PORTAL_ACCESS_RULES.catalogFavoritesRead,
+      ),
+    ).toBe(true);
+    expect(
+      canAccessPortalFeature(
+        readOnly,
+        PORTAL_ACCESS_RULES.catalogFavoritesWrite,
+      ),
+    ).toBe(false);
+
+    const canManage = portalSession({
+      membership: {
+        roles: ["BUYER"],
+        permissions: ["catalog.read", "buyer.sales.read", "buyer.sales.write"],
+      },
+    });
+    expect(
+      canAccessPortalFeature(
+        canManage,
+        PORTAL_ACCESS_RULES.catalogFavoritesRead,
+      ),
+    ).toBe(true);
+    expect(
+      canAccessPortalFeature(
+        canManage,
+        PORTAL_ACCESS_RULES.catalogFavoritesWrite,
+      ),
+    ).toBe(true);
+
+    const nonBuyer = portalSession({
+      membership: {
+        roles: ["WORKSPACE_ADMIN"],
+        permissions: ["catalog.read", "buyer.sales.read", "buyer.sales.write"],
+      },
+    });
+    expect(
+      canAccessPortalFeature(
+        nonBuyer,
+        PORTAL_ACCESS_RULES.catalogFavoritesRead,
+      ),
+    ).toBe(false);
+    expect(
+      canAccessPortalFeature(
+        nonBuyer,
+        PORTAL_ACCESS_RULES.catalogFavoritesWrite,
+      ),
+    ).toBe(false);
   });
 
   it("requires buyer request-write permission for draft routes", () => {
@@ -96,7 +180,10 @@ describe("Portal access policy", () => {
     expect(
       canAccessPortalFeature(
         portalSession({
-          membership: { roles: ["WORKSPACE_ADMIN"], permissions: ["payment.read"] },
+          membership: {
+            roles: ["WORKSPACE_ADMIN"],
+            permissions: ["payment.read"],
+          },
         }),
         PORTAL_ACCESS_RULES.wallet,
       ),
@@ -126,6 +213,8 @@ describe("Portal access policy", () => {
 
     for (const rule of [
       PORTAL_ACCESS_RULES.catalog,
+      PORTAL_ACCESS_RULES.catalogFavoritesRead,
+      PORTAL_ACCESS_RULES.catalogFavoritesWrite,
       PORTAL_ACCESS_RULES.purchaseRequests,
       PORTAL_ACCESS_RULES.purchaseRequestWrite,
       PORTAL_ACCESS_RULES.purchaseRequestDraft,

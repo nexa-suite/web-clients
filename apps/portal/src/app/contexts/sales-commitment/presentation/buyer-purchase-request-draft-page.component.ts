@@ -1,10 +1,14 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from "@angular/core";
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, effect, inject, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import { NexaButton, NexaSurface } from "nexa-ui";
 import { PortalBuyerEligibilityService } from "../../customer-buyer-relationships/application/public-api";
 import { CatalogStore, type BuyerCatalogItem } from "../../catalog-commercial-policy/application/public-api";
 import { BuyerPurchaseRequestDraftStore } from "../application/buyer-purchase-request-draft.store";
+import {
+  BuyerRequestSelectionStore,
+  type BuyerRequestSelectionLine,
+} from "../application/buyer-request-selection.store";
 import type { PurchaseRequestDraftLineInput, SetPurchaseRequestDraftPreferencesRequest } from "@nexa/api";
 import { PortalSessionStore, type PortalSessionLease } from "../../tenant-access-governance/application/public-api";
 import { BUYER_WALLET_CAPABILITIES_PORT } from "../../payments/application/public-api";
@@ -37,14 +41,16 @@ const WALLET_PREFERENCE: SetPurchaseRequestDraftPreferencesRequest["paymentPrefe
   styleUrl: "./buyer-purchase-request-draft-page.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
+export class BuyerPurchaseRequestDraftPageComponent implements OnInit, OnDestroy {
   protected readonly store = inject(BuyerPurchaseRequestDraftStore);
+  private readonly requestSelection = inject(BuyerRequestSelectionStore);
   protected readonly workflow = this.store.state;
   private readonly sessions = inject(PortalSessionStore);
   private readonly walletCapabilities = inject(BUYER_WALLET_CAPABILITIES_PORT);
   private readonly formLease = signal<PortalSessionLease | null>(this.sessions.captureSessionLease());
   private initialized = false;
   private initializedLease: PortalSessionLease | null = null;
+  private createdDraftFromCurrentSelection = false;
   protected readonly contextIsCurrent = computed(() => {
     const lease = this.formLease();
     return lease !== null && this.sessions.isSessionLeaseCurrent(lease);
@@ -141,11 +147,51 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
     await this.initializeForLease(lease);
   }
 
+  ngOnDestroy(): void {
+    const lease = this.formLease();
+    if (
+      !lease ||
+      this.route.snapshot.queryParamMap.get("draftId") ||
+      this.workflow().draft ||
+      !this.sessions.isSessionLeaseCurrent(lease)
+    ) {
+      return;
+    }
+    const selected = this.lines.flatMap((line) => {
+      const skuId = line.skuId.trim();
+      const item =
+        this.selectedCatalogSkus.get(skuId) ??
+        this.catalogSkuOptions().find(
+          (candidate) => candidate.sellableSkuId === skuId,
+        );
+      if (!skuId || !item) return [];
+      const currentQuantity = Number(line.quantity);
+      const previousQuantity = this.requestSelection.quantityFor(skuId);
+      return [
+        {
+          skuId,
+          quantity:
+            Number.isFinite(currentQuantity) && currentQuantity > 0
+              ? currentQuantity
+              : previousQuantity || 1,
+          unit: line.unit,
+          notes: line.notes,
+          item,
+        },
+      ];
+    });
+    this.requestSelection.replace(selected, lease);
+  }
+
   private async initializeForLease(lease: PortalSessionLease): Promise<void> {
     if (this.initializedLease && sameLease(this.initializedLease, lease)) return;
     this.initializedLease = lease;
     this.store.clear();
     this.selectedCatalogSkus.clear();
+    const pendingSelection = this.requestSelection.lines();
+    for (const line of pendingSelection) {
+      this.selectedCatalogSkus.set(line.skuId, line.item);
+    }
     const catalogSearch = this.catalog.search();
     this.catalogProductSearch = catalogSearch.q;
     this.catalogBrandSearch = catalogSearch.brand;
@@ -154,7 +200,16 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
     const draftId = this.route.snapshot.queryParamMap.get("draftId");
     if (!draftId) {
       const skuId = this.route.snapshot.queryParamMap.get("skuId") ?? "";
-      if (skuId) this.lines = [{ skuId, quantity: "1", unit: "", notes: "" }];
+      const initialLines = pendingSelection.map((line) => ({
+        skuId: line.skuId,
+        quantity: String(line.quantity),
+        unit: line.unit,
+        notes: line.notes,
+      }));
+      if (skuId && !initialLines.some((line) => line.skuId === skuId)) {
+        initialLines.push({ skuId, quantity: "1", unit: "", notes: "" });
+      }
+      if (initialLines.length) this.lines = initialLines;
     }
     if (this.canReadCatalog()) {
       await Promise.all([
@@ -260,20 +315,36 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
       return;
     }
     if (!lines) return;
+    const selectedSnapshot = this.selectionSnapshotFor(lines);
     const draft = await this.store.createDraft(account.id, this.requestedDeliveryDate);
     if (!draft) return;
-    await this.store.replaceLines(lines);
     await this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { draftId: draft.id },
+      queryParams: { draftId: draft.id, skuId: null },
       queryParamsHandling: "merge",
       replaceUrl: true,
     });
+    const lease = this.formLease();
+    if (!lease || !this.sessions.isSessionLeaseCurrent(lease)) return;
+    this.createdDraftFromCurrentSelection = true;
+    const saved = await this.store.replaceLines(lines);
+    if (saved) {
+      this.requestSelection.consumeSavedSnapshot(selectedSnapshot);
+      this.createdDraftFromCurrentSelection = this.requestSelection.lines().length > 0;
+    }
   }
 
   protected async saveLines(): Promise<void> {
     const lines = this.validatedLines();
-    if (lines) await this.store.replaceLines(lines);
+    if (!lines) return;
+    const selectedSnapshot = this.createdDraftFromCurrentSelection
+      ? this.selectionSnapshotFor(lines)
+      : [];
+    const saved = await this.store.replaceLines(lines);
+    if (saved && this.createdDraftFromCurrentSelection) {
+      this.requestSelection.consumeSavedSnapshot(selectedSnapshot);
+      this.createdDraftFromCurrentSelection = this.requestSelection.lines().length > 0;
+    }
   }
 
   protected async savePreferences(): Promise<void> {
@@ -417,6 +488,13 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit {
       });
     }
     return normalized;
+  }
+
+  private selectionSnapshotFor(
+    lines: readonly PurchaseRequestDraftLineInput[],
+  ): readonly BuyerRequestSelectionLine[] {
+    const savedSkuIds = new Set(lines.map((line) => line.skuId));
+    return this.requestSelection.lines().filter((line) => savedSkuIds.has(line.skuId));
   }
 
   private canRequestWalletCapability(): boolean {
