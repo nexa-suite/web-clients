@@ -14,12 +14,6 @@
         ready.
       </p>
     </div>
-    @if (canReadFavorites()) {
-      <nexa-button variant="secondary" routerLink="/catalog/favorites">
-        <i class="pi pi-heart" aria-hidden="true"></i>
-        Saved products
-      </nexa-button>
-    }
   </header>
 
   <nexa-surface class="catalog-tools" tone="soft">
@@ -156,10 +150,6 @@
   @if (selectionMessage()) {
     <p class="selection-message" role="status">{{ selectionMessage() }}</p>
   }
-  @if (favorites.state().actionError; as favoriteError) {
-    <p class="favorite-action-error" role="alert">{{ favoriteError }}</p>
-  }
-
   @switch (store.page().kind) {
     @case ("loading") {
       <nexa-surface tone="inset"
@@ -201,37 +191,6 @@
           track item.catalogItemId
         ) {
           <article class="product-card">
-            @if (canManageFavorites()) {
-              @if (item.sellableSkuId; as skuId) {
-                <button
-                  class="favorite-toggle"
-                  type="button"
-                  [disabled]="
-                    favorites.state().status !== 'ready' ||
-                    favorites.isPending(skuId)
-                  "
-                  [attr.aria-pressed]="favorites.isFavorite(skuId)"
-                  [attr.aria-label]="
-                    favorites.isFavorite(skuId)
-                      ? 'Remove ' + item.itemName + ' from favorites'
-                      : 'Save ' + item.itemName + ' to favorites'
-                  "
-                  [attr.title]="
-                    favorites.isFavorite(skuId)
-                      ? 'Remove from favorites'
-                      : 'Save to favorites'
-                  "
-                  (click)="toggleFavorite(skuId)"
-                >
-                  <i
-                    class="pi"
-                    [class.pi-heart]="!favorites.isFavorite(skuId)"
-                    [class.pi-heart-fill]="favorites.isFavorite(skuId)"
-                    aria-hidden="true"
-                  ></i>
-                </button>
-              }
-            }
             <a
               class="product-identity"
               data-testid="catalog-item-link"

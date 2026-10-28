@@ -4,7 +4,6 @@ import {
   Component,
   DestroyRef,
   Injector,
-  computed,
   inject,
   OnInit,
   signal,
@@ -20,13 +19,8 @@ import {
 } from "nexa-ui";
 import { catchError, filter, from, map, of, take } from "rxjs";
 import { PortalSessionStore } from "../../tenant-access-governance/application/public-api";
-import {
-  canAccessPortalFeature,
-  PORTAL_ACCESS_RULES,
-} from "../../../core/portal-access-policy";
 import { BuyerRequestSelectionStore } from "../../sales-commitment/application/public-api";
 import {
-  BuyerCatalogFavoritesStore,
   CatalogStore,
   type BuyerCatalogItem,
 } from "../application/public-api";
@@ -94,33 +88,12 @@ const CATALOG_SORT_OPTIONS = [
 export class CatalogPageComponent implements OnInit {
   protected readonly imageFraming = catalogImageFraming;
   protected readonly store = inject(CatalogStore);
-  protected readonly favorites = inject(BuyerCatalogFavoritesStore);
   protected readonly requestSelection = inject(BuyerRequestSelectionStore);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly document = inject(DOCUMENT);
   private readonly sessions = inject(PortalSessionStore);
-  protected readonly canReadFavorites = computed(() => {
-    const current = this.sessions.state();
-    return (
-      current.status === "authenticated" &&
-      canAccessPortalFeature(
-        current.session,
-        PORTAL_ACCESS_RULES.catalogFavoritesRead,
-      )
-    );
-  });
-  protected readonly canManageFavorites = computed(() => {
-    const current = this.sessions.state();
-    return (
-      current.status === "authenticated" &&
-      canAccessPortalFeature(
-        current.session,
-        PORTAL_ACCESS_RULES.catalogFavoritesWrite,
-      )
-    );
-  });
   protected readonly q = signal("");
   protected readonly brand = signal("");
   protected readonly category = signal("");
@@ -135,7 +108,6 @@ export class CatalogPageComponent implements OnInit {
   ] as const;
 
   ngOnInit(): void {
-    if (this.canReadFavorites()) void this.favorites.load();
     const search = this.store.search();
     this.brand.set(search.brand);
     this.category.set(search.category);
@@ -249,21 +221,6 @@ export class CatalogPageComponent implements OnInit {
       );
     } else {
       this.selectionMessage.set("");
-    }
-  }
-
-  protected toggleFavorite(sellableSkuId: string | null | undefined): void {
-    if (
-      !this.canManageFavorites() ||
-      !sellableSkuId ||
-      this.favorites.isPending(sellableSkuId)
-    ) {
-      return;
-    }
-    if (this.favorites.isFavorite(sellableSkuId)) {
-      void this.favorites.remove(sellableSkuId);
-    } else {
-      void this.favorites.add(sellableSkuId);
     }
   }
 
