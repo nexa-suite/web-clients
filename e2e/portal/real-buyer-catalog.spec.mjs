@@ -148,8 +148,14 @@ test("uses server Buyer eligibility, commercial catalog facts, and cookie-backed
       ? "Unavailable"
       : `${item.sellableAvailability}${item.unitOfMeasure ? ` ${item.unitOfMeasure}` : ""}`,
   );
+  const availabilityStatus = item.availabilityStatus || "To be confirmed";
+  const availabilityLabels = {
+    AVAILABLE: "Available",
+    LOW: "Low availability",
+    OUT_OF_STOCK: "Out of stock",
+  };
   await expect(fact("Availability status")).toHaveText(
-    item.availabilityStatus || "Unavailable",
+    availabilityLabels[availabilityStatus] ?? availabilityStatus,
   );
 
   const restoredAccount = apiResponse(page, "/api/v1/client-accounts/me");
