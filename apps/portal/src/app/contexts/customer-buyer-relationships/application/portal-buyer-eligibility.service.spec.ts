@@ -29,8 +29,8 @@ describe("PortalBuyerEligibilityService", () => {
     workspace: { workspaceId: "workspace-1", workspaceSlug: "buyer-workspace" },
     membership: {
       membershipId: "membership-1",
-      roles: ["WORKSPACE_ADMIN"],
-      permissions: [],
+      roles: ["BUYER"],
+      permissions: ["buyer.sales.read"],
     },
     surface: "PORTAL",
   };
@@ -44,14 +44,11 @@ describe("PortalBuyerEligibilityService", () => {
     taxType: "RUC",
     taxValue: "20123456789",
     segment: null,
-    contactPerson: null,
-    contactEmail: null,
-    phone: null,
     deliveryProfile: null,
     paymentCondition: null,
     status: "ACTIVE",
-    buyerMembershipId: "membership-1",
     version: 1,
+    accountType: "BUSINESS",
   };
 
   beforeEach(() => {
@@ -76,47 +73,35 @@ describe("PortalBuyerEligibilityService", () => {
     tokens = TestBed.inject(NexaAccessTokenStore);
   });
 
-  it("authorizes only the exact server Buyer membership and does not require a role match", async () => {
+  it("authorizes the safe Buyer self response for the current Buyer Portal session", async () => {
     await signIn();
     buyerApi.getCurrentAccount.mockReturnValue(of(account));
 
     expect(await firstValueFrom(eligibility.checkCurrent())).toBe("authorized");
     expect(eligibility.currentAccount()).toEqual(account);
+    expect(buyerApi.getCurrentAccount).toHaveBeenCalledOnce();
   });
 
-  it("does not let a workforce or BUYER role replace the Buyer membership equality check", async () => {
-    await signIn({
-      ...session,
-      membership: {
-        ...session.membership,
-        roles: ["BUYER", "WORKSPACE_ADMIN"],
-      },
-    });
-    buyerApi.getCurrentAccount.mockReturnValue(
-      of({ ...account, buyerMembershipId: "different-membership" }),
-    );
+  it.each([
+    ["non-Buyer role", ["WORKSPACE_ADMIN"], ["buyer.sales.read"]],
+    ["missing Buyer read grant", ["BUYER"], []],
+  ])(
+    "rejects /client-accounts/me for %s before accepting account data",
+    async (_case, roles, permissions) => {
+      await signIn({
+        ...session,
+        membership: { ...session.membership, roles, permissions },
+      });
+      buyerApi.getCurrentAccount.mockReturnValue(of(account));
 
-    expect(await firstValueFrom(eligibility.checkCurrent())).toBe(
-      "relationship-required",
-    );
-    expect(eligibility.currentAccount()).toBeNull();
-    expect(sessions.captureSessionLease()?.scope.membershipId).toBe(
-      "membership-1",
-    );
-    expect(tokens.read()).toBe("signed-in-token");
-  });
-
-  it("fails closed when the API omits Buyer membership identity", async () => {
-    await signIn();
-    buyerApi.getCurrentAccount.mockReturnValue(
-      of({ ...account, buyerMembershipId: null }),
-    );
-
-    expect(await firstValueFrom(eligibility.checkCurrent())).toBe(
-      "relationship-required",
-    );
-    expect(eligibility.currentAccount()).toBeNull();
-  });
+      expect(await firstValueFrom(eligibility.checkCurrent())).toBe(
+        "relationship-required",
+      );
+      expect(buyerApi.getCurrentAccount).not.toHaveBeenCalled();
+      expect(eligibility.currentAccount()).toBeNull();
+      expect(tokens.read()).toBe("signed-in-token");
+    },
+  );
 
   it("ignores a delayed account result after sign-out invalidates its captured lease", async () => {
     await signIn();

@@ -1,6 +1,6 @@
 import { computed, inject, Injectable, signal } from "@angular/core";
 import { NexaApiError, NexaBuyerRelationshipsApi } from "@nexa/api";
-import type { CurrentBuyerAccountResponse } from "@nexa/api";
+import type { CurrentBuyerAccountResponse, SessionResponse } from "@nexa/api";
 import { Observable, catchError, defer, map, of, switchMap } from "rxjs";
 import {
   PortalSessionStore,
@@ -49,26 +49,25 @@ export class PortalBuyerEligibilityService {
     lease: PortalSessionLease,
     allowRefresh: boolean,
   ): Observable<PortalBuyerEligibilityResult> {
+    if (!this.sessions.isSessionLeaseCurrent(lease)) return of("stale");
+    if (!hasBuyerPortalScope(this.sessions.session(), lease)) {
+      this.accountSnapshot.set(null);
+      return of("relationship-required");
+    }
+
+    // The authenticated /client-accounts/me endpoint resolves by current membership;
+    // its safe self DTO intentionally omits membership IDs and personal contact fields.
     return this.buyerRelationshipsApi.getCurrentAccount().pipe(
       map((account) => {
         if (!this.sessions.isSessionLeaseCurrent(lease))
           return "stale" as const;
-        const currentSession = this.sessions.session();
-        if (!currentSession) return "stale" as const;
-        const isPortalScoped = currentSession.surface === "PORTAL";
-        if (!isPortalScoped || !currentSession.membership)
-          return "stale" as const;
-        const membership = currentSession.membership;
-        if (!nonBlankString(membership.membershipId)) return "stale" as const;
+        if (!hasBuyerPortalScope(this.sessions.session(), lease)) {
+          this.accountSnapshot.set(null);
+          return "relationship-required" as const;
+        }
         if (!validBuyerAccount(account)) {
           this.accountSnapshot.set(null);
           return "unavailable" as const;
-        }
-        const relationshipMatches =
-          account.buyerMembershipId === membership.membershipId;
-        if (!relationshipMatches) {
-          this.accountSnapshot.set(null);
-          return "relationship-required" as const;
         }
         this.accountSnapshot.set({ lease, account });
         return "authorized" as const;
@@ -128,18 +127,29 @@ function validBuyerAccount(
   const nullableStringFields = [
     "commercialName",
     "segment",
-    "contactPerson",
-    "contactEmail",
-    "phone",
     "deliveryProfile",
     "paymentCondition",
   ];
   if (!nullableStringFields.every((field) => nullableString(account[field])))
     return false;
   return (
-    nullableString(account["buyerMembershipId"]) &&
+    (account["accountType"] === "BUSINESS" ||
+      account["accountType"] === "INDIVIDUAL") &&
     typeof account["version"] === "number" &&
     Number.isFinite(account["version"])
+  );
+}
+
+function hasBuyerPortalScope(
+  session: SessionResponse | null,
+  lease: PortalSessionLease,
+): boolean {
+  const membership = session?.membership;
+  return (
+    session?.surface === "PORTAL" &&
+    nonBlankString(membership?.membershipId) === lease.scope.membershipId &&
+    membership?.roles?.includes("BUYER") === true &&
+    membership?.permissions?.includes("buyer.sales.read") === true
   );
 }
 

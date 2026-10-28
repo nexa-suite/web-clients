@@ -5,6 +5,7 @@ import {
 } from "@angular/common/http/testing";
 import { NexaAccessTokenStore } from "../../../http/access-token.store";
 import { provideNexaHttp } from "../../../http/nexa-http";
+import type { CurrentBuyerAccountResponse } from "../contracts/buyer-account.contracts";
 import { NexaBuyerRelationshipsApi } from "./buyer-relationships-api";
 
 describe("NexaBuyerRelationshipsApi", () => {
@@ -17,18 +18,35 @@ describe("NexaBuyerRelationshipsApi", () => {
     });
     const http = TestBed.inject(HttpTestingController);
     TestBed.inject(NexaAccessTokenStore).set("current-buyer-token");
-    let membership: string | null = null;
+    let account: CurrentBuyerAccountResponse | null = null;
     TestBed.inject(NexaBuyerRelationshipsApi)
       .getCurrentAccount()
-      .subscribe((account) => (membership = account.buyerMembershipId));
+      .subscribe((value) => (account = value));
     const request = http.expectOne("/api/v1/client-accounts/me");
     expect(request.request.method).toBe("GET");
     expect(request.request.headers.get("Authorization")).toBe(
       "Bearer current-buyer-token",
     );
     expect(request.request.params.keys()).toEqual([]);
-    request.flush({ id: "account-1", buyerMembershipId: "membership-1" });
-    expect(membership).toBe("membership-1");
+    const safeSelfResponse: CurrentBuyerAccountResponse = {
+      id: "account-1",
+      code: "BUYER-1",
+      businessName: "Buyer Company",
+      commercialName: null,
+      countryCode: "PE",
+      taxType: "RUC",
+      taxValue: "TEST-ID",
+      segment: null,
+      deliveryProfile: null,
+      paymentCondition: null,
+      status: "ACTIVE",
+      version: 1,
+      accountType: "BUSINESS",
+    };
+    request.flush(safeSelfResponse);
+    expect(account).toEqual(safeSelfResponse);
+    expect("buyerMembershipId" in (account ?? {})).toBe(false);
+    expect("contactEmail" in (account ?? {})).toBe(false);
     http.verify();
   });
   it("encodes the server-resolved account address path and retains bearer authority", () => {
