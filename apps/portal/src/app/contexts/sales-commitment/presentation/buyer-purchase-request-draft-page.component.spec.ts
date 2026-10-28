@@ -1,12 +1,13 @@
 import { signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
-import { ActivatedRoute, provideRouter } from "@angular/router";
+import { ActivatedRoute, Router, provideRouter } from "@angular/router";
 import type { BuyerAddressResponse, PurchaseRequestDraft } from "@nexa/api";
 import { PortalBuyerEligibilityService } from "../../customer-buyer-relationships/application/public-api";
 import { CatalogStore, type BuyerCatalogItem, type CatalogDetailState, type CatalogPageState, type CatalogSearch } from "../../catalog-commercial-policy/application/public-api";
 import { PortalSessionStore, type PortalSessionLease } from "../../tenant-access-governance/application/public-api";
 import { BuyerDraftWorkflowState, BuyerPurchaseRequestDraftStore } from "../application/public-api";
+import { BuyerRequestSelectionStore } from "../application/buyer-request-selection.store";
 import { BuyerPurchaseRequestDraftPageComponent } from "./buyer-purchase-request-draft-page.component";
 import { BUYER_WALLET_CAPABILITIES_PORT } from "../../payments/application/public-api";
 
@@ -85,6 +86,116 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
     skuCode: "SKU-001",
     itemName: "Private catalog item",
   } as BuyerCatalogItem;
+  const secondCatalogItem = {
+    ...catalogItem,
+    catalogItemId: "catalog-item-2",
+    sellableSkuId: "sellable-sku-2",
+    skuCode: "SKU-002",
+    itemName: "Another catalog item",
+  } as BuyerCatalogItem;
+
+  it("preserves catalog selection when leaving an existing draft route before draft loading finishes", async () => {
+    const draftLoading = deferred<void>();
+    const store = {
+      state: signal<BuyerDraftWorkflowState>(emptyWorkflow()),
+      clear: vi.fn(),
+      loadAddresses: vi.fn(async () => undefined),
+      loadDraft: vi.fn(() => draftLoading.promise),
+    };
+    configureDraftPageTest(store, draft.id, lease, catalogItem);
+    const requestSelection = TestBed.inject(BuyerRequestSelectionStore);
+    requestSelection.add(catalogItem);
+    const fixture = TestBed.createComponent(BuyerPurchaseRequestDraftPageComponent);
+    const loading = fixture.componentInstance.ngOnInit();
+    for (let turn = 0; turn < 8 && !store.loadDraft.mock.calls.length; turn += 1) {
+      await Promise.resolve();
+    }
+
+    expect(store.loadDraft).toHaveBeenCalledWith(draft.id);
+    fixture.destroy();
+
+    expect(requestSelection.lines().map((line) => line.skuId)).toEqual([catalogItem.sellableSkuId]);
+    draftLoading.resolve();
+    await loading;
+  });
+
+  it("keeps updated and newly selected products when initial draft line save finishes", async () => {
+    const lineSave = deferred<boolean>();
+    const state = signal<BuyerDraftWorkflowState>(emptyWorkflow());
+    const store = {
+      state,
+      clear: vi.fn(() => state.set(emptyWorkflow())),
+      loadAddresses: vi.fn(async () => undefined),
+      createDraft: vi.fn(async () => {
+        state.set({ ...emptyWorkflow(), status: "ready", draft });
+        return draft;
+      }),
+      replaceLines: vi.fn(() => lineSave.promise),
+    };
+    configureDraftPageTest(store, null, lease, catalogItem);
+    const requestSelection = TestBed.inject(BuyerRequestSelectionStore);
+    requestSelection.add(catalogItem);
+    const fixture = TestBed.createComponent(BuyerPurchaseRequestDraftPageComponent);
+    await fixture.componentInstance.ngOnInit();
+    const page = fixture.componentInstance as unknown as { beginDraft(): Promise<void> };
+    const saving = page.beginDraft();
+    for (let turn = 0; turn < 8 && !store.replaceLines.mock.calls.length; turn += 1) {
+      await Promise.resolve();
+    }
+
+    expect(store.replaceLines).toHaveBeenCalledOnce();
+    requestSelection.add(secondCatalogItem);
+    requestSelection.setQuantity(catalogItem.sellableSkuId ?? "", 3);
+    lineSave.resolve(true);
+    await saving;
+
+    expect(requestSelection.lines().map((line) => [line.skuId, line.quantity])).toEqual([
+      [catalogItem.sellableSkuId, 3],
+      [secondCatalogItem.sellableSkuId, 1],
+    ]);
+    fixture.destroy();
+  });
+
+  it("keeps newly selected products when retrying draft line save", async () => {
+    const firstLineSave = deferred<boolean>();
+    const secondLineSave = deferred<boolean>();
+    const state = signal<BuyerDraftWorkflowState>(emptyWorkflow());
+    let lineSaveCount = 0;
+    const store = {
+      state,
+      clear: vi.fn(() => state.set(emptyWorkflow())),
+      loadAddresses: vi.fn(async () => undefined),
+      createDraft: vi.fn(async () => {
+        state.set({ ...emptyWorkflow(), status: "ready", draft });
+        return draft;
+      }),
+      replaceLines: vi.fn(() => ++lineSaveCount === 1 ? firstLineSave.promise : secondLineSave.promise),
+    };
+    configureDraftPageTest(store, null, lease, catalogItem);
+    const requestSelection = TestBed.inject(BuyerRequestSelectionStore);
+    requestSelection.add(catalogItem);
+    const fixture = TestBed.createComponent(BuyerPurchaseRequestDraftPageComponent);
+    await fixture.componentInstance.ngOnInit();
+    const page = fixture.componentInstance as unknown as {
+      beginDraft(): Promise<void>;
+      saveLines(): Promise<void>;
+    };
+
+    const initialSave = page.beginDraft();
+    for (let turn = 0; turn < 8 && lineSaveCount < 1; turn += 1) await Promise.resolve();
+    firstLineSave.resolve(false);
+    await initialSave;
+
+    const retry = page.saveLines();
+    for (let turn = 0; turn < 8 && lineSaveCount < 2; turn += 1) await Promise.resolve();
+    expect(lineSaveCount).toBe(2);
+    requestSelection.add(secondCatalogItem);
+    secondLineSave.resolve(true);
+    await retry;
+
+    expect(requestSelection.lines().map((line) => line.skuId)).toEqual([secondCatalogItem.sellableSkuId]);
+    fixture.destroy();
+  });
 
   it("prefills the requested SKU before catalog loading and preserves quantity edits", async () => {
     const state = signal<BuyerDraftWorkflowState>(emptyWorkflow());
@@ -467,6 +578,59 @@ function emptyWorkflow(): BuyerDraftWorkflowState {
     submissionKeyPending: false,
     errorMessage: null,
   };
+}
+
+function configureDraftPageTest(
+  store: unknown,
+  draftId: string | null,
+  lease: PortalSessionLease,
+  catalogItem: BuyerCatalogItem,
+): void {
+  TestBed.configureTestingModule({
+    imports: [BuyerPurchaseRequestDraftPageComponent],
+    providers: [
+      provideRouter([]),
+      {
+        provide: ActivatedRoute,
+        useValue: {
+          snapshot: {
+            queryParamMap: {
+              get: (key: string) => key === "draftId" ? draftId : null,
+            },
+          },
+        },
+      },
+      {
+        provide: PortalSessionStore,
+        useValue: {
+          state: signal({ status: "authenticated", session: scopedBuyerSession(["buyer.sales.write"]) }),
+          captureSessionLease: vi.fn(() => lease),
+          isSessionLeaseCurrent: vi.fn(() => true),
+        },
+      },
+      { provide: PortalBuyerEligibilityService, useValue: { currentAccount: () => ({ id: "account-1" }) } },
+      { provide: BuyerPurchaseRequestDraftStore, useValue: store },
+      {
+        provide: CatalogStore,
+        useValue: createCatalogStoreMock({
+          kind: "results",
+          page: { items: [catalogItem], page: 0, size: 50, totalItems: 1, totalPages: 1 },
+          errorMessage: null,
+        }),
+      },
+      {
+        provide: BUYER_WALLET_CAPABILITIES_PORT,
+        useValue: { canRead: () => false, orderPaymentSupported: () => false, loadCapabilities: vi.fn(), clear: vi.fn() },
+      },
+    ],
+  });
+  vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+}
+
+function deferred<T>(): { promise: Promise<T>; resolve(value: T): void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
 }
 
 function createCatalogStoreMock(pageState: CatalogPageState) {

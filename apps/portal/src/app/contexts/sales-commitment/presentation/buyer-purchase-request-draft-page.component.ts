@@ -5,7 +5,10 @@ import { NexaButton, NexaSurface } from "nexa-ui";
 import { PortalBuyerEligibilityService } from "../../customer-buyer-relationships/application/public-api";
 import { CatalogStore, type BuyerCatalogItem } from "../../catalog-commercial-policy/application/public-api";
 import { BuyerPurchaseRequestDraftStore } from "../application/buyer-purchase-request-draft.store";
-import { BuyerRequestSelectionStore } from "../application/buyer-request-selection.store";
+import {
+  BuyerRequestSelectionStore,
+  type BuyerRequestSelectionLine,
+} from "../application/buyer-request-selection.store";
 import type { PurchaseRequestDraftLineInput, SetPurchaseRequestDraftPreferencesRequest } from "@nexa/api";
 import { PortalSessionStore, type PortalSessionLease } from "../../tenant-access-governance/application/public-api";
 import { BUYER_WALLET_CAPABILITIES_PORT } from "../../payments/application/public-api";
@@ -148,6 +151,7 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit, OnDestroy
     const lease = this.formLease();
     if (
       !lease ||
+      this.route.snapshot.queryParamMap.get("draftId") ||
       this.workflow().draft ||
       !this.sessions.isSessionLeaseCurrent(lease)
     ) {
@@ -311,6 +315,7 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit, OnDestroy
       return;
     }
     if (!lines) return;
+    const selectedSnapshot = this.selectionSnapshotFor(lines);
     const draft = await this.store.createDraft(account.id, this.requestedDeliveryDate);
     if (!draft) return;
     await this.router.navigate([], {
@@ -324,18 +329,21 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit, OnDestroy
     this.createdDraftFromCurrentSelection = true;
     const saved = await this.store.replaceLines(lines);
     if (saved) {
-      this.requestSelection.clear();
-      this.createdDraftFromCurrentSelection = false;
+      this.requestSelection.consumeSavedSnapshot(selectedSnapshot);
+      this.createdDraftFromCurrentSelection = this.requestSelection.lines().length > 0;
     }
   }
 
   protected async saveLines(): Promise<void> {
     const lines = this.validatedLines();
     if (!lines) return;
+    const selectedSnapshot = this.createdDraftFromCurrentSelection
+      ? this.selectionSnapshotFor(lines)
+      : [];
     const saved = await this.store.replaceLines(lines);
     if (saved && this.createdDraftFromCurrentSelection) {
-      this.requestSelection.clear();
-      this.createdDraftFromCurrentSelection = false;
+      this.requestSelection.consumeSavedSnapshot(selectedSnapshot);
+      this.createdDraftFromCurrentSelection = this.requestSelection.lines().length > 0;
     }
   }
 
@@ -480,6 +488,13 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit, OnDestroy
       });
     }
     return normalized;
+  }
+
+  private selectionSnapshotFor(
+    lines: readonly PurchaseRequestDraftLineInput[],
+  ): readonly BuyerRequestSelectionLine[] {
+    const savedSkuIds = new Set(lines.map((line) => line.skuId));
+    return this.requestSelection.lines().filter((line) => savedSkuIds.has(line.skuId));
   }
 
   private canRequestWalletCapability(): boolean {

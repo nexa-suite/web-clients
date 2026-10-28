@@ -158,6 +158,17 @@ export class BuyerRequestSelectionStore {
     this.snapshot.set(null);
   }
 
+  consumeSavedSnapshot(lines: readonly BuyerRequestSelectionLine[]): void {
+    if (!lines.length) return;
+    const lease = this.sessions.captureSessionLease();
+    if (!lease) return;
+    // Reference equality preserves lines that changed while their save was pending.
+    const consumed = new Set(lines);
+    const current = this.lines();
+    const remaining = current.filter((line) => !consumed.has(line));
+    if (remaining.length !== current.length) this.write(remaining, lease);
+  }
+
   private write(
     lines: readonly BuyerRequestSelectionLine[],
     lease: PortalSessionLease,
