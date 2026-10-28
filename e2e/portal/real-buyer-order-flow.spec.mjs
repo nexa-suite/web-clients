@@ -116,7 +116,7 @@ async function signInBuyer(page) {
   const catalogBody = catalog.body;
   expect(sessionBody.surface).toBe('PORTAL');
   expect(accountBody.buyerMembershipId).toBe(sessionBody.membership?.membershipId);
-  await expect(page.getByRole('heading', { name: 'Browse catalog SKUs' })).toBeVisible();
+  await expect(page.getByTestId('portal-catalog-heading')).toBeVisible();
   return { account: accountBody, catalog: catalogBody };
 }
 

@@ -117,7 +117,7 @@ test("uses server Buyer eligibility, commercial catalog facts, and cookie-backed
 }) => {
   const catalog = await signInBuyer(page);
   await expect(
-    page.getByRole("heading", { name: "Browse catalog SKUs" }),
+    page.getByTestId("portal-catalog-heading"),
   ).toBeVisible();
   expect(catalog.items.length > 0).toBe(true);
   const firstItem = catalog.items[0];
