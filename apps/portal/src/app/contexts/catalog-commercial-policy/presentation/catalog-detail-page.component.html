@@ -48,16 +48,72 @@
           </h1>
           <p class="sku-identifier">{{ item.skuCode }}</p>
           @if (item.sellableSkuId) {
-            <nexa-button
-              routerLink="/requests/new"
-              [queryParams]="{ skuId: item.sellableSkuId }"
-              >Request this SKU</nexa-button
-            >
+            <div class="detail-request-actions">
+              <nexa-button
+                [disabled]="item.availabilityStatus === 'OUT_OF_STOCK'"
+                (click)="addToRequest(item)"
+              >
+                @if (requestSelection.has(item.sellableSkuId)) {
+                  Add another ·
+                  {{ requestSelection.quantityFor(item.sellableSkuId) }}
+                } @else {
+                  Add to request
+                }
+              </nexa-button>
+              @if (requestSelection.productCount() > 0) {
+                <nexa-button variant="secondary" routerLink="/requests/new">
+                  Review request · {{ requestSelection.productCount() }}
+                </nexa-button>
+              }
+            </div>
           }
         </header>
         <article class="product-detail">
-          <div class="detail-art" aria-hidden="true">
-            <i class="pi pi-box"></i>
+          <div
+            class="detail-art"
+            [class.has-image]="item.image?.url"
+            [class.detail-art--framed]="!!imageFraming(item.image?.fileName)"
+            [style.aspect-ratio]="
+              imageFraming(item.image?.fileName)?.aspectRatio ?? null
+            "
+            [style.max-width.px]="
+              imageFraming(item.image?.fileName)?.maxWidthPx ?? null
+            "
+          >
+            @if (item.image?.url; as imageUrl) {
+              <img
+                [src]="imageUrl"
+                [alt]="
+                  (item.brandName || item.productFamilyName || 'Nexa') +
+                  ' ' +
+                  item.itemName
+                "
+                loading="eager"
+                decoding="async"
+                [class.detail-art__image--framed]="
+                  imageFraming(item.image.fileName)?.mode === 'cover'
+                "
+                [class.detail-art__image--crop]="
+                  imageFraming(item.image.fileName)?.mode === 'crop'
+                "
+                [style.width.%]="
+                  imageFraming(item.image.fileName)?.imageWidthPercent ?? null
+                "
+                [style.left.%]="
+                  imageFraming(item.image.fileName)?.imageLeftPercent ?? null
+                "
+                [style.top.%]="
+                  imageFraming(item.image.fileName)?.imageTopPercent ?? null
+                "
+                (error)="$any($event.target).hidden = true"
+              />
+            }
+            <i class="pi pi-box detail-art__fallback" aria-hidden="true"></i>
+            @if (item.promotionLabel; as promotion) {
+              <span class="detail-promotion">
+                <i class="pi pi-tag" aria-hidden="true"></i>{{ promotion }}
+              </span>
+            }
           </div>
           <div class="detail-copy">
             <p class="product-family">
@@ -68,6 +124,9 @@
             </p>
             @if (item.presentation) {
               <p>{{ item.presentation }}</p>
+            }
+            @if (item.description) {
+              <p class="product-description">{{ item.description }}</p>
             }
             <dl class="sku-facts">
               <div>
@@ -84,6 +143,19 @@
                 <div>
                   <dt>Packaging</dt>
                   <dd>{{ item.packagingType }}</dd>
+                </div>
+              }
+              @if (item.productVariantName || item.productVariantCode) {
+                <div>
+                  <dt>Product variant</dt>
+                  <dd>
+                    {{ item.productVariantName || item.productVariantCode }}
+                    @if (item.productVariantName && item.productVariantCode) {
+                      <span class="variant-code">{{
+                        item.productVariantCode
+                      }}</span>
+                    }
+                  </dd>
                 </div>
               }
               @if (item.coldChainRequirement) {
@@ -129,12 +201,27 @@
                 <div>
                   <dt>Availability status</dt>
                   <dd>
-                    @if (item.availabilityStatus) {
-                      <nexa-status-chip tone="info">{{
-                        item.availabilityStatus
-                      }}</nexa-status-chip>
-                    } @else {
-                      Unavailable
+                    @switch (item.availabilityStatus) {
+                      @case ("AVAILABLE") {
+                        <nexa-status-chip tone="success"
+                          >Available</nexa-status-chip
+                        >
+                      }
+                      @case ("LOW") {
+                        <nexa-status-chip tone="warning"
+                          >Low availability</nexa-status-chip
+                        >
+                      }
+                      @case ("OUT_OF_STOCK") {
+                        <nexa-status-chip tone="danger"
+                          >Out of stock</nexa-status-chip
+                        >
+                      }
+                      @default {
+                        <nexa-status-chip tone="neutral">{{
+                          item.availabilityStatus || "To be confirmed"
+                        }}</nexa-status-chip>
+                      }
                     }
                   </dd>
                 </div>
@@ -167,6 +254,19 @@
                   </dd>
                 </div>
               </dl>
+              @if (item.appliedPromotions?.length) {
+                <ul class="promotion-list" aria-label="Applied promotions">
+                  @for (
+                    promotion of item.appliedPromotions;
+                    track promotion.id
+                  ) {
+                    <li>
+                      <i class="pi pi-tag" aria-hidden="true"></i>
+                      <span>{{ promotion.name }}</span>
+                    </li>
+                  }
+                </ul>
+              }
             </section>
           </div>
         </article>

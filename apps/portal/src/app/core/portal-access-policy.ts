@@ -9,6 +9,18 @@ export interface PortalAccessRule {
 
 export const PORTAL_ACCESS_RULES = {
   catalog: { capabilities: [["catalog.read"]], roles: ["BUYER"] },
+  catalogFavoritesRead: {
+    capabilities: [["catalog.read"], ["buyer.sales.read"]],
+    roles: ["BUYER"],
+  },
+  catalogFavoritesWrite: {
+    capabilities: [
+      ["catalog.read"],
+      ["buyer.sales.read"],
+      ["buyer.sales.write"],
+    ],
+    roles: ["BUYER"],
+  },
   wallet: {
     capabilities: [["payment.read", "payment.create"]],
     roles: ["BUYER"],
@@ -38,7 +50,9 @@ export function canAccessPortalFeature(
   const permissions = session.membership?.permissions ?? [];
   const hasRequiredRole =
     rule.roles === undefined ||
-    rule.roles.some((role) => session.membership?.roles?.includes(role) === true);
+    rule.roles.some(
+      (role) => session.membership?.roles?.includes(role) === true,
+    );
   return (
     hasRequiredRole &&
     rule.capabilities.every((group) =>
