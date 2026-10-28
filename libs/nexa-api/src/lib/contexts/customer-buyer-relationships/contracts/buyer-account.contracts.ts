@@ -1,4 +1,4 @@
-/** Safe authenticated Buyer self response; server resolves active membership and omits personal contact/membership IDs. */
+/** Safe authenticated Buyer self response; server resolves the active relationship. */
 export interface CurrentBuyerAccountResponse {
   readonly id: string;
   readonly code: string;
@@ -11,8 +11,9 @@ export interface CurrentBuyerAccountResponse {
   readonly deliveryProfile: string | null;
   readonly paymentCondition: string | null;
   readonly status: string;
+  readonly buyerMembershipId: string;
   readonly version: number;
-  readonly accountType: "BUSINESS" | "INDIVIDUAL";
+  readonly accountType?: "BUSINESS" | "INDIVIDUAL";
 }
 
 export interface BuyerAddressResponse {

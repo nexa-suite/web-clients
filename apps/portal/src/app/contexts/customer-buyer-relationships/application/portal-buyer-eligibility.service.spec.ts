@@ -47,6 +47,7 @@ describe("PortalBuyerEligibilityService", () => {
     deliveryProfile: null,
     paymentCondition: null,
     status: "ACTIVE",
+    buyerMembershipId: "membership-1",
     version: 1,
     accountType: "BUSINESS",
   };
@@ -82,26 +83,40 @@ describe("PortalBuyerEligibilityService", () => {
     expect(buyerApi.getCurrentAccount).toHaveBeenCalledOnce();
   });
 
-  it.each([
-    ["non-Buyer role", ["WORKSPACE_ADMIN"], ["buyer.sales.read"]],
-    ["missing Buyer read grant", ["BUYER"], []],
-  ])(
-    "rejects /client-accounts/me for %s before accepting account data",
-    async (_case, roles, permissions) => {
-      await signIn({
-        ...session,
-        membership: { ...session.membership, roles, permissions },
-      });
-      buyerApi.getCurrentAccount.mockReturnValue(of(account));
-
+  it.each(["different-membership", "", null, undefined])(
+    "rejects a missing or mismatched relationship membership: %s",
+    async (buyerMembershipId) => {
+      await signIn();
+      buyerApi.getCurrentAccount.mockReturnValue(
+        of({ ...account, buyerMembershipId }),
+      );
       expect(await firstValueFrom(eligibility.checkCurrent())).toBe(
         "relationship-required",
       );
-      expect(buyerApi.getCurrentAccount).not.toHaveBeenCalled();
       expect(eligibility.currentAccount()).toBeNull();
       expect(tokens.read()).toBe("signed-in-token");
     },
   );
+
+  it("uses server relationship instead of role or permission labels", async () => {
+    await signIn({
+      ...session,
+      membership: {
+        ...session.membership,
+        roles: ["WORKSPACE_ADMIN"],
+        permissions: [],
+      },
+    });
+    buyerApi.getCurrentAccount.mockReturnValue(of(account));
+    expect(await firstValueFrom(eligibility.checkCurrent())).toBe("authorized");
+  });
+
+  it("accepts the existing API response without accountType", async () => {
+    await signIn();
+    const { accountType: _accountType, ...legacyAccount } = account;
+    buyerApi.getCurrentAccount.mockReturnValue(of(legacyAccount));
+    expect(await firstValueFrom(eligibility.checkCurrent())).toBe("authorized");
+  });
 
   it("ignores a delayed account result after sign-out invalidates its captured lease", async () => {
     await signIn();
@@ -127,6 +142,21 @@ describe("PortalBuyerEligibilityService", () => {
     pendingSignOut.next(undefined);
     pendingSignOut.complete();
     await signOut;
+  });
+
+  it("ignores a delayed account result after the membership changes", async () => {
+    await signIn();
+    const pendingAccount = new Subject<CurrentBuyerAccountResponse>();
+    buyerApi.getCurrentAccount.mockReturnValue(pendingAccount);
+    const check = firstValueFrom(eligibility.checkCurrent());
+    await signIn({
+      ...session,
+      membership: { ...session.membership, membershipId: "membership-2" },
+    });
+    pendingAccount.next(account);
+    pendingAccount.complete();
+    expect(await check).toBe("stale");
+    expect(eligibility.currentAccount()).toBeNull();
   });
 
   it("refreshes after one current-account 401 and retries the relationship check once", async () => {

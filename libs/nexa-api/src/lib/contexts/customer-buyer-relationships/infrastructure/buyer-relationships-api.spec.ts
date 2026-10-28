@@ -40,12 +40,13 @@ describe("NexaBuyerRelationshipsApi", () => {
       deliveryProfile: null,
       paymentCondition: null,
       status: "ACTIVE",
+      buyerMembershipId: "membership-1",
       version: 1,
       accountType: "BUSINESS",
     };
     request.flush(safeSelfResponse);
     expect(account).toEqual(safeSelfResponse);
-    expect("buyerMembershipId" in (account ?? {})).toBe(false);
+    expect("buyerMembershipId" in (account ?? {})).toBe(true);
     expect("contactEmail" in (account ?? {})).toBe(false);
     http.verify();
   });
