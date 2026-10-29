@@ -110,9 +110,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: nexa-suite/api
-          # Signed API PR #117 head; includes CSRF harness and deterministic local Buyer route coordinates.
-          # The PR is still open; this test pin does not claim merge or deployment.
-          ref: 29c73173696bbc4784dd9d58fb1d78885bd8daed
+          # Signed API PR #128 candidate supplying the Buyer delivery policy.
+          # This pin does not claim merge or deployment.
+          ref: f069b45b5bc791cac91985a74c2970179796719b
           path: api
 
       - name: Set up Node.js
