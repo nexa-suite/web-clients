@@ -25,6 +25,18 @@
   @if (workflow().errorMessage; as message) {
     <p class="request-builder__notice request-builder__notice--error" role="alert">{{ message }}</p>
   }
+  @if (deliveryLeadPolicy().status === 'loading' || deliveryLeadPolicy().status === 'idle') {
+    <p class="request-builder__notice" role="status">Loading current delivery date rules.</p>
+  } @else if (deliveryLeadPolicy().status === 'error') {
+    <p class="request-builder__notice request-builder__notice--error" role="alert">
+      {{ deliveryLeadPolicy().errorMessage }}
+    </p>
+    <nexa-button variant="secondary" size="compact" (click)="retryDeliveryLeadPolicy()">Retry delivery rules</nexa-button>
+  } @else if (deliveryLeadPolicy().policy; as policy) {
+    <p class="request-builder__notice" role="status">
+      Delivery lead time: {{ policy.businessDays }} business days ({{ policy.timezone }}). Earliest allowed date: {{ policy.minimumAllowedDeliveryDate }}.
+    </p>
+  }
   @if (workflow().status === 'loading' || workflow().status === 'saving' || workflow().status === 'submitting') {
     <p class="request-builder__notice" role="status" aria-live="polite">
       @if (workflow().status === 'submitting') { Sending your request… }
@@ -146,9 +158,9 @@
       @if (!workflow().draft) {
         <label class="request-builder__date">
           Requested delivery date
-          <input type="date" [value]="requestedDeliveryDate" (input)="requestedDeliveryDate = $any($event.target).value" />
+          <input type="date" required [min]="deliveryLeadPolicy().policy?.minimumAllowedDeliveryDate ?? ''" [disabled]="deliveryLeadPolicy().status !== 'ready'" [value]="requestedDeliveryDate" (input)="requestedDeliveryDate = $any($event.target).value" />
         </label>
-        <nexa-button (click)="beginDraft()" [disabled]="workflow().status === 'loading'">Start draft</nexa-button>
+        <nexa-button (click)="beginDraft()" [disabled]="workflow().status === 'loading' || !store.allowsDeliveryDate(requestedDeliveryDate)">Start draft</nexa-button>
       } @else if (workflow().draft?.status !== 'SUBMITTED' && !workflow().submissionKeyPending) {
         <nexa-button variant="secondary" (click)="saveLines()">Save items</nexa-button>
       }
@@ -176,7 +188,7 @@
           <div class="request-builder__delivery-grid">
             <label>
               Requested delivery date
-              <input type="date" [value]="requestedDeliveryDate" (input)="requestedDeliveryDate = $any($event.target).value" />
+              <input type="date" required [min]="deliveryLeadPolicy().policy?.minimumAllowedDeliveryDate ?? ''" [disabled]="deliveryLeadPolicy().status !== 'ready'" [value]="requestedDeliveryDate" (input)="requestedDeliveryDate = $any($event.target).value" />
             </label>
             <label>
               Payment preference
@@ -201,7 +213,7 @@
             </label>
           </div>
           <div class="request-builder__actions">
-            <nexa-button variant="secondary" size="compact" (click)="savePreferences()" [disabled]="workflow().submissionKeyPending">Save details</nexa-button>
+            <nexa-button variant="secondary" size="compact" (click)="savePreferences()" [disabled]="workflow().submissionKeyPending || !store.allowsDeliveryDate(requestedDeliveryDate)">Save details</nexa-button>
             <nexa-button variant="secondary" size="compact" (click)="refreshAddresses()">Refresh saved addresses</nexa-button>
             <nexa-button variant="secondary" size="compact" (click)="previewRoute()" [disabled]="!draft.destination || !selectedAddressId || !selectedAddressHasRouteCoordinates() || workflow().submissionKeyPending">Preview route</nexa-button>
           </div>
@@ -236,7 +248,7 @@
             @if (workflow().submissionKeyPending) {
               <p class="request-builder__notice request-builder__notice--warning" role="status">We couldn’t confirm the result. Retry without changing this request.</p>
             }
-            <nexa-button (click)="submit()" [disabled]="!review.readyToSubmit || workflow().status === 'submitting' || workflow().submissionKeyPending && workflow().status === 'submitting'">
+            <nexa-button (click)="submit()" [disabled]="!review.readyToSubmit || !canSubmitDeliveryDate() || workflow().status === 'submitting' || workflow().submissionKeyPending && workflow().status === 'submitting'">
               @if (workflow().submissionKeyPending) { Retry submission safely } @else { Submit purchase request }
             </nexa-button>
           } @else {

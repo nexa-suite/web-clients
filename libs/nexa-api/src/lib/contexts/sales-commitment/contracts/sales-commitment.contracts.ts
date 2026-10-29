@@ -5,6 +5,13 @@ export interface PurchaseRequestDraftLineInput {
   readonly notes?: string | null;
 }
 
+/** API-owned Buyer delivery lead policy projection. */
+export interface BuyerDeliveryLeadPolicy {
+  readonly businessDays: number;
+  readonly minimumAllowedDeliveryDate: string;
+  readonly timezone: string;
+}
+
 export interface PurchaseRequestDraftLine {
   readonly id: string;
   readonly skuId: string;

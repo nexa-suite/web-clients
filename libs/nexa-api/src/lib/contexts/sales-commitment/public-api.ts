@@ -1,5 +1,6 @@
 export { NexaSalesCommitmentApi } from "./infrastructure/sales-commitment-api";
 export type {
+  BuyerDeliveryLeadPolicy,
   CreatePurchaseRequestDraftRequest,
   MaterialChangeProposal,
   MaterialChangeTerms,

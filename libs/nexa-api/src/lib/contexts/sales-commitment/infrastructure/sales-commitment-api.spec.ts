@@ -25,6 +25,27 @@ describe("NexaSalesCommitmentApi", () => {
 
   afterEach(() => http.verify());
 
+  it("reads the API-owned Buyer delivery lead policy in the current session scope", () => {
+    api.getBuyerDeliveryLeadPolicy().subscribe((policy) => {
+      expect(policy).toEqual({
+        businessDays: 5,
+        minimumAllowedDeliveryDate: "2026-11-05",
+        timezone: "America/Lima",
+      });
+    });
+    const request = http.expectOne("/api/v1/buyer/delivery-lead-policy");
+    expect(request.request.method).toBe("GET");
+    expect(request.request.params.keys()).toEqual([]);
+    expect(request.request.headers.get("Authorization")).toBe(
+      "Bearer current-context-token",
+    );
+    request.flush({
+      businessDays: 5,
+      minimumAllowedDeliveryDate: "2026-11-05",
+      timezone: "America/Lima",
+    });
+  });
+
   it("uses version preconditions and keeps the same submission key on a caller retry", () => {
     api.submitDraft("draft/one", 7, "buyer-submit-key").subscribe();
     const request = http.expectOne(

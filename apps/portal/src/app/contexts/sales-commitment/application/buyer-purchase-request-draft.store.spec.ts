@@ -55,9 +55,12 @@ describe("BuyerPurchaseRequestDraftStore", () => {
   };
 
   let api: {
+    getBuyerDeliveryLeadPolicy: ReturnType<typeof vi.fn>;
+    createDraft: ReturnType<typeof vi.fn>;
     getDraft: ReturnType<typeof vi.fn>;
     getDraftReview: ReturnType<typeof vi.fn>;
     replaceDraftLines: ReturnType<typeof vi.fn>;
+    setDraftPreferences: ReturnType<typeof vi.fn>;
     submitDraft: ReturnType<typeof vi.fn>;
   };
   let sessions: {
@@ -76,9 +79,16 @@ describe("BuyerPurchaseRequestDraftStore", () => {
       remove: vi.fn((key: string) => { retryValues.delete(key); }),
     };
     api = {
+      getBuyerDeliveryLeadPolicy: vi.fn().mockReturnValue(of({
+        businessDays: 5,
+        minimumAllowedDeliveryDate: "2026-10-20",
+        timezone: "America/Lima",
+      })),
+      createDraft: vi.fn(),
       getDraft: vi.fn().mockReturnValue(of(apiResponse(draft, '"4"'))),
       getDraftReview: vi.fn().mockReturnValue(of(review)),
       replaceDraftLines: vi.fn(),
+      setDraftPreferences: vi.fn(),
       submitDraft: vi.fn()
         .mockReturnValueOnce(throwError(() => new Error("response timed out")))
         .mockReturnValueOnce(of(apiResponse(submittedDraft, '"5"'))),
@@ -99,7 +109,55 @@ describe("BuyerPurchaseRequestDraftStore", () => {
     store = TestBed.inject(BuyerPurchaseRequestDraftStore);
   });
 
+  it("loads API-owned policy and allows only dates at or after its returned minimum", async () => {
+    api.getBuyerDeliveryLeadPolicy.mockReturnValue(of({
+      businessDays: 4,
+      minimumAllowedDeliveryDate: "2026-10-25",
+      timezone: "America/Lima",
+    }));
+
+    await store.loadDeliveryLeadPolicy();
+
+    expect(api.getBuyerDeliveryLeadPolicy).toHaveBeenCalledOnce();
+    expect(store.deliveryLeadPolicy()).toEqual({
+      status: "ready",
+      policy: {
+        businessDays: 4,
+        minimumAllowedDeliveryDate: "2026-10-25",
+        timezone: "America/Lima",
+      },
+      errorMessage: null,
+    });
+    expect(store.allowsDeliveryDate("2026-10-25")).toBe(true);
+    expect(store.allowsDeliveryDate("2026-10-24")).toBe(false);
+    expect(store.allowsDeliveryDate("2026-02-30")).toBe(false);
+  });
+
+  it("fails closed on malformed policy and blocks draft creation, preference updates, and submission", async () => {
+    api.getBuyerDeliveryLeadPolicy.mockReturnValue(of({
+      businessDays: 5,
+      minimumAllowedDeliveryDate: "not-a-date",
+      timezone: "America/Lima",
+    }));
+
+    await store.loadDeliveryLeadPolicy();
+    expect(store.deliveryLeadPolicy().status).toBe("error");
+    expect(store.allowsDeliveryDate("2026-10-20")).toBe(false);
+    expect(await store.createDraft("buyer-account-1", "2026-10-20")).toBeNull();
+    await store.loadDraft(draft.id);
+    await store.setPreferences({
+      paymentPreference: "BANK_TRANSFER",
+      requestedDeliveryDate: "2026-10-20",
+    });
+    await store.submit();
+
+    expect(api.createDraft).not.toHaveBeenCalled();
+    expect(api.setDraftPreferences).not.toHaveBeenCalled();
+    expect(api.submitDraft).not.toHaveBeenCalled();
+  });
+
   it("preserves the draft and reuses the same idempotency key after an uncertain submit response", async () => {
+    await store.loadDeliveryLeadPolicy();
     await store.loadDraft(draft.id);
     expect(store.state().draft).toEqual(draft);
     expect(store.state().review?.readyToSubmit).toBe(true);
@@ -122,6 +180,7 @@ describe("BuyerPurchaseRequestDraftStore", () => {
   });
 
   it("blocks editing while the submission result is uncertain", async () => {
+    await store.loadDeliveryLeadPolicy();
     await store.loadDraft(draft.id);
     await store.submit();
     await store.replaceLines([{ skuId: "sku-1", quantity: 2 }]);
