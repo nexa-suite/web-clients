@@ -1,0 +1,523 @@
+<section class="catalog-management">
+  <header class="catalog-management__header">
+    <div>
+      <p class="eyebrow">Catalog workspace</p>
+      <h1>Catalog management</h1>
+      <p>
+        Create the taxonomy, product families, sellable SKUs, and prices used by
+        the catalog.
+      </p>
+    </div>
+    <div class="catalog-management__header-actions">
+      <a routerLink="/catalog">View catalog</a>
+      <nexa-button variant="secondary" [disabled]="busy()" (click)="refresh()">
+        Refresh records
+      </nexa-button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <p class="message message--error" role="alert">{{ error() }}</p>
+  }
+  @if (notice()) {
+    <p class="message message--notice" role="status">{{ notice() }}</p>
+  }
+  @if (unknownCreate(); as uncertain) {
+    <nexa-surface class="uncertain-panel">
+      <h2>Check an uncertain create</h2>
+      <p>
+        The create command did not return a definite result. The form is blocked
+        while the server list is checked, so it cannot submit that create again
+        automatically.
+      </p>
+      @if (uncertain.resource === "variant") {
+        <p>
+          If the list still has no matching variant, retrying the unchanged
+          request uses the same idempotency key.
+        </p>
+      }
+      <div class="toolbar">
+        <nexa-button
+          variant="secondary"
+          [disabled]="busy()"
+          (click)="checkUnknownCreate()"
+        >
+          Check server list again
+        </nexa-button>
+        @if (uncertain.resource === "variant") {
+          <nexa-button
+            [disabled]="busy()"
+            (click)="retryUnknownVariant()"
+          >
+            Retry same variant command
+          </nexa-button>
+        }
+      </div>
+    </nexa-surface>
+  }
+
+  <section class="management-grid" aria-label="Catalog taxonomy">
+    <nexa-surface>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Foundation</p>
+          <h2>Categories / types</h2>
+          <p>Categories organize product families in the catalog.</p>
+        </div>
+        <label class="compact-field">
+          <span>Find a category</span>
+          <input
+            name="categoryLookupSearch"
+            [(ngModel)]="categoryLookupSearch"
+            (keyup.enter)="searchLookups('categories')"
+          />
+        </label>
+      </div>
+      <div class="toolbar">
+        <nexa-button
+          variant="secondary"
+          [disabled]="busy()"
+          (click)="searchLookups('categories')"
+        >
+          Search categories
+        </nexa-button>
+      </div>
+
+      @if (canManageTaxonomy) {
+        <form #categoryForm="ngForm" (ngSubmit)="categoryForm.valid && createCategory()">
+          <div class="fields">
+            <label>
+              <span>Slug</span>
+              <input name="categorySlug" [(ngModel)]="categoryDraft.slug" required maxlength="100" />
+            </label>
+            <label>
+              <span>Name</span>
+              <input name="categoryName" [(ngModel)]="categoryDraft.name" required maxlength="160" />
+            </label>
+            <label>
+              <span>Parent category / type (optional)</span>
+              <select name="categoryParent" [(ngModel)]="categoryDraft.parentId">
+                <option [ngValue]="null">No parent</option>
+                @for (category of categoryLookups(); track category.id) {
+                  <option [value]="category.id">{{ category.name }}</option>
+                }
+              </select>
+            </label>
+            <label class="field-wide">
+              <span>Description</span>
+              <textarea name="categoryDescription" [(ngModel)]="categoryDraft.description" maxlength="2000" rows="2"></textarea>
+            </label>
+          </div>
+          <nexa-button type="submit" [disabled]="busy() || categoryForm.invalid || !canManageTaxonomy">
+            Create category
+          </nexa-button>
+        </form>
+      }
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Category</th><th>Parent</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>
+            @for (category of categories(); track category.id) {
+              <tr>
+                <td><strong>{{ category.name }}</strong><small>{{ category.slug }}</small></td>
+                <td>{{ category.parentId || "—" }}</td>
+                <td>{{ category.status }}</td>
+                <td class="row-actions">
+                  @if (canManageTaxonomy) {
+                    <nexa-button variant="quiet" [disabled]="busy()" (click)="editCategory(category)">Edit</nexa-button>
+                    @if (category.status === "ACTIVE") {
+                      <nexa-button variant="quiet" [disabled]="busy()" (click)="toggleCategory(category)">Deactivate</nexa-button>
+                    } @else if (category.status !== "ARCHIVED") {
+                      <nexa-button variant="quiet" [disabled]="busy()" (click)="toggleCategory(category)">Activate</nexa-button>
+                    }
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="4">No categories found in this server page.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (categoryListPage(); as page) {
+        @if (page.total > page.size) {
+          <div class="toolbar" aria-label="Category pages">
+            <nexa-button variant="secondary" [disabled]="busy() || page.page === 0" (click)="changeTaxonomyPage('categories', -1)">Previous</nexa-button>
+            <span>Page {{ page.page + 1 }} · {{ page.total }} categories</span>
+            <nexa-button variant="secondary" [disabled]="busy() || (page.page + 1) * page.size >= page.total" (click)="changeTaxonomyPage('categories', 1)">Next</nexa-button>
+          </div>
+        }
+      }
+    </nexa-surface>
+
+    <nexa-surface>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Foundation</p>
+          <h2>Brands</h2>
+          <p>Brands are selected when a product family is created.</p>
+        </div>
+        <label class="compact-field">
+          <span>Find a brand</span>
+          <input
+            name="brandLookupSearch"
+            [(ngModel)]="brandLookupSearch"
+            (keyup.enter)="searchLookups('brands')"
+          />
+        </label>
+      </div>
+      <div class="toolbar">
+        <nexa-button
+          variant="secondary"
+          [disabled]="busy()"
+          (click)="searchLookups('brands')"
+        >
+          Search brands
+        </nexa-button>
+      </div>
+
+      @if (canManageTaxonomy) {
+        <form #brandForm="ngForm" (ngSubmit)="brandForm.valid && createBrand()">
+          <div class="fields">
+            <label>
+              <span>Slug</span>
+              <input name="brandSlug" [(ngModel)]="brandDraft.slug" required maxlength="100" />
+            </label>
+            <label>
+              <span>Name</span>
+              <input name="brandName" [(ngModel)]="brandDraft.name" required maxlength="160" />
+            </label>
+            <label class="field-wide">
+              <span>Description</span>
+              <textarea name="brandDescription" [(ngModel)]="brandDraft.description" maxlength="2000" rows="2"></textarea>
+            </label>
+          </div>
+          <nexa-button type="submit" [disabled]="busy() || brandForm.invalid || !canManageTaxonomy">
+            Create brand
+          </nexa-button>
+        </form>
+      }
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Brand</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>
+            @for (brand of brands(); track brand.id) {
+              <tr>
+                <td><strong>{{ brand.name }}</strong><small>{{ brand.slug }}</small></td>
+                <td>{{ brand.status }}</td>
+                <td class="row-actions">
+                  @if (canManageTaxonomy) {
+                    <nexa-button variant="quiet" [disabled]="busy()" (click)="editBrand(brand)">Edit</nexa-button>
+                    @if (brand.status === "ACTIVE") {
+                      <nexa-button variant="quiet" [disabled]="busy()" (click)="toggleBrand(brand)">Deactivate</nexa-button>
+                    } @else if (brand.status !== "ARCHIVED") {
+                      <nexa-button variant="quiet" [disabled]="busy()" (click)="toggleBrand(brand)">Activate</nexa-button>
+                    }
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="3">No brands found in this server page.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (brandListPage(); as page) {
+        @if (page.total > page.size) {
+          <div class="toolbar" aria-label="Brand pages">
+            <nexa-button variant="secondary" [disabled]="busy() || page.page === 0" (click)="changeTaxonomyPage('brands', -1)">Previous</nexa-button>
+            <span>Page {{ page.page + 1 }} · {{ page.total }} brands</span>
+            <nexa-button variant="secondary" [disabled]="busy() || (page.page + 1) * page.size >= page.total" (click)="changeTaxonomyPage('brands', 1)">Next</nexa-button>
+          </div>
+        }
+      }
+    </nexa-surface>
+  </section>
+
+  @if (taxonomyEditor(); as editor) {
+    <nexa-surface class="editor-panel">
+      <h2>Edit {{ editor.kind }}</h2>
+      @if (editor.kind === "category") {
+        <form #categoryEditForm="ngForm" (ngSubmit)="categoryEditForm.valid && saveTaxonomyEdit()">
+          <div class="fields">
+            <label><span>Slug</span><input [name]="'editCategorySlug-' + editor.value.id" [(ngModel)]="editor.draft.slug" required maxlength="100" /></label>
+            <label><span>Name</span><input [name]="'editCategoryName-' + editor.value.id" [(ngModel)]="editor.draft.name" required maxlength="160" /></label>
+            <label>
+              <span>Parent category</span>
+              <select [name]="'editCategoryParent-' + editor.value.id" [(ngModel)]="editor.draft.parentId">
+                <option [ngValue]="null">No parent</option>
+                @for (category of categoryLookups(); track category.id) {
+                  <option [value]="category.id">{{ category.name }}</option>
+                }
+              </select>
+            </label>
+            <label class="field-wide"><span>Description</span><textarea [name]="'editCategoryDescription-' + editor.value.id" [(ngModel)]="editor.draft.description" maxlength="2000" rows="2"></textarea></label>
+          </div>
+          <div class="toolbar">
+            <nexa-button type="submit" [disabled]="busy() || categoryEditForm.invalid !== false">Save category</nexa-button>
+            <nexa-button variant="quiet" [disabled]="busy()" (click)="cancelTaxonomyEdit()">Cancel</nexa-button>
+          </div>
+        </form>
+      } @else {
+        <form #brandEditForm="ngForm" (ngSubmit)="brandEditForm.valid && saveTaxonomyEdit()">
+          <div class="fields">
+            <label><span>Slug</span><input [name]="'editBrandSlug-' + editor.value.id" [(ngModel)]="editor.draft.slug" required maxlength="100" /></label>
+            <label><span>Name</span><input [name]="'editBrandName-' + editor.value.id" [(ngModel)]="editor.draft.name" required maxlength="160" /></label>
+            <label class="field-wide"><span>Description</span><textarea [name]="'editBrandDescription-' + editor.value.id" [(ngModel)]="editor.draft.description" maxlength="2000" rows="2"></textarea></label>
+          </div>
+          <div class="toolbar">
+            <nexa-button type="submit" [disabled]="busy() || brandEditForm.invalid !== false">Save brand</nexa-button>
+            <nexa-button variant="quiet" [disabled]="busy()" (click)="cancelTaxonomyEdit()">Cancel</nexa-button>
+          </div>
+        </form>
+      }
+    </nexa-surface>
+  }
+
+  <nexa-surface>
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Product catalog</p>
+        <h2>Product families</h2>
+        <p>Each family requires category and brand records from the lists above.</p>
+      </div>
+      <label class="compact-field">
+        <span>Find a family</span>
+        <input name="familySearch" [(ngModel)]="familySearch" (keyup.enter)="searchFamilies()" />
+      </label>
+      <label class="compact-field">
+        <span>Brand</span>
+        <select name="familyBrandSearch" [(ngModel)]="familyBrandSearch" (ngModelChange)="searchFamilies()" [disabled]="busy()">
+          <option value="">All brands</option>
+          @for (brand of activeBrandLookups(); track brand.id) {
+            <option [value]="brand.name">{{ brand.name }}</option>
+          }
+        </select>
+      </label>
+      <label class="compact-field">
+        <span>Category / type</span>
+        <select name="familyCategorySearch" [(ngModel)]="familyCategorySearch" (ngModelChange)="searchFamilies()" [disabled]="busy()">
+          <option value="">All categories</option>
+          @for (category of activeCategoryLookups(); track category.id) {
+            <option [value]="category.name">{{ category.name }}</option>
+          }
+        </select>
+      </label>
+    </div>
+    @if (familyListPage(); as page) {
+      @if (page.total > page.size) {
+        <div class="toolbar" aria-label="Product family pages">
+          <nexa-button variant="secondary" [disabled]="busy() || page.page === 0" (click)="changeFamilyPage(-1)">Previous</nexa-button>
+          <span>Page {{ page.page + 1 }} · {{ page.total }} product families</span>
+          <nexa-button variant="secondary" [disabled]="busy() || (page.page + 1) * page.size >= page.total" (click)="changeFamilyPage(1)">Next</nexa-button>
+        </div>
+      }
+    }
+    <div class="toolbar">
+      <nexa-button variant="secondary" [disabled]="busy()" (click)="searchFamilies()">Search families</nexa-button>
+    </div>
+
+    @if (canManageProducts) {
+      <form #familyForm="ngForm" (ngSubmit)="familyForm.valid && createFamily()">
+        <div class="fields">
+          <label><span>Family code</span><input name="familyCode" [(ngModel)]="familyDraft.code" required maxlength="80" /></label>
+          <label><span>Name</span><input name="familyName" [(ngModel)]="familyDraft.name" required maxlength="200" /></label>
+          <label>
+            <span>Category</span>
+            <select name="familyCategory" [(ngModel)]="familyDraft.categoryId" required>
+              <option value="">Choose a category</option>
+              @for (category of activeCategoryLookups(); track category.id) {
+                <option [value]="category.id">{{ category.name }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>Brand</span>
+            <select name="familyBrand" [(ngModel)]="familyDraft.brandId" required>
+              <option value="">Choose a brand</option>
+              @for (brand of activeBrandLookups(); track brand.id) {
+                <option [value]="brand.id">{{ brand.name }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>Storage family</span>
+            <select name="familyStorage" [(ngModel)]="familyDraft.storageFamily" required>
+              <option [ngValue]="'AMBIENT'">Ambient</option>
+              <option [ngValue]="'REFRIGERATED'">Refrigerated</option>
+              <option [ngValue]="'FROZEN'">Frozen</option>
+            </select>
+          </label>
+          <label><span>Country of origin</span><input name="familyCountry" [(ngModel)]="familyDraft.countryOfOrigin" maxlength="2" placeholder="PE" /></label>
+          <label><span>Manufacturer reference</span><input name="familyManufacturer" [(ngModel)]="familyDraft.manufacturerReference" maxlength="160" /></label>
+          <label><span>Supplier reference</span><input name="familySupplier" [(ngModel)]="familyDraft.supplierReference" maxlength="160" /></label>
+          <label class="field-wide"><span>Description</span><textarea name="familyDescription" [(ngModel)]="familyDraft.description" rows="2"></textarea></label>
+        </div>
+        <p class="form-note">The API does not accept an idempotency key for family creation. If a network result is uncertain, this form stays blocked until the family list can be reconciled.</p>
+        <nexa-button type="submit" [disabled]="busy() || familyForm.invalid || !canManageProducts || unknownCreate()?.resource === 'family'">Create family</nexa-button>
+      </form>
+    }
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Family</th><th>Category / brand</th><th>Storage</th><th>Status</th><th>SKUs</th><th>Actions</th></tr></thead>
+        <tbody>
+          @for (family of families(); track family.id) {
+            <tr [class.selected-row]="selectedFamily()?.id === family.id">
+              <td><strong>{{ family.name }}</strong><small>{{ family.code }}</small></td>
+              <td>{{ family.categoryName }} / {{ family.brandName }}</td>
+              <td>{{ family.storageFamily }}</td>
+              <td>{{ family.status }}</td>
+              <td>{{ family.skuCount }}</td>
+              <td class="row-actions">
+                <nexa-button variant="secondary" [disabled]="busy()" (click)="selectFamily(family)">Open family</nexa-button>
+                @if (canManageProducts && family.status !== 'ARCHIVED') {
+                  <nexa-button variant="quiet" [disabled]="busy()" (click)="toggleFamily(family)">{{ family.status === 'ACTIVE' ? 'Deactivate' : 'Activate' }}</nexa-button>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="6">No families found in this server page.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </nexa-surface>
+
+  @if (selectedFamily(); as family) {
+    <section class="management-grid" aria-label="Family setup">
+      <nexa-surface>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">{{ family.code }}</p>
+            <h2>Variants</h2>
+            <p>Variants are maintained separately within this family.</p>
+          </div>
+        </div>
+        @if (canManageProducts) {
+          <form #variantForm="ngForm" (ngSubmit)="variantForm.valid && createVariant()">
+            <div class="fields">
+              <label><span>Variant code</span><input name="variantCode" [(ngModel)]="variantDraft.code" required maxlength="80" [disabled]="busy() || unknownCreate()?.resource === 'variant'" /></label>
+              <label><span>Name</span><input name="variantName" [(ngModel)]="variantDraft.name" required maxlength="200" [disabled]="busy() || unknownCreate()?.resource === 'variant'" /></label>
+              <label class="field-wide"><span>Description</span><textarea name="variantDescription" [(ngModel)]="variantDraft.description" maxlength="4000" rows="2" [disabled]="busy() || unknownCreate()?.resource === 'variant'"></textarea></label>
+            </div>
+            <nexa-button type="submit" [disabled]="busy() || variantForm.invalid || !canManageProducts || unknownCreate()?.resource === 'variant'">Create variant</nexa-button>
+          </form>
+        }
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Variant</th><th>Status</th><th>SKUs</th></tr></thead>
+            <tbody>
+              @for (variant of variants(); track variant.id) {
+                <tr><td><strong>{{ variant.name }}</strong><small>{{ variant.code }}</small></td><td>{{ variant.status }}</td><td>{{ variant.skuCount }}</td></tr>
+              } @empty {
+                <tr><td colspan="3">No variants found for this family.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </nexa-surface>
+
+      <nexa-surface>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">{{ family.code }}</p>
+            <h2>Sellable SKUs</h2>
+            <p>SKUs are created under the family; the API has no variant field on this command.</p>
+          </div>
+        </div>
+        @if (canManageProducts) {
+          <form #skuForm="ngForm" (ngSubmit)="skuForm.valid && createSku()">
+            <div class="fields">
+              <label><span>SKU code</span><input name="skuCode" [(ngModel)]="skuDraft.skuCode" required maxlength="80" [disabled]="busy() || unknownCreate()?.resource === 'sku'" /></label>
+              <label><span>GTIN (optional)</span><input name="skuGtin" [(ngModel)]="skuDraft.gtin" inputmode="numeric" pattern="[0-9]{8,14}" maxlength="14" [disabled]="busy() || unknownCreate()?.resource === 'sku'" /></label>
+              <label><span>Presentation</span><input name="skuPresentation" [(ngModel)]="skuDraft.presentation" maxlength="160" [disabled]="busy() || unknownCreate()?.resource === 'sku'" /></label>
+              <label><span>Packaging type</span><input name="skuPackaging" [(ngModel)]="skuDraft.packagingType" maxlength="64" [disabled]="busy() || unknownCreate()?.resource === 'sku'" /></label>
+              <label><span>Unit of measure</span><input name="skuUnit" [(ngModel)]="skuDraft.unitOfMeasure" maxlength="32" [disabled]="busy() || unknownCreate()?.resource === 'sku'" /></label>
+              <label><span>Pack quantity</span><input type="number" name="skuPackQuantity" [(ngModel)]="skuDraft.packQuantity" min="0.0001" step="any" [disabled]="busy() || unknownCreate()?.resource === 'sku'" /></label>
+              <label><span>Net weight</span><input type="number" name="skuNetWeight" [(ngModel)]="skuDraft.netWeight" min="0.0001" step="any" [disabled]="busy() || unknownCreate()?.resource === 'sku'" /></label>
+              <label><span>Gross weight</span><input type="number" name="skuGrossWeight" [(ngModel)]="skuDraft.grossWeight" min="0.0001" step="any" [disabled]="busy() || unknownCreate()?.resource === 'sku'" /></label>
+              <label><span>Minimum temperature</span><input type="number" name="skuTemperatureMin" [(ngModel)]="skuDraft.temperatureMin" step="any" [disabled]="busy() || unknownCreate()?.resource === 'sku'" /></label>
+              <label><span>Maximum temperature</span><input type="number" name="skuTemperatureMax" [(ngModel)]="skuDraft.temperatureMax" step="any" [disabled]="busy() || unknownCreate()?.resource === 'sku'" /></label>
+              <label><span>Shelf life (days)</span><input type="number" name="skuShelfLife" [(ngModel)]="skuDraft.shelfLifeDays" min="0" step="1" required [disabled]="busy() || unknownCreate()?.resource === 'sku'" /></label>
+              <label><span>Minimum remaining shelf life (days)</span><input type="number" name="skuMinShelfLife" [(ngModel)]="skuDraft.minimumRemainingShelfLifeDays" min="0" step="1" required [disabled]="busy() || unknownCreate()?.resource === 'sku'" /></label>
+              <label><span>Tax category</span><input name="skuTaxCategory" [(ngModel)]="skuDraft.taxCategory" maxlength="64" [disabled]="busy() || unknownCreate()?.resource === 'sku'" /></label>
+              <label class="check-field"><input type="checkbox" name="skuLotTracking" [(ngModel)]="skuDraft.lotTrackingRequired" [disabled]="busy() || unknownCreate()?.resource === 'sku'" /><span>Lot tracking required</span></label>
+              <label class="check-field"><input type="checkbox" name="skuExpiryTracking" [(ngModel)]="skuDraft.expiryTrackingRequired" [disabled]="busy() || unknownCreate()?.resource === 'sku'" /><span>Expiry tracking required</span></label>
+            </div>
+            <p class="form-note">The API does not accept an idempotency key for SKU creation. If a network result is uncertain, this form stays blocked until the family SKU list can be reconciled.</p>
+            <nexa-button type="submit" [disabled]="busy() || skuForm.invalid || !canManageProducts || unknownCreate()?.resource === 'sku'">Create SKU</nexa-button>
+          </form>
+        }
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>SKU</th><th>Pack</th><th>Status</th><th>Price</th><th>Actions</th></tr></thead>
+            <tbody>
+              @for (sku of skus(); track sku.id) {
+                <tr [class.selected-row]="selectedSku()?.id === sku.id">
+                  <td><strong>{{ sku.skuCode }}</strong><small>{{ sku.presentation || "No presentation" }}</small></td>
+                  <td>{{ sku.packQuantity ?? "—" }} {{ sku.unitOfMeasure || "" }}</td>
+                  <td>{{ sku.status }}</td>
+                  <td>@if (sku.currentPrice; as currentPrice) { {{ currentPrice.amount | number: "1.2-2" }} {{ currentPrice.currency }} } @else { — }</td>
+                  <td class="row-actions">
+                    <nexa-button variant="secondary" [disabled]="busy()" (click)="selectSku(sku)">Manage price</nexa-button>
+                    @if (canManageProducts && sku.status !== 'ARCHIVED' && sku.status !== 'DISCONTINUED') {
+                      <nexa-button variant="quiet" [disabled]="busy()" (click)="toggleSku(sku)">{{ sku.status === 'ACTIVE' ? 'Deactivate' : 'Activate' }}</nexa-button>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="5">No SKUs found for this family.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </nexa-surface>
+    </section>
+  }
+
+  @if (selectedSku(); as sku) {
+    <nexa-surface>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">{{ sku.skuCode }}</p>
+          <h2>Price records</h2>
+          <p>Create a price with an ISO 4217 currency code and an optional validity window.</p>
+        </div>
+      </div>
+      @if (canManagePrices) {
+        <form #priceForm="ngForm" (ngSubmit)="priceForm.valid && createPrice()">
+          <div class="fields">
+            <label><span>Amount</span><input type="number" name="priceAmount" [(ngModel)]="priceDraft.amount" min="0" step="0.01" required /></label>
+            <label><span>Currency</span><input name="priceCurrency" [(ngModel)]="priceDraft.currency" minlength="3" maxlength="3" pattern="[A-Za-z]{3}" required /></label>
+            <label><span>Valid from (optional)</span><input type="datetime-local" name="priceValidFrom" [(ngModel)]="priceDraft.validFrom" /></label>
+            <label><span>Valid until (optional)</span><input type="datetime-local" name="priceValidUntil" [(ngModel)]="priceDraft.validUntil" /></label>
+            <label><span>Source code (optional)</span><input name="priceSourceCode" [(ngModel)]="priceDraft.sourceCode" maxlength="80" /></label>
+            <label><span>Source description (optional)</span><input name="priceSourceDescription" [(ngModel)]="priceDraft.sourceDescription" maxlength="255" /></label>
+          </div>
+          <nexa-button type="submit" [disabled]="busy() || priceForm.invalid || !canManagePrices">Add price</nexa-button>
+        </form>
+      }
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Amount</th><th>Valid from</th><th>Valid until</th><th>Source</th><th>Status</th></tr></thead>
+          <tbody>
+            @for (price of prices(); track price.id) {
+              <tr>
+                <td>{{ price.amount | number: "1.2-2" }} {{ price.currency }}</td>
+                <td>{{ price.validFrom | date: "medium" }}</td>
+                <td>{{ price.validUntil ? (price.validUntil | date: "medium") : "No end date" }}</td>
+                <td>{{ price.sourceCode || "—" }}{{ price.sourceDescription ? " · " + price.sourceDescription : "" }}</td>
+                <td>{{ price.cancelled ? "Cancelled" : "Recorded" }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5">No price records found for this SKU.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </nexa-surface>
+  }
+</section>

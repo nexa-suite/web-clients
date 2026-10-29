@@ -14,7 +14,7 @@ This repository owns the shared Angular foundation and the separate Platform and
 - npm ci installs the checked-in dependency lock.
 - npm run validate:design checks generated token layers and architecture boundaries.
 - npm run build:all builds both libraries and both applications.
-- `npm run test:ui`, `npm run test:api`, `npm run test:platform`, and `npm run test:portal` run the four unit-test targets separately. Current local candidate passed 21 + 79 + 149 + 100 tests (349 total), plus four runtime-security checks, `npm run build:all` and `npm run validate:design`. These checks do not establish browser integration or Product Acceptance; historical browser evidence is recorded separately in the [canonical context coverage map](docs/architecture/canonical-context-coverage.md).
+- `npm run test:ui`, `npm run test:api`, `npm run test:platform`, and `npm run test:portal` run the four unit-test targets separately. The recorded baseline preceding the current Unreleased construction passed 21 + 79 + 149 + 100 tests (349 total), plus four runtime-security checks, `npm run build:all` and `npm run validate:design`. Tests have not been rerun for the current construction. These checks do not establish browser integration or Product Acceptance; historical browser evidence is recorded separately in the [canonical context coverage map](docs/architecture/canonical-context-coverage.md).
 - docker compose up --build serves Platform on port 4200 and Portal on port 4300.
 
 Platform and Portal remain separate experiences over one shared API authority. Platform uses API-backed context listing and selection; Portal validates the Buyer relationship before displaying its API-backed catalog, purchase requests, orders, delivery tracking, commercial credit/receivables, payment history and documents. Platform composes Sales review, fulfillment readiness/start and document access under its authenticated shell. The candidate also implements supplier-scoped wallet recharge, BOM credit configuration, explicit Warehouse grants for the verified workflow actor, and Company Owner support consent. Internal-operator onboarding, health and support remain service-only; Web has no operator-credential console. These clients require the matching API contracts in [API PR #117](https://github.com/nexa-suite/api/pull/117); source implementation does not establish deployed availability or connected-flow acceptance. Browser context selection uses Bearer authority; the identity-first sign-in and pre-context ticket flow is NATIVE-only. See the [canonical context coverage map](docs/architecture/canonical-context-coverage.md) for current AS-IS coverage, TARGET scope and cross-repository contract boundaries.
@@ -22,6 +22,20 @@ Platform and Portal remain separate experiences over one shared API authority. P
 The consolidated static `web-clients` application provides the public password
 reset route at `/reset-password`. Its API boundary and Pages deployment
 contract are recorded in [Access recovery](docs/access-recovery.md).
+
+Platform also exposes customer accounts and delivery addresses at `/clients`,
+catalog consultation at `/catalog`, catalog management at `/catalog/manage`,
+and sales order consultation at `/sales/orders`. Catalog mutations require the
+corresponding taxonomy, product or price grant. Sales reviewers can propose
+material changes for a submitted request; Buyer consent remains authoritative
+before conversion. Links between customers, requests, orders and fulfillment
+retain their individual permission requirements. The public `/register`
+workflow uses the API's versioned organization-registration draft contract;
+resume authority stays in memory and uncertain commands retain their original
+retry identity. Final terms acceptance requires an authorized publication
+provided through `REGISTRATION_TERMS_PUBLICATION`; the default has no legal
+text or version and keeps submission unavailable. Registration submission is
+pending activation, not a provisioned or immediately usable tenant.
 
 The role/capability projection includes all canonical Platform actors as informational data. API role strings remain authoritative inputs from the server, unmapped roles remain unmapped, and UI role labels never grant access.
 

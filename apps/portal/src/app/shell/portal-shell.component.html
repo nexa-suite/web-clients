@@ -3,45 +3,44 @@
     >Skip to main content</a
   >
   <header class="portal-topbar">
-    <a
-      class="portal-brand"
-      routerLink="/catalog"
-      aria-label="Nexa Buyer Portal"
-    >
-      <nexa-logo alt="Nexa" />
-      <span>Buyer Portal</span>
-    </a>
+    @if (canViewCatalog()) {
+      <a class="portal-brand" routerLink="/catalog" aria-label="Nexa Buyer Portal">
+        <nexa-logo alt="Nexa" />
+        <span>Buyer Portal</span>
+      </a>
+    } @else {
+      <span class="portal-brand" aria-label="Nexa Buyer Portal">
+        <nexa-logo alt="Nexa" />
+        <span>Buyer Portal</span>
+      </span>
+    }
     <nav class="buyer-navigation" aria-label="Buyer navigation">
       @if (canViewDeliveries()) {
         <a routerLink="/deliveries" routerLinkActive="active" ariaCurrentWhenActive="page">My deliveries</a>
       }
-      <a
-        routerLink="/catalog"
-        routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: false }"
-        ariaCurrentWhenActive="page"
-      >
-        <i class="pi pi-box" aria-hidden="true"></i>
-        <span>Catalog</span>
-      </a>
-      <a
-        routerLink="/wallet"
-        routerLinkActive="active"
-        ariaCurrentWhenActive="page"
-        >My wallet</a
-      >
-      <a
-        routerLink="/requests"
-        routerLinkActive="active"
-        ariaCurrentWhenActive="page"
-        >Requests and orders</a
-      >
-      <a
-        routerLink="/documents"
-        routerLinkActive="active"
-        ariaCurrentWhenActive="page"
-        >Documents</a
-      >
+      @if (canViewCatalog()) {
+        <a
+          routerLink="/catalog"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: false }"
+          ariaCurrentWhenActive="page"
+        >
+          <i class="pi pi-box" aria-hidden="true"></i>
+          <span>Catalog</span>
+        </a>
+      }
+      @if (canViewWallet()) {
+        <a routerLink="/wallet" routerLinkActive="active" ariaCurrentWhenActive="page">My wallet</a>
+      }
+      @if (canViewRequests()) {
+        <a routerLink="/requests" routerLinkActive="active" ariaCurrentWhenActive="page">My requests</a>
+      }
+      @if (canViewOrders()) {
+        <a routerLink="/orders" routerLinkActive="active" ariaCurrentWhenActive="page">My orders</a>
+      }
+      @if (canViewDocuments()) {
+        <a routerLink="/documents" routerLinkActive="active" ariaCurrentWhenActive="page">Documents</a>
+      }
     </nav>
     <div class="account-actions">
       <span class="account-name">{{ accountName() }}</span>

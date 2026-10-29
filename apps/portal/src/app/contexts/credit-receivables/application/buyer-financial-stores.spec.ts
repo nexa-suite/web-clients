@@ -1,4 +1,4 @@
-import { signal } from "@angular/core";
+import { computed, signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import {
   NexaReceivablesApi,
@@ -41,6 +41,21 @@ for (const Store of [
             useValue: {
               captureSessionLease: () => (active() ? lease : null),
               isSessionLeaseCurrent: () => active(),
+              state: computed(() => active()
+                ? {
+                    status: "authenticated",
+                    session: {
+                      surface: "PORTAL",
+                      user: { userId: "user-1" },
+                      tenant: { tenantId: "tenant-1" },
+                      workspace: { workspaceId: "workspace-1" },
+                      membership: {
+                        membershipId: "membership-1",
+                        permissions: ["payment.read"],
+                      },
+                    },
+                  }
+                : { status: "invalidated" }),
               expireSessionIfCurrent: expired,
               invalidateContextIfCurrent: vi.fn(),
             },

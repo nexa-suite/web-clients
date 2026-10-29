@@ -78,6 +78,17 @@ describe("NexaBuyerCatalogApi", () => {
     });
   });
 
+  it("loads buyer-visible active filter options from every server page contract", () => {
+    api.filterOptions("category", "  fruit  ", 2, 100).subscribe();
+    const request = http.expectOne((r) => r.url === "/api/v1/catalog-items/filter-options");
+    expect(request.request.params.get("kind")).toBe("category");
+    expect(request.request.params.get("search")).toBe("fruit");
+    expect(request.request.params.get("page")).toBe("2");
+    expect(request.request.params.get("size")).toBe("100");
+    expect(request.request.headers.get("Authorization")).toBe("Bearer current-buyer-token");
+    request.flush({ items: [{ id: "category-1", name: "Fruit" }], page: 2, size: 100, total: 201 });
+  });
+
   it("rejects an empty item identifier before transport", () => {
     let failure: unknown;
     api.getCatalogItem("  ").subscribe({ error: (error) => (failure = error) });

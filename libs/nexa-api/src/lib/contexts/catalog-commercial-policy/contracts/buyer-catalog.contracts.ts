@@ -66,6 +66,18 @@ export interface BuyerCatalogPageResponse {
   readonly sort: { readonly field: string; readonly direction: string };
 }
 
+export interface BuyerCatalogFilterOption {
+  readonly id: string;
+  readonly name: string;
+}
+
+export interface BuyerCatalogFilterOptionPage {
+  readonly items: readonly BuyerCatalogFilterOption[];
+  readonly page: number;
+  readonly size: number;
+  readonly total: number;
+}
+
 export interface BuyerCatalogQuery {
   readonly q?: string;
   readonly brand?: string;

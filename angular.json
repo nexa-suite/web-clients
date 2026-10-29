@@ -133,6 +133,11 @@
                 "output": "."
               },
               {
+                "glob": "catalog-items/**/*",
+                "input": "apps/portal/public",
+                "output": "."
+              },
+              {
                 "glob": "*.svg",
                 "input": "logo-nexa",
                 "output": "brand/canonical"

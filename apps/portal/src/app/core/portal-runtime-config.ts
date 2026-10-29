@@ -10,6 +10,9 @@ export interface PortalWindow extends Window {
   __NEXA_PORTAL_CONFIG__?: {
     readonly apiBaseUrl?: string;
     readonly stripePublishableKey?: string;
+    readonly deliveryMapTileUrlTemplate?: string;
+    readonly deliveryMapAttribution?: string;
+    readonly deliveryMapAttributionUrl?: string;
   };
 }
 

@@ -1,7 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
 import { DatePipe } from "@angular/common";
+import { DOCUMENT } from "@angular/common";
+import { DestroyRef, Injector, OnInit } from "@angular/core";
+import { toObservable } from "@angular/core/rxjs-interop";
 import { RouterLink } from "@angular/router";
-import { NexaButton, NexaSurface } from "nexa-ui";
+import { filter, take } from "rxjs";
+import { NexaButton, NexaSurface, startForegroundRefresh } from "nexa-ui";
+import { PortalSessionStore } from "../../tenant-access-governance/application/public-api";
 import { BuyerDeliveriesStore } from "../application/buyer-deliveries.store";
 @Component({
   selector: "portal-buyer-deliveries",
@@ -35,7 +40,30 @@ import { BuyerDeliveriesStore } from "../application/buyer-deliveries.store";
     </section>
   `,
 })
-export class BuyerDeliveriesPageComponent {
+export class BuyerDeliveriesPageComponent implements OnInit {
   protected readonly store = inject(BuyerDeliveriesStore);
-  constructor() { void this.store.list(); }
+  private readonly sessions = inject(PortalSessionStore);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
+  private readonly document = inject(DOCUMENT);
+
+  ngOnInit(): void {
+    void this.store.list();
+    this.startPolling();
+  }
+
+  private startPolling(): void {
+    const lease = this.sessions.captureSessionLease();
+    if (!lease) return;
+    const stopWhen = toObservable(this.sessions.state, { injector: this.injector }).pipe(
+      filter(() => !this.sessions.isSessionLeaseCurrent(lease)),
+      take(1),
+    );
+    startForegroundRefresh({
+      document: this.document,
+      destroyRef: this.destroyRef,
+      stopWhen,
+      refresh: () => this.store.refreshListForPolling(lease),
+    });
+  }
 }

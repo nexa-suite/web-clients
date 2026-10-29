@@ -128,6 +128,56 @@ export interface PurchaseRequestDetail extends Omit<PurchaseRequestSummary, "lin
   readonly expiresAt: string | null;
 }
 
+export interface PurchaseRequestEvent {
+  readonly eventId: string;
+  readonly eventType: string;
+  readonly fromStatus: string | null;
+  readonly toStatus: string | null;
+  readonly actorMembershipId: string;
+  readonly occurredAt: string;
+}
+
+export interface MaterialChangeTerms {
+  readonly priority: string | null;
+  readonly requestedDeliveryDate: string | null;
+  readonly deliveryProfileSnapshot: string | null;
+  readonly paymentOption: string | null;
+  readonly comment: string | null;
+  readonly lines: readonly PurchaseRequestLine[];
+}
+
+export interface MaterialChangeProposal {
+  readonly id: string;
+  readonly purchaseRequestId: string;
+  readonly status: string;
+  readonly proposedByMembershipId: string;
+  readonly resolvedByMembershipId: string | null;
+  readonly reason: string | null;
+  readonly originalTerms: MaterialChangeTerms;
+  readonly proposedTerms: MaterialChangeTerms;
+  readonly proposedAt: string;
+  readonly resolvedAt: string | null;
+  readonly requestVersion: number;
+  readonly resolvedRequestVersion: number | null;
+}
+
+export interface ProposeMaterialChangeLineRequest {
+  readonly catalogItemId: string;
+  readonly quantity: number;
+  readonly unit: string;
+  readonly notes?: string | null;
+}
+
+export interface ProposeMaterialChangeRequest {
+  readonly reason?: string | null;
+  readonly priority?: string | null;
+  readonly requestedDeliveryDate?: string | null;
+  readonly deliveryProfileSnapshot?: string | null;
+  readonly paymentOption?: string | null;
+  readonly comment?: string | null;
+  readonly lines?: readonly ProposeMaterialChangeLineRequest[] | null;
+}
+
 export interface SalesOrderPage {
   readonly items: readonly SalesOrder[];
   readonly page: number;
@@ -187,6 +237,8 @@ export interface PurchaseRequestPageQuery {
 }
 
 export interface SalesOrderPageQuery {
+  readonly clientAccountId?: string;
+  readonly search?: string;
   readonly status?: string;
   readonly page?: number;
   readonly size?: number;

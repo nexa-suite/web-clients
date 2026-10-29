@@ -49,24 +49,29 @@ export class PortalBuyerEligibilityService {
     lease: PortalSessionLease,
     allowRefresh: boolean,
   ): Observable<PortalBuyerEligibilityResult> {
+    if (!this.sessions.isSessionLeaseCurrent(lease)) return of("stale");
     return this.buyerRelationshipsApi.getCurrentAccount().pipe(
       map((account) => {
         if (!this.sessions.isSessionLeaseCurrent(lease))
           return "stale" as const;
-        const currentSession = this.sessions.session();
-        if (!currentSession) return "stale" as const;
-        const isPortalScoped = currentSession.surface === "PORTAL";
-        if (!isPortalScoped || !currentSession.membership)
+        const session = this.sessions.session();
+        const membershipId = nonBlankString(session?.membership?.membershipId);
+        if (
+          !(session?.surface === "PORTAL") ||
+          !membershipId ||
+          membershipId !== lease.scope.membershipId
+        ) {
+          this.accountSnapshot.set(null);
           return "stale" as const;
-        const membership = currentSession.membership;
-        if (!nonBlankString(membership.membershipId)) return "stale" as const;
+        }
         if (!validBuyerAccount(account)) {
           this.accountSnapshot.set(null);
           return "unavailable" as const;
         }
-        const relationshipMatches =
-          account.buyerMembershipId === membership.membershipId;
-        if (!relationshipMatches) {
+        if (
+          !nonBlankString(account.buyerMembershipId) ||
+          account.buyerMembershipId !== membershipId
+        ) {
           this.accountSnapshot.set(null);
           return "relationship-required" as const;
         }
@@ -128,16 +133,15 @@ function validBuyerAccount(
   const nullableStringFields = [
     "commercialName",
     "segment",
-    "contactPerson",
-    "contactEmail",
-    "phone",
     "deliveryProfile",
     "paymentCondition",
   ];
   if (!nullableStringFields.every((field) => nullableString(account[field])))
     return false;
   return (
-    nullableString(account["buyerMembershipId"]) &&
+    (account["accountType"] === undefined ||
+      account["accountType"] === "BUSINESS" ||
+      account["accountType"] === "INDIVIDUAL") &&
     typeof account["version"] === "number" &&
     Number.isFinite(account["version"])
   );

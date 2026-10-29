@@ -12,4 +12,14 @@ describe('NexaSurface', () => {
     const surface = fixture.nativeElement.querySelector('.nexa-surface') as HTMLElement;
     expect(surface.classList.contains('inset')).toBe(true);
   });
+
+  it('uses a host padding token without imposing a default', () => {
+    const fixture = TestBed.createComponent(NexaSurface);
+    fixture.nativeElement.style.setProperty('--nexa-surface-padding', '20px');
+    fixture.detectChanges();
+
+    const surface = fixture.nativeElement.querySelector('.nexa-surface') as HTMLElement;
+    expect(fixture.nativeElement.style.getPropertyValue('--nexa-surface-padding')).toBe('20px');
+    expect(getComputedStyle(surface).padding).toBe('var(--nexa-surface-padding, 0)');
+  });
 });

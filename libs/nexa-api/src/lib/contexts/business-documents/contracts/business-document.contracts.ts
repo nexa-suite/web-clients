@@ -53,3 +53,29 @@ export interface BusinessDocumentGenerationRequestResponse {
   readonly requestedAt: string;
   readonly completedAt: string | null;
 }
+
+/** Evidence object returned by BC-09 upload and status-read endpoints. */
+export interface BusinessDocumentEvidenceResponse {
+  readonly id: string;
+  readonly subjectType: string;
+  readonly subjectId: string;
+  readonly lifecycleStatus: string;
+  readonly declaredContentType: string;
+  readonly detectedContentType: string | null;
+  readonly originalFilename: string;
+  readonly checksumSha256: string | null;
+  readonly byteSize: number;
+  readonly createdAt: string;
+  readonly scannedAt: string | null;
+  readonly failureCode: string | null;
+  readonly updatedAt: string;
+  readonly requestedByMembershipId: string | null;
+}
+
+/** Current BC-09 server-side evidence size bound. */
+export const BUSINESS_DOCUMENT_EVIDENCE_MAX_BYTES = 10_485_760;
+
+export interface BusinessDocumentEvidenceResourceResponse {
+  readonly body: BusinessDocumentEvidenceResponse;
+  readonly status: number;
+}

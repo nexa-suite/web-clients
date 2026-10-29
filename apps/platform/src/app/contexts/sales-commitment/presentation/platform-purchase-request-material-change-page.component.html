@@ -1,0 +1,511 @@
+<section
+  class="platform-sales-page platform-material-change"
+  aria-labelledby="material-change-title"
+  data-testid="platform-purchase-request-material-change"
+>
+  <a
+    class="platform-sales-page__back"
+    [routerLink]="['/sales/purchase-requests', state().request?.id]"
+    >← Purchase request review</a
+  >
+  @if (state().message; as message) {
+    <p
+      class="platform-sales-page__notice platform-sales-page__notice--error"
+      role="alert"
+    >
+      {{ message }}
+    </p>
+  }
+  @if (state().notice; as notice) {
+    <p class="platform-sales-page__notice" role="status">{{ notice }}</p>
+  }
+
+  @if (state().status === "loading") {
+    <p role="status" aria-live="polite">
+      Loading Purchase Request and proposal history…
+    </p>
+  }
+  @if (state().status === "error" && !state().request) {
+    <nexa-surface tone="inset"
+      ><div role="alert">
+        <h1 id="material-change-title">Request unavailable</h1>
+        <nexa-button variant="secondary" (click)="refresh()"
+          >Try again</nexa-button
+        >
+      </div></nexa-surface
+    >
+  }
+
+  @if (state().request; as request) {
+    <header class="platform-sales-page__heading">
+      <div>
+        <p class="platform-sales-page__eyebrow">SALES · MATERIAL CHANGE</p>
+        <h1 id="material-change-title">{{ request.code || request.id }}</h1>
+        <p>
+          Current state:
+          <strong>{{ request.status.replaceAll("_", " ") }}</strong>
+        </p>
+      </div>
+      <nexa-button variant="secondary" size="compact" (click)="refresh()"
+        >Refresh</nexa-button
+      >
+    </header>
+
+    <nexa-surface tone="default">
+      <h2>Original Purchase Request terms</h2>
+      <dl class="platform-sales-page__facts">
+        <div>
+          <dt>Request ID</dt>
+          <dd class="platform-sales-page__code">{{ request.id }}</dd>
+        </div>
+        <div>
+          <dt>Buyer account</dt>
+          <dd class="platform-sales-page__code">
+            {{ request.clientAccountId }}
+          </dd>
+        </div>
+        <div>
+          <dt>Priority</dt>
+          <dd>{{ request.priority || "—" }}</dd>
+        </div>
+        <div>
+          <dt>Requested delivery</dt>
+          <dd>{{ request.requestedDeliveryDate || "—" }}</dd>
+        </div>
+        <div>
+          <dt>Delivery profile snapshot</dt>
+          <dd class="platform-material-change__long-value">
+            {{ request.deliveryProfileSnapshot || "—" }}
+          </dd>
+        </div>
+        <div>
+          <dt>Payment option</dt>
+          <dd>{{ request.paymentOption || "—" }}</dd>
+        </div>
+        <div>
+          <dt>Buyer comment</dt>
+          <dd class="platform-material-change__long-value">
+            {{ request.comment || "—" }}
+          </dd>
+        </div>
+        <div>
+          <dt>Current version</dt>
+          <dd>
+            {{ request.version }}
+            @if (state().etag) {
+              · ETag available
+            } @else {
+              · ETag unavailable
+            }
+          </dd>
+        </div>
+      </dl>
+      <h3>Original lines</h3>
+      <div class="platform-sales-page__table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Line ID</th>
+              <th>Catalog item ID</th>
+              <th>Item</th>
+              <th>Quantity</th>
+              <th>Unit price</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of request.lines; track line.id) {
+              <tr>
+                <td class="platform-sales-page__code">{{ line.id }}</td>
+                <td class="platform-sales-page__code">
+                  {{ line.catalogItemId || "—" }}
+                </td>
+                <td>
+                  {{ line.itemName || line.presentation || "Catalog item" }}
+                </td>
+                <td>{{ line.quantity }} {{ line.unit || "" }}</td>
+                <td>
+                  {{ line.unitPriceCurrency || "" }}
+                  {{ line.unitPriceAmount ?? "—" }}
+                </td>
+                <td>{{ line.notes || "—" }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="platform-material-change__authority-note">
+        Prices shown above are the original server snapshots. The API resolves
+        and validates proposed catalog prices when the proposal is submitted.
+      </p>
+    </nexa-surface>
+
+    @if (request.status === "SUBMITTED" && state().draft; as draft) {
+      @if (store.canPropose()) {
+        <nexa-surface tone="default">
+          <h2>Proposed terms</h2>
+          @if (state().pending && !state().pendingPayloadAvailable) {
+            <p
+              class="platform-sales-page__notice platform-sales-page__notice--warning"
+              role="status"
+            >
+              This session has an uncertain proposal marker but no saved
+              proposal text. Rebuild the exact payload to retry; the saved
+              idempotency key is reused only when the payload fingerprint
+              matches.
+            </p>
+          }
+          <div class="platform-material-change__form">
+            <label
+              >Reason
+              <textarea
+                maxlength="2000"
+                rows="3"
+                [value]="draft.reason"
+                [disabled]="store.busy()"
+                (input)="store.updateDraft('reason', $any($event.target).value)"
+              ></textarea>
+            </label>
+            <div class="platform-material-change__fields">
+              <label
+                >Priority
+                <select
+                  [value]="draft.priority"
+                  [disabled]="store.busy()"
+                  (change)="
+                    store.updateDraft('priority', $any($event.target).value)
+                  "
+                >
+                  @for (priority of priorities; track priority) {
+                    <option [value]="priority">{{ priority }}</option>
+                  }
+                </select>
+              </label>
+              <label
+                >Requested delivery date
+                <input
+                  type="date"
+                  [value]="draft.requestedDeliveryDate"
+                  [disabled]="store.busy()"
+                  (input)="
+                    store.updateDraft(
+                      'requestedDeliveryDate',
+                      $any($event.target).value
+                    )
+                  "
+                />
+                <small>Leaving this blank preserves the current date.</small>
+              </label>
+              <label
+                >Payment option
+                <select
+                  [value]="draft.paymentOption"
+                  [disabled]="store.busy()"
+                  (change)="
+                    store.updateDraft(
+                      'paymentOption',
+                      $any($event.target).value
+                    )
+                  "
+                >
+                  <option value="">Keep current value</option>
+                  @for (paymentOption of paymentOptions; track paymentOption) {
+                    <option [value]="paymentOption">{{ paymentOption }}</option>
+                  }
+                </select>
+              </label>
+            </div>
+            <label
+              >Delivery profile snapshot
+              <textarea
+                maxlength="2000"
+                rows="3"
+                [value]="draft.deliveryProfileSnapshot"
+                [disabled]="store.busy()"
+                (input)="
+                  store.updateDraft(
+                    'deliveryProfileSnapshot',
+                    $any($event.target).value
+                  )
+                "
+              ></textarea>
+              <small
+                >Blank clears a current value. The API validates and records
+                this snapshot.</small
+              >
+            </label>
+            <label
+              >Buyer comment
+              <textarea
+                maxlength="2000"
+                rows="3"
+                [value]="draft.comment"
+                [disabled]="store.busy()"
+                (input)="
+                  store.updateDraft('comment', $any($event.target).value)
+                "
+              ></textarea>
+              <small>Blank clears a current value.</small>
+            </label>
+
+            <div class="platform-material-change__line-heading">
+              <h3>Proposed lines</h3>
+              <button
+                type="button"
+                class="platform-material-change__text-button"
+                [disabled]="store.busy()"
+                (click)="store.addLine()"
+              >
+                Add line
+              </button>
+            </div>
+            <div class="platform-sales-page__table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Catalog item ID</th>
+                    <th>Quantity</th>
+                    <th>Unit</th>
+                    <th>Notes</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of draft.lines; track line.rowKey) {
+                    <tr>
+                      <td>
+                        <input
+                          aria-label="Catalog item ID"
+                          maxlength="64"
+                          required
+                          [value]="line.catalogItemId"
+                          [disabled]="store.busy()"
+                          (input)="
+                            store.updateLine(
+                              line.rowKey,
+                              'catalogItemId',
+                              $any($event.target).value
+                            )
+                          "
+                        />
+                      </td>
+                      <td>
+                        <input
+                          aria-label="Quantity"
+                          type="number"
+                          min="0.000001"
+                          step="any"
+                          required
+                          [value]="line.quantity"
+                          [disabled]="store.busy()"
+                          (input)="
+                            store.updateLine(
+                              line.rowKey,
+                              'quantity',
+                              $any($event.target).value
+                            )
+                          "
+                        />
+                      </td>
+                      <td>
+                        <input
+                          aria-label="Unit"
+                          maxlength="32"
+                          required
+                          [value]="line.unit"
+                          [disabled]="store.busy()"
+                          (input)="
+                            store.updateLine(
+                              line.rowKey,
+                              'unit',
+                              $any($event.target).value
+                            )
+                          "
+                        />
+                      </td>
+                      <td>
+                        <input
+                          aria-label="Line notes"
+                          maxlength="2000"
+                          [value]="line.notes"
+                          [disabled]="store.busy()"
+                          (input)="
+                            store.updateLine(
+                              line.rowKey,
+                              'notes',
+                              $any($event.target).value
+                            )
+                          "
+                        />
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          class="platform-material-change__text-button"
+                          [disabled]="store.busy()"
+                          (click)="store.removeLine(line.rowKey)"
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <p class="platform-material-change__authority-note">
+              Line IDs and prices are assigned or revalidated by the API. The
+              proposal sends catalog item IDs, quantities, units, and notes
+              only.
+            </p>
+            <p class="platform-material-change__authority-note">
+              The API rejects proposals that do not change request terms. A
+              reason or comment alone is not a material change.
+            </p>
+            <div class="platform-sales-page__actions">
+              <nexa-button
+                [disabled]="store.busy() || !state().etag"
+                (click)="store.propose()"
+              >
+                @if (state().pending) {
+                  Retry same proposal
+                } @else {
+                  Propose material changes
+                }
+              </nexa-button>
+            </div>
+          </div>
+        </nexa-surface>
+      } @else {
+        <p class="platform-sales-page__notice" role="note">
+          The active membership does not have the Sales Purchase Request review
+          permission required to propose changes.
+        </p>
+      }
+    } @else if (request.status === "CHANGES_PROPOSED") {
+      <nexa-surface tone="inset"
+        ><h2>Buyer response required</h2>
+        <p>
+          Sales material changes are awaiting the Buyer’s authoritative
+          acceptance. Review the recorded server proposal below.
+        </p></nexa-surface
+      >
+    } @else {
+      <nexa-surface tone="inset"
+        ><h2>Proposal unavailable</h2>
+        <p>
+          Material changes can be proposed only while the Purchase Request is
+          submitted. Current API state:
+          {{ request.status.replaceAll("_", " ") }}.
+        </p></nexa-surface
+      >
+    }
+
+    <nexa-surface tone="default">
+      <h2>Material-change history</h2>
+      @if (
+        !state().history.length &&
+        !state().currentProposal &&
+        !state().notice &&
+        request.status !== "CHANGES_PROPOSED"
+      ) {
+        <p>No material-change proposals are recorded for this request.</p>
+      }
+      @if (state().currentProposal; as proposal) {
+        @if (!state().history.length) {
+          <ng-container
+            *ngTemplateOutlet="proposalCard; context: { $implicit: proposal }"
+          />
+        }
+      }
+      @for (proposal of state().history; track proposal.id) {
+        <ng-container
+          *ngTemplateOutlet="proposalCard; context: { $implicit: proposal }"
+        />
+      }
+    </nexa-surface>
+  }
+</section>
+
+<ng-template #proposalCard let-proposal>
+  <article class="platform-material-change__history">
+    <header>
+      <div>
+        <h3>Proposal {{ proposal.id }}</h3>
+        <p>
+          {{ proposal.status.replaceAll("_", " ") }} · {{ proposal.proposedAt }}
+        </p>
+      </div>
+    </header>
+    <p>
+      <strong>Reason:</strong> {{ proposal.reason || "No reason supplied" }}
+    </p>
+    <div class="platform-material-change__comparison">
+      <section>
+        <h4>Original terms</h4>
+        <p>Priority: {{ proposal.originalTerms.priority || "—" }}</p>
+        <p>
+          Requested delivery:
+          {{ proposal.originalTerms.requestedDeliveryDate || "—" }}
+        </p>
+        <p>Payment: {{ proposal.originalTerms.paymentOption || "—" }}</p>
+        <p>
+          Delivery profile:
+          {{ proposal.originalTerms.deliveryProfileSnapshot || "—" }}
+        </p>
+        <p>Comment: {{ proposal.originalTerms.comment || "—" }}</p>
+      </section>
+      <section>
+        <h4>Proposed terms</h4>
+        <p>Priority: {{ proposal.proposedTerms.priority || "—" }}</p>
+        <p>
+          Requested delivery:
+          {{ proposal.proposedTerms.requestedDeliveryDate || "—" }}
+        </p>
+        <p>Payment: {{ proposal.proposedTerms.paymentOption || "—" }}</p>
+        <p>
+          Delivery profile:
+          {{ proposal.proposedTerms.deliveryProfileSnapshot || "—" }}
+        </p>
+        <p>Comment: {{ proposal.proposedTerms.comment || "—" }}</p>
+      </section>
+    </div>
+    <div class="platform-sales-page__table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Proposed line ID</th>
+            <th>Catalog item ID</th>
+            <th>Item</th>
+            <th>Quantity</th>
+            <th>Server price</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (line of proposal.proposedTerms.lines; track line.id) {
+            <tr>
+              <td class="platform-sales-page__code">{{ line.id }}</td>
+              <td class="platform-sales-page__code">
+                {{ line.catalogItemId || "—" }}
+              </td>
+              <td>
+                {{ line.itemName || line.presentation || "Catalog item" }}
+              </td>
+              <td>{{ line.quantity }} {{ line.unit || "" }}</td>
+              <td>
+                {{ line.unitPriceCurrency || "" }}
+                {{ line.unitPriceAmount ?? "—" }}
+              </td>
+              <td>{{ line.notes || "—" }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="platform-material-change__authority-note">
+      Proposed prices above are returned by the server. Buyer acceptance is
+      required before the change becomes authoritative.
+    </p>
+  </article>
+</ng-template>

@@ -7,7 +7,9 @@
     </div>
     <div class="sales-commitment-page__actions">
       <nexa-button variant="secondary" size="compact" (click)="refresh()">Refresh</nexa-button>
-      <nexa-button routerLink="/requests/new">Start a request</nexa-button>
+      @if (canWriteRequests()) {
+        <nexa-button routerLink="/requests/new">Start a request</nexa-button>
+      }
     </div>
   </header>
 
@@ -34,7 +36,11 @@
                           <td>{{ draft.status.replaceAll('_', ' ') }}</td>
                           <td>{{ draft.lineCount }}</td>
                           <td>{{ draft.requestedDeliveryDate }}</td>
-                          <td><a [routerLink]="['/requests/new']" [queryParams]="{ draftId: draft.id }">Continue draft</a></td>
+                          <td>
+                            @if (canWriteRequests()) {
+                              <a [routerLink]="['/requests/new']" [queryParams]="{ draftId: draft.id }">Continue draft</a>
+                            }
+                          </td>
                         </tr>
                       }
                     }

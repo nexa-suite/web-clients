@@ -1,10 +1,13 @@
 <section class="sales-commitment-page" aria-labelledby="buyer-request-detail-title">
-  <a class="sales-commitment-page__back" routerLink="/requests">← My requests</a>
-  @switch (state().status) {
+  @let current = state();
+  @if (canReadRequests()) {
+    <a class="sales-commitment-page__back" routerLink="/requests">← My requests</a>
+  }
+  @switch (current.status) {
     @case ('loading') { <p role="status" aria-live="polite">Loading purchase request…</p> }
-    @case ('error') { <nexa-surface tone="inset"><div role="alert"><h1 id="buyer-request-detail-title">Request unavailable</h1><p>{{ state().message }}</p><nexa-button variant="secondary" (click)="refresh()">Try again</nexa-button></div></nexa-surface> }
+    @case ('error') { <nexa-surface tone="inset"><div role="alert"><h1 id="buyer-request-detail-title">Request unavailable</h1><p>{{ current.message }}</p><nexa-button variant="secondary" (click)="refresh()">Try again</nexa-button></div></nexa-surface> }
     @case ('ready') {
-      @let request = state().request;
+      @let request = current.request;
       @if (request) {
         <header class="sales-commitment-page__heading"><div><p class="sales-commitment-page__eyebrow">PURCHASE REQUEST</p><h1 id="buyer-request-detail-title">{{ request.code || request.id }}</h1><p>Current status: <strong>{{ request.status.replaceAll('_', ' ') }}</strong></p></div><nexa-button variant="secondary" size="compact" (click)="refresh()">Refresh</nexa-button></header>
         <nexa-surface tone="default">
@@ -14,6 +17,140 @@
             <div><dt>Review note</dt><dd>{{ request.reviewNote || 'No Sales note' }}</dd></div>
             @if (request.expiresAt) { <div><dt>Request expires</dt><dd><time [attr.datetime]="request.expiresAt">{{ request.expiresAt }}</time></dd></div> }
           </dl>
+        </nexa-surface>
+        @if (request.status === 'CHANGES_PROPOSED') {
+          <nexa-surface tone="default">
+            <section class="sales-commitment-page__material-change" aria-labelledby="buyer-request-change-title">
+              <header class="sales-commitment-page__section-heading">
+                <div>
+                  <p class="sales-commitment-page__eyebrow">BUYER DECISION REQUIRED</p>
+                  <h2 id="buyer-request-change-title">Proposed material changes</h2>
+                  <p>Review the original and proposed request terms before you decide.</p>
+                </div>
+                <span class="sales-commitment-page__proposal-status">Awaiting your response</span>
+              </header>
+              @switch (current.materialChange.status) {
+                @case ('error') {
+                  <div class="sales-commitment-page__command-message sales-commitment-page__command-message--error" role="alert">
+                    <p>The current material change proposal could not be loaded.</p>
+                    <nexa-button variant="secondary" size="compact" (click)="refresh()">Reload proposal</nexa-button>
+                  </div>
+                }
+                @case ('ready') {
+                  @let proposal = current.materialChange.proposal;
+                  <div class="sales-commitment-page__proposal-context">
+                    <p><strong>Reason from Sales</strong><span>{{ proposal.reason || 'No reason was provided.' }}</span></p>
+                    <p><strong>Proposed</strong><time [attr.datetime]="proposal.proposedAt">{{ proposal.proposedAt | date:'medium' }}</time></p>
+                  </div>
+                  <div class="sales-commitment-page__terms-grid">
+                    <article class="sales-commitment-page__terms-card">
+                      <h3>Current request</h3>
+                      <dl>
+                        <div><dt>Priority</dt><dd>{{ proposal.originalTerms.priority || 'Not specified' }}</dd></div>
+                        <div><dt>Requested delivery</dt><dd>{{ proposal.originalTerms.requestedDeliveryDate || 'Not specified' }}</dd></div>
+                        <div><dt>Payment preference</dt><dd>{{ proposal.originalTerms.paymentOption || 'Not specified' }}</dd></div>
+                        <div><dt>Buyer note</dt><dd>{{ proposal.originalTerms.comment || 'No note' }}</dd></div>
+                        @if (proposal.originalTerms.deliveryProfileSnapshot) {
+                          <div class="sales-commitment-page__term-snapshot"><dt>Delivery details</dt><dd><pre>{{ proposal.originalTerms.deliveryProfileSnapshot }}</pre></dd></div>
+                        }
+                      </dl>
+                    </article>
+                    <article class="sales-commitment-page__terms-card sales-commitment-page__terms-card--proposed">
+                      <h3>Proposed request</h3>
+                      <dl>
+                        <div><dt>Priority</dt><dd>{{ proposal.proposedTerms.priority || 'Not specified' }}</dd></div>
+                        <div><dt>Requested delivery</dt><dd>{{ proposal.proposedTerms.requestedDeliveryDate || 'Not specified' }}</dd></div>
+                        <div><dt>Payment preference</dt><dd>{{ proposal.proposedTerms.paymentOption || 'Not specified' }}</dd></div>
+                        <div><dt>Buyer note</dt><dd>{{ proposal.proposedTerms.comment || 'No note' }}</dd></div>
+                        @if (proposal.proposedTerms.deliveryProfileSnapshot) {
+                          <div class="sales-commitment-page__term-snapshot"><dt>Delivery details</dt><dd><pre>{{ proposal.proposedTerms.deliveryProfileSnapshot }}</pre></dd></div>
+                        }
+                      </dl>
+                    </article>
+                  </div>
+                  <div class="sales-commitment-page__terms-grid sales-commitment-page__terms-grid--lines">
+                    <article class="sales-commitment-page__terms-card">
+                      <h3>Current items <span>{{ proposal.originalTerms.lines.length }}</span></h3>
+                      @if (proposal.originalTerms.lines.length) {
+                        <div class="sales-commitment-page__table-wrap"><table><thead><tr><th>Item</th><th>Quantity</th><th>Unit price</th></tr></thead><tbody>
+                          @for (line of proposal.originalTerms.lines; track line.id || $index) {
+                            <tr><td>{{ line.itemName || line.presentation || line.catalogItemId || 'Catalog item' }}<small>{{ line.catalogItemId || 'Catalog reference unavailable' }}</small></td><td>{{ line.quantity }} {{ line.unit || '' }}</td><td>{{ line.unitPriceCurrency || '' }} {{ line.unitPriceAmount ?? 'Not provided' }}</td></tr>
+                          }
+                        </tbody></table></div>
+                      } @else { <p>No items in the current terms.</p> }
+                    </article>
+                    <article class="sales-commitment-page__terms-card sales-commitment-page__terms-card--proposed">
+                      <h3>Proposed items <span>{{ proposal.proposedTerms.lines.length }}</span></h3>
+                      @if (proposal.proposedTerms.lines.length) {
+                        <div class="sales-commitment-page__table-wrap"><table><thead><tr><th>Item</th><th>Quantity</th><th>Unit price</th></tr></thead><tbody>
+                          @for (line of proposal.proposedTerms.lines; track line.id || $index) {
+                            <tr><td>{{ line.itemName || line.presentation || line.catalogItemId || 'Catalog item' }}<small>{{ line.catalogItemId || 'Catalog reference unavailable' }}</small></td><td>{{ line.quantity }} {{ line.unit || '' }}</td><td>{{ line.unitPriceCurrency || '' }} {{ line.unitPriceAmount ?? 'Not provided' }}</td></tr>
+                          }
+                        </tbody></table></div>
+                      } @else { <p>No items in the proposed terms.</p> }
+                    </article>
+                  </div>
+                  @if (canWriteRequests()) {
+                    <div class="sales-commitment-page__actions sales-commitment-page__proposal-actions">
+                      <nexa-button variant="primary" size="compact" [disabled]="!canStartCommand()" (click)="askForConfirmation('accept-material-change')">Accept proposed terms</nexa-button>
+                      <nexa-button variant="secondary" size="compact" [disabled]="!canStartCommand()" (click)="askForConfirmation('reject-material-change')">Reject proposed terms</nexa-button>
+                    </div>
+                  }
+                }
+                @default { <p role="status">There is no active proposal to review.</p> }
+              }
+            </section>
+          </nexa-surface>
+        }
+        @if (canWriteRequests() && (request.status === 'SUBMITTED' || request.status === 'CHANGES_PROPOSED')) {
+          <nexa-surface tone="default">
+            <section class="sales-commitment-page__request-actions" aria-labelledby="buyer-request-actions-title">
+              <div><h2 id="buyer-request-actions-title">Request actions</h2><p>You can withdraw this request while it is active.</p></div>
+              <nexa-button variant="secondary" size="compact" [disabled]="!canStartCommand()" (click)="askForConfirmation('withdraw')">Withdraw request</nexa-button>
+            </section>
+          </nexa-surface>
+        }
+        @let command = commandState();
+        @switch (command.status) {
+          @case ('confirming') {
+            <nexa-surface tone="inset">
+              <section class="sales-commitment-page__command-confirmation" aria-labelledby="buyer-request-confirm-title">
+                <div><h2 id="buyer-request-confirm-title">Confirm your decision</h2><p>{{ actionConfirmation(command.action) }}</p></div>
+                <div class="sales-commitment-page__actions">
+                  <nexa-button variant="secondary" size="compact" (click)="cancelConfirmation()">Cancel</nexa-button>
+                  <nexa-button variant="primary" size="compact" (click)="executeConfirmedAction()">Confirm</nexa-button>
+                </div>
+              </section>
+            </nexa-surface>
+          }
+          @case ('submitting') { <p role="status" aria-live="polite">Applying your decision…</p> }
+          @case ('error') {
+            <nexa-surface tone="inset"><div class="sales-commitment-page__command-message sales-commitment-page__command-message--error" role="alert"><div><h2>We could not confirm the result</h2><p>{{ command.message }}</p></div><div class="sales-commitment-page__actions"><nexa-button variant="secondary" size="compact" (click)="reloadAfterCommand()">Reload request</nexa-button>@if (command.action !== 'withdraw') { <nexa-button variant="primary" size="compact" (click)="retryAction()">Retry same action</nexa-button> }</div></div></nexa-surface>
+          }
+          @case ('conflict') {
+            <nexa-surface tone="inset"><div class="sales-commitment-page__command-message sales-commitment-page__command-message--conflict" role="alert"><div><h2>Request changed</h2><p>{{ command.message }}</p></div><nexa-button variant="secondary" size="compact" (click)="reloadAfterCommand()">Reload request</nexa-button></div></nexa-surface>
+          }
+          @case ('success') { <p class="sales-commitment-page__notice sales-commitment-page__notice--success" role="status" aria-live="polite">{{ command.message }}</p> }
+        }
+        <nexa-surface tone="default">
+          <h2>Request timeline</h2>
+          @switch (current.timeline.status) {
+            @case ('ready') {
+              <ol class="sales-commitment-page__timeline" aria-label="Purchase request events">
+                @for (event of current.timeline.events; track event.eventId) {
+                  <li>
+                    <time [attr.datetime]="event.occurredAt">{{ event.occurredAt | date:'mediumDate' }}</time>
+                    <div>
+                      <strong>{{ event.eventType.replaceAll('_', ' ') }}</strong>
+                      <p><span>{{ event.fromStatus?.replaceAll('_', ' ') || '—' }}</span><span aria-hidden="true">→</span><span>{{ event.toStatus?.replaceAll('_', ' ') || '—' }}</span></p>
+                    </div>
+                  </li>
+                }
+              </ol>
+            }
+            @case ('empty') { <p>No events are available for this request.</p> }
+            @case ('error') { <div role="alert"><p>Request activity could not be loaded.</p><nexa-button variant="secondary" size="compact" (click)="refresh()">Retry timeline</nexa-button></div> }
+          }
         </nexa-surface>
         <nexa-surface tone="default">
           <h2>Requested items</h2>
@@ -25,7 +162,9 @@
         </nexa-surface>
         @if (request.status === 'CONVERTED') { <p class="sales-commitment-page__notice">Sales created an order from this request. Check My orders for its current status.</p> }
         @if (request.status === 'REJECTED') { <p class="sales-commitment-page__notice">Sales rejected this request. Review the note above for more information.</p> }
-        <a class="sales-commitment-page__button-link" routerLink="/orders">View my orders</a>
+        @if (canReadOrders()) {
+          <a class="sales-commitment-page__button-link" routerLink="/orders">View my orders</a>
+        }
       }
     }
   }

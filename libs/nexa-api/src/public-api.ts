@@ -47,6 +47,51 @@ export type {
   ProblemDetail,
 } from "./lib/http/problem-details";
 export { NexaBuyerRelationshipsApi } from "./lib/contexts/customer-buyer-relationships/infrastructure/buyer-relationships-api";
+export { NexaPlatformClientAccountsApi } from "./lib/contexts/customer-buyer-relationships/infrastructure/platform-client-accounts-api";
+export type {
+  ClientAccountSummary,
+  ClientAccountDetail,
+  ClientAccountPage,
+  CreateClientAccount,
+  UpdateClientAccount,
+  ClientAddress,
+  DeliveryAddressInput,
+  BuyerMembershipCandidate,
+} from "./lib/contexts/customer-buyer-relationships/infrastructure/platform-client-accounts-api";
+export { NexaPlatformCatalogApi } from "./lib/contexts/catalog-commercial-policy/infrastructure/platform-catalog-api";
+export type {
+  PlatformCatalogProduct,
+  PlatformCatalogPage,
+  PlatformCatalogTaxonomy,
+  PlatformCatalogTaxonomyPage,
+} from "./lib/contexts/catalog-commercial-policy/infrastructure/platform-catalog-api";
+export { NexaWarehouseInventoryApi } from "./lib/contexts/inventory-availability/infrastructure/warehouse-inventory-api";
+export {
+  NEXA_WAREHOUSE_INVENTORY_API_PATHS,
+  type ReceiveWarehouseStockRequest,
+  type WarehouseInventoryLotResponse,
+  type WarehouseInventoryPageResponse,
+  type WarehouseInventoryResourceResponse,
+  type WarehouseInventoryWarehouseResponse,
+  type WarehouseInventoryZoneResponse,
+} from "./lib/contexts/inventory-availability/contracts/warehouse-inventory.contracts";
+export type { WarehouseInventoryLotQuery } from "./lib/contexts/inventory-availability/infrastructure/warehouse-inventory-api";
+export { NexaPlatformCatalogManagementApi } from "./lib/contexts/catalog-commercial-policy/infrastructure/catalog-management-api";
+export type {
+  CatalogCommandPage,
+  ManagedCategory,
+  ManagedBrand,
+  CreateCategoryRequest,
+  CreateBrandRequest,
+  ProductFamilySummary,
+  CreateProductFamilyRequest,
+  ProductVariantSummary,
+  CreateProductVariantRequest,
+  SellableSkuSummary,
+  CreateSellableSkuRequest,
+  SkuPrice,
+  CreateSkuPriceRequest,
+} from "./lib/contexts/catalog-commercial-policy/contracts/catalog-management.contracts";
 export type {
   CurrentBuyerAccountResponse,
   BuyerAddressResponse,
@@ -59,6 +104,7 @@ export type {
   BuyerCatalogItemDetailResponse,
   CatalogMoneyResponse,
 } from "./lib/contexts/catalog-commercial-policy/contracts/buyer-catalog.contracts";
+export * from "./lib/contexts/customer-buyer-relationships/buyer-favorites/public-api";
 
 export { normalizeNexaApiBaseUrl } from "./lib/http/api-base-url";
 export { NexaWalletRefundsApi } from "./lib/contexts/payments/infrastructure/wallet-refunds-api";
@@ -104,7 +150,11 @@ export * from "./lib/contexts/sales-commitment/public-api";
 export * from "./lib/contexts/tenant-access-governance/public-api";
 
 export * from "./lib/queries/fulfillment-readiness/public-api";
+export * from "./lib/queries/reference-data/public-api";
 export * from "./lib/contexts/fulfillment-delivery/public-api";
 export { NexaCommandRetryStore } from "./lib/http/command-retry-store";
 export { NexaBuyerDeliveriesApi } from "./lib/contexts/fulfillment-delivery/infrastructure/buyer-deliveries-api";
-export type { BuyerDeliveryResponse, BuyerDeliveryPageResponse, BuyerDeliveryEventResponse } from "./lib/contexts/fulfillment-delivery/contracts/buyer-delivery.contracts";
+export type { BuyerDeliveryResponse, BuyerDeliveryPageResponse, BuyerDeliveryEventResponse, BuyerDeliveryLiveLocationResponse, BuyerDeliveryLocationSample } from "./lib/contexts/fulfillment-delivery/contracts/buyer-delivery.contracts";
+
+export { NexaOrganizationRegistrationApi } from './lib/contexts/tenant-access-governance/infrastructure/organization-registration-api';
+export type { OrganizationRegistrationDraft, RegistrationSnapshot } from './lib/contexts/tenant-access-governance/contracts/organization-registration.contracts';

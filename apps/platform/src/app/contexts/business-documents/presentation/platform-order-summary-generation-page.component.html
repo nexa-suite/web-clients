@@ -47,15 +47,16 @@
           </div>
           <span class="document-status">{{ orderStatusLabel(state.order.status) }}</span>
         </header>
-        <nexa-button
-          variant="primary"
-          [disabled]="!store.canGenerate() || !store.canReadSalesOrders()"
-          (click)="store.requestOrderSummaryPdf()"
-          >Request order summary PDF</nexa-button
-        >
-        @if (!store.canGenerate()) {
+        @if (store.canGenerate() && store.canReadSalesOrders()) {
+          <nexa-button
+            variant="primary"
+            (click)="store.requestOrderSummaryPdf()"
+            >Request order summary PDF</nexa-button
+          >
+        } @else {
           <p class="availability-note">
-            The active Platform membership needs document.generate permission.
+            The active Platform membership needs document.generate and
+            sales.order.read permissions to request an order summary.
           </p>
         }
       </article>

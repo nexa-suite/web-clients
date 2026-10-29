@@ -1,6 +1,8 @@
 export { NexaSalesCommitmentApi } from "./infrastructure/sales-commitment-api";
 export type {
   CreatePurchaseRequestDraftRequest,
+  MaterialChangeProposal,
+  MaterialChangeTerms,
   PurchaseRequestDetail,
   PurchaseRequestDraft,
   PurchaseRequestDraftDestination,
@@ -11,10 +13,13 @@ export type {
   PurchaseRequestDraftRoute,
   PurchaseRequestDraftSummary,
   PurchaseRequestDraftWarehouseSelection,
+  PurchaseRequestEvent,
   PurchaseRequestLine,
   PurchaseRequestPage,
   PurchaseRequestPageQuery,
   PurchaseRequestSummary,
+  ProposeMaterialChangeLineRequest,
+  ProposeMaterialChangeRequest,
   SalesOrder,
   SalesOrderLine,
   SalesOrderPage,

@@ -8,3 +8,5 @@ export {
   requirePlatformAuthentication,
   requirePlatformAuthenticationForChild,
 } from "./platform-authentication.guard";
+
+export { PLATFORM_ORGANIZATION_REGISTRATION_ROUTES } from './registration/organization-registration.routes';

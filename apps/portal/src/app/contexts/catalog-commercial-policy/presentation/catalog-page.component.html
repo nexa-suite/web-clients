@@ -1,98 +1,447 @@
-<section class="catalog-page" aria-labelledby="catalog-heading" data-testid="portal-catalog-page">
+<section
+  class="catalog-page"
+  aria-labelledby="catalog-heading"
+  data-testid="portal-catalog-page"
+>
   <header class="page-heading">
     <div>
-      <p class="page-kicker">CATALOG</p>
-      <h1 id="catalog-heading" data-testid="portal-catalog-heading">Browse catalog SKUs</h1>
-      <p class="page-intro">Search the SKUs listed in this workspace catalog.</p>
+      <p class="page-kicker">BUYER CATALOG</p>
+      <h1 id="catalog-heading" data-testid="portal-catalog-heading">
+        Find products for your business
+      </h1>
+      <p class="page-intro">
+        Browse brands, compare presentations, and start a request when you’re
+        ready.
+      </p>
     </div>
   </header>
 
-  <nexa-surface tone="soft">
-    <form class="catalog-search" aria-label="Search catalog" (submit)="search($event)">
-      <nexa-text-field
-        id="catalog-query"
-        label="Search SKUs"
-        type="search"
-        placeholder="Name, family or SKU"
-        [value]="q()"
-        (valueChange)="q.set($event)"
-      />
-      <nexa-text-field id="catalog-brand" label="Brand" [value]="brand()" (valueChange)="brand.set($event)" />
-      <nexa-text-field id="catalog-category" label="Category" [value]="category()" (valueChange)="category.set($event)" />
-      <label class="cold-chain-filter" for="catalog-cold-chain">
-        <span>Cold-chain requirement</span>
-        <select id="catalog-cold-chain" [value]="coldChain()" (change)="coldChain.set($any($event.target).value)">
-          @for (option of coldChainOptions; track option.value) {
+  <nexa-surface class="catalog-tools" tone="soft">
+    <form
+      class="catalog-search"
+      aria-label="Search catalog"
+      (submit)="search($event)"
+    >
+      <div class="catalog-search__primary">
+        <nexa-text-field
+          id="catalog-query"
+          label="Search products or brands"
+          type="search"
+          placeholder="Try a product name, brand, or SKU"
+          [value]="q()"
+          (valueChange)="q.set($event)"
+        />
+        <div class="search-actions">
+          <nexa-button type="submit" [loading]="store.page().kind === 'loading'"
+            >Search catalog</nexa-button
+          >
+          @if (q() || brand() || category() || coldChain()) {
+            <nexa-button
+              type="button"
+              variant="quiet"
+              [disabled]="store.page().kind === 'loading'"
+              (click)="clear()"
+              >Clear filters</nexa-button
+            >
+          }
+        </div>
+      </div>
+      <div class="catalog-filters">
+        <label class="catalog-filter" for="catalog-brand">
+          <span>Brand</span>
+          <select
+            id="catalog-brand"
+            [value]="brand()"
+            (change)="brand.set($any($event.target).value)"
+            [disabled]="store.filterOptionsLoading()"
+          >
+            <option value="">All brands</option>
+            @for (option of store.brands(); track option.id) {
+              <option [value]="option.name">{{ option.name }}</option>
+            }
+          </select>
+        </label>
+        <label class="catalog-filter" for="catalog-category">
+          <span>Category</span>
+          <select
+            id="catalog-category"
+            [value]="category()"
+            (change)="category.set($any($event.target).value)"
+            [disabled]="store.filterOptionsLoading()"
+          >
+            <option value="">All categories</option>
+            @for (option of store.categories(); track option.id) {
+              <option [value]="option.name">{{ option.name }}</option>
+            }
+          </select>
+        </label>
+        <label class="catalog-filter" for="catalog-cold-chain">
+          <span>Storage requirement</span>
+          <select
+            id="catalog-cold-chain"
+            [value]="coldChain()"
+            (change)="coldChain.set($any($event.target).value)"
+          >
+            @for (option of coldChainOptions; track option.value) {
+              <option [value]="option.value">{{ option.label }}</option>
+            }
+          </select>
+        </label>
+      </div>
+    </form>
+  </nexa-surface>
+  @if (store.filterOptionsError()) {
+    <p class="filter-error" role="alert">{{ store.filterOptionsError() }}</p>
+  }
+
+  <div class="results-heading">
+    <div>
+      <h2>Products</h2>
+      <p>Products currently listed for this Buyer account.</p>
+    </div>
+    <div class="results-controls">
+      <label class="catalog-filter catalog-sort" for="catalog-sort">
+        <span>Sort by</span>
+        <select
+          id="catalog-sort"
+          [value]="sortOption()"
+          [disabled]="store.page().kind === 'loading'"
+          (change)="sortBy($any($event.target).value)"
+        >
+          @for (option of sortOptions; track option.value) {
             <option [value]="option.value">{{ option.label }}</option>
           }
         </select>
       </label>
-      <div class="search-actions">
-        <nexa-button type="submit" [loading]="store.page().kind === 'loading'">Search</nexa-button>
-        <nexa-button type="button" variant="quiet" [disabled]="store.page().kind === 'loading'" (click)="clear()">Clear</nexa-button>
-      </div>
-    </form>
-  </nexa-surface>
-
-  <div class="results-heading">
-    <h2>Catalog results</h2>
-    @if (store.page().page; as page) {
-      <span>{{ page.totalItems }} SKUs</span>
-    }
+      @if (store.page().page; as page) {
+        <span class="results-count"
+          >{{ page.totalItems }}
+          {{ page.totalItems === 1 ? "product" : "products" }}</span
+        >
+      }
+    </div>
   </div>
 
+  @if (requestSelection.productCount() > 0) {
+    <nexa-surface class="request-selection" tone="soft">
+      <div class="request-selection__copy">
+        <strong>
+          {{ requestSelection.productCount() }}
+          {{ requestSelection.productCount() === 1 ? "product" : "products" }}
+          selected
+        </strong>
+        <span>Temporary selection · not sent yet</span>
+      </div>
+      <div class="request-selection__actions">
+        <button
+          class="request-selection__clear"
+          type="button"
+          (click)="clearRequestSelection()"
+        >
+          Clear selection
+        </button>
+        <nexa-button routerLink="/requests/new">
+          Review request
+          <i class="pi pi-arrow-right" aria-hidden="true"></i>
+        </nexa-button>
+      </div>
+    </nexa-surface>
+  }
+  @if (selectionMessage()) {
+    <p class="selection-message" role="status">{{ selectionMessage() }}</p>
+  }
   @switch (store.page().kind) {
-    @case ('loading') {
-      <nexa-surface tone="inset"><p class="state-message" role="status">Loading catalog results…</p></nexa-surface>
+    @case ("loading") {
+      <nexa-surface tone="inset"
+        ><p class="state-message" role="status">
+          Loading catalog results…
+        </p></nexa-surface
+      >
     }
-    @case ('error') {
+    @case ("error") {
       <nexa-surface tone="inset">
         <div class="state-message error-state" role="alert">
           <strong>Catalog could not be loaded</strong>
           <p>{{ store.page().errorMessage }}</p>
-          <nexa-button variant="secondary" (click)="store.load()">Retry</nexa-button>
+          <nexa-button variant="secondary" (click)="store.load()"
+            >Retry</nexa-button
+          >
         </div>
       </nexa-surface>
     }
-    @case ('empty') {
+    @case ("empty") {
       <nexa-surface tone="inset">
         <div class="state-message empty-state">
           <i class="pi pi-search" aria-hidden="true"></i>
-          <strong>No SKUs match this search</strong>
-          <p>Clear the search or adjust the filters to see other catalog items.</p>
-          <nexa-button variant="secondary" (click)="clear()">Clear filters</nexa-button>
+          <strong>No products match these filters</strong>
+          <p>
+            Try another product name or brand, or clear the filters to browse
+            the full catalog.
+          </p>
+          <nexa-button variant="secondary" (click)="clear()"
+            >Clear filters</nexa-button
+          >
         </div>
       </nexa-surface>
     }
-    @case ('results') {
-      <div class="catalog-grid" aria-label="Catalog results">
-        @for (item of store.page().page?.items ?? []; track item.catalogItemId) {
+    @case ("results") {
+      <div class="catalog-grid">
+        @for (
+          item of store.page().page?.items ?? [];
+          track item.catalogItemId
+        ) {
           <article class="product-card">
-            <a class="product-detail-link" data-testid="catalog-item-link" [routerLink]="['/catalog', item.catalogItemId]">
-              <span class="product-art" aria-hidden="true"><i class="pi pi-box"></i></span>
-              <span class="product-family">{{ item.brandName || item.productFamilyName || 'Catalog item' }}<span aria-hidden="true"> · </span>{{ item.categoryName || 'SKU' }}</span>
-              <strong>{{ item.itemName }}</strong>
-              <span class="product-meta">{{ item.skuCode }}@if (item.presentation) { <span aria-hidden="true"> · </span>{{ item.presentation }} }</span>
-              @if (item.coldChainRequirement) {
-                <nexa-status-chip tone="info">{{ item.coldChainRequirement }}</nexa-status-chip>
+            <a
+              class="product-identity"
+              data-testid="catalog-item-link"
+              [routerLink]="['/catalog', item.catalogItemId]"
+              [attr.aria-label]="
+                'View details for ' +
+                (item.brandName || item.productFamilyName || 'catalog item') +
+                ', ' +
+                item.itemName +
+                (item.presentation ? ', ' + item.presentation : '') +
+                ', SKU ' +
+                item.skuCode
+              "
+            >
+              <span
+                class="product-art"
+                [class.has-image]="item.image?.url"
+                [class.product-art--framed]="
+                  !!imageFraming(item.image?.fileName)
+                "
+                [style.aspect-ratio]="
+                  imageFraming(item.image?.fileName)?.aspectRatio ?? null
+                "
+                [style.max-width.px]="
+                  imageFraming(item.image?.fileName)?.maxWidthPx ?? null
+                "
+              >
+                @if (item.image; as image) {
+                  <img
+                    [src]="image.url"
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    [class.product-art__image--framed]="
+                      imageFraming(image.fileName)?.mode === 'cover'
+                    "
+                    [class.product-art__image--crop]="
+                      imageFraming(image.fileName)?.mode === 'crop'
+                    "
+                    [style.width.%]="
+                      imageFraming(image.fileName)?.imageWidthPercent ?? null
+                    "
+                    [style.left.%]="
+                      imageFraming(image.fileName)?.imageLeftPercent ?? null
+                    "
+                    [style.top.%]="
+                      imageFraming(image.fileName)?.imageTopPercent ?? null
+                    "
+                    (error)="$any($event.target).hidden = true"
+                  />
+                }
+                <span class="product-art__fallback" aria-hidden="true"
+                  ><i class="pi pi-box"></i
+                ></span>
+              </span>
+              <span class="product-brand-line">
+                @if (item.brandName) {
+                  <strong class="product-brand">{{ item.brandName }}</strong>
+                } @else if (item.productFamilyName) {
+                  <strong class="product-family">{{
+                    item.productFamilyName
+                  }}</strong>
+                } @else {
+                  <strong class="product-family">Catalog item</strong>
+                }
+                @if (item.categoryName) {
+                  <span class="product-category">{{ item.categoryName }}</span>
+                }
+              </span>
+              <strong class="product-name">{{ item.itemName }}</strong>
+              @if (item.presentation) {
+                <span class="product-presentation">{{
+                  item.presentation
+                }}</span>
               }
+              <span class="product-meta">SKU {{ item.skuCode }}</span>
             </a>
-            <nexa-button size="compact" variant="secondary" [routerLink]="'/catalog/' + item.catalogItemId">View SKU details</nexa-button>
+
+            <div class="product-signals">
+              @if (item.promotionLabel) {
+                <span class="product-promotion"
+                  ><i class="pi pi-tag" aria-hidden="true"></i
+                  >{{ item.promotionLabel }}</span
+                >
+              }
+              @if (item.coldChainRequirement) {
+                <nexa-status-chip tone="info">{{
+                  item.coldChainRequirement
+                }}</nexa-status-chip>
+              }
+            </div>
+
+            <div class="product-commercial">
+              <div class="product-price">
+                <span class="commercial-label">Current offer</span>
+                @if (item.currentOfferPrice; as price) {
+                  <strong>{{ price.currency }} {{ price.amount }}</strong>
+                } @else {
+                  <span class="unavailable-value">Price unavailable</span>
+                }
+              </div>
+              <div class="product-availability">
+                <span class="commercial-label">Availability</span>
+                @switch (item.availabilityStatus) {
+                  @case ("AVAILABLE") {
+                    <nexa-status-chip tone="success"
+                      >Available</nexa-status-chip
+                    >
+                  }
+                  @case ("LOW") {
+                    <nexa-status-chip tone="warning"
+                      >Low availability</nexa-status-chip
+                    >
+                  }
+                  @case ("OUT_OF_STOCK") {
+                    <nexa-status-chip tone="danger"
+                      >Out of stock</nexa-status-chip
+                    >
+                  }
+                  @case ("UNKNOWN") {
+                    <nexa-status-chip tone="neutral"
+                      >Unconfirmed</nexa-status-chip
+                    >
+                  }
+                  @default {
+                    <nexa-status-chip tone="neutral">{{
+                      item.availabilityStatus || "Unconfirmed"
+                    }}</nexa-status-chip>
+                  }
+                }
+                @if (item.sellableAvailability !== null) {
+                  <span class="availability-quantity"
+                    >{{ item.sellableAvailability }}
+                    {{ item.unitOfMeasure || "units" }}</span
+                  >
+                }
+              </div>
+            </div>
+
+            <div
+              class="product-actions"
+              [class.product-actions--details-only]="!item.sellableSkuId"
+            >
+              @if (item.sellableSkuId) {
+                @if (requestSelection.has(item.sellableSkuId)) {
+                  <div class="product-selection">
+                    <div
+                      class="product-selection__quantity"
+                      role="group"
+                      [attr.aria-label]="'Quantity for ' + item.itemName"
+                    >
+                      <button
+                        type="button"
+                        [attr.aria-label]="
+                          'Decrease quantity for ' + item.itemName
+                        "
+                        (click)="adjustRequestQuantity(item.sellableSkuId, -1)"
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        min="0.001"
+                        step="any"
+                        [value]="
+                          requestSelection.quantityFor(item.sellableSkuId)
+                        "
+                        [attr.aria-label]="'Quantity for ' + item.itemName"
+                        (change)="
+                          updateRequestQuantity(
+                            item.sellableSkuId,
+                            $any($event.target).value
+                          )
+                        "
+                      />
+                      <button
+                        type="button"
+                        [disabled]="item.availabilityStatus === 'OUT_OF_STOCK'"
+                        [attr.aria-label]="
+                          'Increase quantity for ' + item.itemName
+                        "
+                        (click)="adjustRequestQuantity(item.sellableSkuId, 1)"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <button
+                      class="product-selection__remove"
+                      type="button"
+                      [attr.aria-label]="
+                        'Remove ' + item.itemName + ' from request'
+                      "
+                      (click)="removeFromRequest(item.sellableSkuId)"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                } @else {
+                  <nexa-button
+                    class="request-action"
+                    [fullWidth]="true"
+                    [disabled]="item.availabilityStatus === 'OUT_OF_STOCK'"
+                    (click)="addToRequest(item)"
+                    >Add to request</nexa-button
+                  >
+                }
+                <a
+                  class="details-action"
+                  [routerLink]="['/catalog', item.catalogItemId]"
+                  [attr.aria-label]="'View details for ' + item.itemName"
+                  >Details<i class="pi pi-arrow-right" aria-hidden="true"></i
+                ></a>
+              } @else {
+                <nexa-button
+                  class="request-action"
+                  [fullWidth]="true"
+                  variant="secondary"
+                  [routerLink]="'/catalog/' + item.catalogItemId"
+                  >View details</nexa-button
+                >
+              }
+            </div>
           </article>
         }
       </div>
       @if (store.page().page; as page) {
         @if (page.totalPages > 1) {
           <nav class="pagination" aria-label="Catalog pages">
-            <nexa-button variant="secondary" [disabled]="page.page <= 0" (click)="pageBy(-1)">Previous</nexa-button>
+            <nexa-button
+              variant="secondary"
+              [disabled]="page.page <= 0"
+              (click)="pageBy(-1)"
+              >Previous</nexa-button
+            >
             <span>Page {{ page.page + 1 }} of {{ page.totalPages }}</span>
-            <nexa-button variant="secondary" [disabled]="page.page + 1 >= page.totalPages" (click)="pageBy(1)">Next</nexa-button>
+            <nexa-button
+              variant="secondary"
+              [disabled]="page.page + 1 >= page.totalPages"
+              (click)="pageBy(1)"
+              >Next</nexa-button
+            >
           </nav>
         }
       }
     }
     @default {
-      <nexa-surface tone="inset"><p class="state-message">Catalog results are ready to load.</p></nexa-surface>
+      <nexa-surface tone="inset"
+        ><p class="state-message">
+          Catalog results are ready to load.
+        </p></nexa-surface
+      >
     }
   }
 </section>
