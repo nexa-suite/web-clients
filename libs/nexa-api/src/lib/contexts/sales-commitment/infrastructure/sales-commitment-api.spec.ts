@@ -28,7 +28,7 @@ describe("NexaSalesCommitmentApi", () => {
   it("reads the API-owned Buyer delivery lead policy in the current session scope", () => {
     api.getBuyerDeliveryLeadPolicy().subscribe((policy) => {
       expect(policy).toEqual({
-        businessDays: 5,
+        minimumDeliveryLeadBusinessDays: 5,
         minimumAllowedDeliveryDate: "2026-11-05",
         timezone: "America/Lima",
       });
@@ -40,7 +40,7 @@ describe("NexaSalesCommitmentApi", () => {
       "Bearer current-context-token",
     );
     request.flush({
-      businessDays: 5,
+      minimumDeliveryLeadBusinessDays: 5,
       minimumAllowedDeliveryDate: "2026-11-05",
       timezone: "America/Lima",
     });

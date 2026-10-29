@@ -34,7 +34,7 @@
     <nexa-button variant="secondary" size="compact" (click)="retryDeliveryLeadPolicy()">Retry delivery rules</nexa-button>
   } @else if (deliveryLeadPolicy().policy; as policy) {
     <p class="request-builder__notice" role="status">
-      Delivery lead time: {{ policy.businessDays }} business days ({{ policy.timezone }}). Earliest allowed date: {{ policy.minimumAllowedDeliveryDate }}.
+      Delivery lead time: {{ policy.minimumDeliveryLeadBusinessDays }} business days ({{ policy.timezone }}). Earliest allowed date: {{ policy.minimumAllowedDeliveryDate }}.
     </p>
   }
   @if (workflow().status === 'loading' || workflow().status === 'saving' || workflow().status === 'submitting') {

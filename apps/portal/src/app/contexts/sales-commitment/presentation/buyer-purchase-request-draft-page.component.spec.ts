@@ -126,7 +126,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
     deliveryPolicy.deliveryLeadPolicy.set({
       status: "ready",
       policy: {
-        businessDays: 5,
+        minimumDeliveryLeadBusinessDays: 5,
         minimumAllowedDeliveryDate: "2026-11-01",
         timezone: "America/Lima",
       },
@@ -636,7 +636,7 @@ function deliveryPolicyMock() {
   const deliveryLeadPolicy = signal<BuyerDeliveryLeadPolicyState>({
     status: "ready",
     policy: {
-      businessDays: 5,
+      minimumDeliveryLeadBusinessDays: 5,
       minimumAllowedDeliveryDate: "2026-11-01",
       timezone: "America/Lima",
     },

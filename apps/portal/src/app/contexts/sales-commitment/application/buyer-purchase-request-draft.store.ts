@@ -460,15 +460,15 @@ function parseBuyerDeliveryLeadPolicy(value: unknown): BuyerDeliveryLeadPolicy |
   if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
   const policy = value as Partial<BuyerDeliveryLeadPolicy>;
   if (
-    !Number.isSafeInteger(policy.businessDays) ||
-    (policy.businessDays ?? 0) < 1 ||
+    !Number.isSafeInteger(policy.minimumDeliveryLeadBusinessDays) ||
+    (policy.minimumDeliveryLeadBusinessDays ?? 0) < 1 ||
     typeof policy.minimumAllowedDeliveryDate !== "string" ||
     !isIsoCalendarDate(policy.minimumAllowedDeliveryDate) ||
     typeof policy.timezone !== "string" ||
     !policy.timezone.trim()
   ) return null;
   return {
-    businessDays: policy.businessDays as number,
+    minimumDeliveryLeadBusinessDays: policy.minimumDeliveryLeadBusinessDays as number,
     minimumAllowedDeliveryDate: policy.minimumAllowedDeliveryDate,
     timezone: policy.timezone,
   };

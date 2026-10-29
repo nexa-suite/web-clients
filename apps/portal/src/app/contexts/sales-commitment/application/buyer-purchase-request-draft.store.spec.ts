@@ -80,7 +80,7 @@ describe("BuyerPurchaseRequestDraftStore", () => {
     };
     api = {
       getBuyerDeliveryLeadPolicy: vi.fn().mockReturnValue(of({
-        businessDays: 5,
+        minimumDeliveryLeadBusinessDays: 5,
         minimumAllowedDeliveryDate: "2026-10-20",
         timezone: "America/Lima",
       })),
@@ -111,7 +111,7 @@ describe("BuyerPurchaseRequestDraftStore", () => {
 
   it("loads API-owned policy and allows only dates at or after its returned minimum", async () => {
     api.getBuyerDeliveryLeadPolicy.mockReturnValue(of({
-      businessDays: 4,
+      minimumDeliveryLeadBusinessDays: 4,
       minimumAllowedDeliveryDate: "2026-10-25",
       timezone: "America/Lima",
     }));
@@ -122,7 +122,7 @@ describe("BuyerPurchaseRequestDraftStore", () => {
     expect(store.deliveryLeadPolicy()).toEqual({
       status: "ready",
       policy: {
-        businessDays: 4,
+        minimumDeliveryLeadBusinessDays: 4,
         minimumAllowedDeliveryDate: "2026-10-25",
         timezone: "America/Lima",
       },
@@ -135,7 +135,7 @@ describe("BuyerPurchaseRequestDraftStore", () => {
 
   it("fails closed on malformed policy and blocks draft creation, preference updates, and submission", async () => {
     api.getBuyerDeliveryLeadPolicy.mockReturnValue(of({
-      businessDays: 5,
+      minimumDeliveryLeadBusinessDays: 5,
       minimumAllowedDeliveryDate: "not-a-date",
       timezone: "America/Lima",
     }));

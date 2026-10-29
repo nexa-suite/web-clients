@@ -7,7 +7,7 @@ export interface PurchaseRequestDraftLineInput {
 
 /** API-owned Buyer delivery lead policy projection. */
 export interface BuyerDeliveryLeadPolicy {
-  readonly businessDays: number;
+  readonly minimumDeliveryLeadBusinessDays: number;
   readonly minimumAllowedDeliveryDate: string;
   readonly timezone: string;
 }
