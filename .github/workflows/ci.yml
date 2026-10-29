@@ -112,7 +112,7 @@ jobs:
           repository: nexa-suite/api
           # Signed API PR #128 candidate supplying the Buyer delivery policy.
           # This pin does not claim merge or deployment.
-          ref: 8338252eaafcb677250ffdf3ca03353420ea4077
+          ref: 0bb5c0c5fd5d210fa151c9ba126301eb31dce2ee
           path: api
 
       - name: Set up Node.js
