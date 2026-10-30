@@ -110,9 +110,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: nexa-suite/api
-          # Signed API PR #128 candidate supplying the Buyer delivery policy.
-          # This pin does not claim merge or deployment.
-          ref: 0bb5c0c5fd5d210fa151c9ba126301eb31dce2ee
+          # API develop merge of PR #128 supplying the Buyer delivery policy.
+          # This pin does not claim deployment.
+          ref: b8d8bd0574c95631d472380804c1d1e4e33de62a
           path: api
 
       - name: Set up Node.js
