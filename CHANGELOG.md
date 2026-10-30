@@ -2,7 +2,25 @@
 
 ## Unreleased
 
-## [0.3.0](docs/releases/v0.3.0.md) — local checkpoint candidate, unpublished
+## [0.4.0](docs/releases/v0.4.0.md) — local release candidate, unpublished
+
+Prepared on 2026-10-29 from `develop` at `0fed93f32c11f4f991be72e01f5bcc26d6551e54`. Version metadata is preparatory only; no `v0.4.0` tag or GitHub Release has been created.
+
+### Scope
+
+- Align the existing Buyer Portal draft date-selection flow with the API-owned delivery lead policy: read the server minimum and block draft setup when the policy is unavailable or the selected date is too early.
+
+### API compatibility target
+
+The Web CI configuration at this source commit pins API candidate `b8d8bd0574c95631d472380804c1d1e4e33de62a`. The Buyer flow expects `GET /api/v1/buyer/delivery-lead-policy` to return `minimumDeliveryLeadBusinessDays`, `minimumAllowedDeliveryDate`, and `timezone`. This is API v2.0.0 candidate source, not a published API release. API `v1.2.0` does not expose this endpoint and does not support this draft date policy flow.
+
+### Limits
+
+This source preparation does not establish Product/UX Acceptance, System Acceptance, deployment, or Production Readiness. Integrated `develop` passed [connected API CI run 40982647730](https://github.com/nexa-suite/web-clients/actions/runs/40982647730); this local release branch has not had a hosted run.
+
+## [0.3.0](docs/releases/v0.3.0.md) — published source release (2026-10-29 UTC)
+
+The preparation record below was written before publication and reflects the status on 2026-10-28. The source was later published under tag `v0.3.0` and the [GitHub Release](https://github.com/nexa-suite/web-clients/releases/tag/v0.3.0).
 
 Prepared locally on 2026-10-28 from `feature/academic-checkpoint` at commit `fa341ad666b7eb5873dc3792c26936a8923c4ca3`. Version metadata is preparatory only. As of this preparation, no `v0.3.0` tag or GitHub Release exists; no publication was performed here.
 
