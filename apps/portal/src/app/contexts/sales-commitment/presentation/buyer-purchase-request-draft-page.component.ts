@@ -45,6 +45,7 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit, OnDestroy
   protected readonly store = inject(BuyerPurchaseRequestDraftStore);
   private readonly requestSelection = inject(BuyerRequestSelectionStore);
   protected readonly workflow = this.store.state;
+  protected readonly deliveryLeadPolicy = this.store.deliveryLeadPolicy;
   private readonly sessions = inject(PortalSessionStore);
   private readonly walletCapabilities = inject(BUYER_WALLET_CAPABILITIES_PORT);
   private readonly formLease = signal<PortalSessionLease | null>(this.sessions.captureSessionLease());
@@ -95,7 +96,7 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit, OnDestroy
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
-  protected requestedDeliveryDate = localDateString(new Date());
+  protected requestedDeliveryDate = "";
   protected paymentPreference: SetPurchaseRequestDraftPreferencesRequest["paymentPreference"] | "" = "";
   protected readonly canUseWallet = computed(() => {
     const current = this.sessions.state();
@@ -187,6 +188,9 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit, OnDestroy
     if (this.initializedLease && sameLease(this.initializedLease, lease)) return;
     this.initializedLease = lease;
     this.store.clear();
+    const policyLoading = this.canWriteRequests()
+      ? this.store.loadDeliveryLeadPolicy()
+      : Promise.resolve();
     this.selectedCatalogSkus.clear();
     const pendingSelection = this.requestSelection.lines();
     for (const line of pendingSelection) {
@@ -226,6 +230,7 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit, OnDestroy
     } else {
       this.walletCapabilities.clear();
     }
+    await policyLoading;
     if (!this.sessions.isSessionLeaseCurrent(lease)) return;
     if (draftId) {
       await this.store.loadDraft(draftId);
@@ -247,11 +252,16 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit, OnDestroy
         }));
         this.selectedAddressId = draft.destination?.addressId ?? "";
       }
+    } else {
+      const policy = this.deliveryLeadPolicy();
+      if (policy.status === "ready" && policy.policy) {
+        this.requestedDeliveryDate = policy.policy.minimumAllowedDeliveryDate;
+      }
     }
   }
 
   private clearLocalForm(): void {
-    this.requestedDeliveryDate = localDateString(new Date());
+    this.requestedDeliveryDate = "";
     this.paymentPreference = "";
     this.lines = [{ skuId: "", quantity: "1", unit: "", notes: "" }];
     this.localError = "";
@@ -308,6 +318,10 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit, OnDestroy
 
   protected async beginDraft(): Promise<void> {
     this.localError = "";
+    if (!this.store.allowsDeliveryDate(this.requestedDeliveryDate)) {
+      this.localError = "Choose a delivery date allowed by the current Buyer delivery rules.";
+      return;
+    }
     const lines = this.validatedLines();
     const account = this.eligibility.currentAccount();
     if (!account) {
@@ -349,6 +363,10 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit, OnDestroy
 
   protected async savePreferences(): Promise<void> {
     this.localError = "";
+    if (!this.store.allowsDeliveryDate(this.requestedDeliveryDate)) {
+      this.localError = "Choose a delivery date allowed by the current Buyer delivery rules.";
+      return;
+    }
     const paymentPreference = this.paymentPreference;
     if (this.paymentPreference === WALLET_PREFERENCE && !this.canUseWallet()) {
       this.paymentPreference = "";
@@ -414,7 +432,28 @@ export class BuyerPurchaseRequestDraftPageComponent implements OnInit, OnDestroy
     if (account) await this.store.loadAddresses(account.id);
   }
 
+  protected async retryDeliveryLeadPolicy(): Promise<void> {
+    await this.store.loadDeliveryLeadPolicy();
+    const policy = this.deliveryLeadPolicy();
+    if (!this.workflow().draft && policy.status === "ready" && policy.policy && !this.requestedDeliveryDate) {
+      this.requestedDeliveryDate = policy.policy.minimumAllowedDeliveryDate;
+    }
+  }
+
+  protected canSubmitDeliveryDate(): boolean {
+    const draft = this.workflow().draft;
+    return Boolean(
+      draft &&
+      this.requestedDeliveryDate === draft.requestedDeliveryDate &&
+      this.store.allowsDeliveryDate(draft.requestedDeliveryDate),
+    );
+  }
+
   protected async submit(): Promise<void> {
+    if (!this.canSubmitDeliveryDate()) {
+      this.localError = "Save a delivery date allowed by the current Buyer delivery rules before submitting.";
+      return;
+    }
     await this.store.submit();
     const draft = this.workflow().draft;
     if (this.canReadRequests() && this.workflow().status === "submitted" && draft) {
@@ -514,11 +553,4 @@ function sameLease(left: PortalSessionLease, right: PortalSessionLease): boolean
     && left.scope.workspaceId === right.scope.workspaceId
     && left.scope.membershipId === right.scope.membershipId
     && left.scope.surface === right.scope.surface;
-}
-
-function localDateString(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
