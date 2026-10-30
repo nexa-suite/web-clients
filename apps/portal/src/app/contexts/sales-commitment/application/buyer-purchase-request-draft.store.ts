@@ -7,6 +7,7 @@ import {
 } from "@nexa/api";
 import type {
   BuyerAddressResponse,
+  BuyerDeliveryLeadPolicy,
   PurchaseRequestDraft,
   PurchaseRequestDraftLineInput,
   PurchaseRequestDraftReview,
@@ -35,12 +36,24 @@ export interface BuyerDraftWorkflowState {
   readonly errorMessage: string | null;
 }
 
+export interface BuyerDeliveryLeadPolicyState {
+  readonly status: "idle" | "loading" | "ready" | "error";
+  readonly policy: BuyerDeliveryLeadPolicy | null;
+  readonly errorMessage: string | null;
+}
+
 const EMPTY_STATE: BuyerDraftWorkflowState = {
   status: "idle",
   draft: null,
   review: null,
   addresses: [],
   submissionKeyPending: false,
+  errorMessage: null,
+};
+
+const EMPTY_DELIVERY_LEAD_POLICY: BuyerDeliveryLeadPolicyState = {
+  status: "idle",
+  policy: null,
   errorMessage: null,
 };
 
@@ -56,6 +69,11 @@ export class BuyerPurchaseRequestDraftStore {
     readonly state: BuyerDraftWorkflowState;
     readonly lease: PortalSessionLease | null;
   }>({ state: EMPTY_STATE, lease: null });
+  private policyRevision = 0;
+  private readonly policySnapshot = signal<{
+    readonly state: BuyerDeliveryLeadPolicyState;
+    readonly lease: PortalSessionLease | null;
+  }>({ state: EMPTY_DELIVERY_LEAD_POLICY, lease: null });
 
   readonly state = computed(() => {
     const value = this.snapshot();
@@ -63,6 +81,34 @@ export class BuyerPurchaseRequestDraftStore {
       ? value.state
       : EMPTY_STATE;
   });
+
+  readonly deliveryLeadPolicy = computed(() => {
+    const value = this.policySnapshot();
+    return value.lease && this.sessions.isSessionLeaseCurrent(value.lease)
+      ? value.state
+      : EMPTY_DELIVERY_LEAD_POLICY;
+  });
+
+  async loadDeliveryLeadPolicy(): Promise<void> {
+    const lease = this.sessions.captureSessionLease();
+    if (!lease) return;
+    const revision = ++this.policyRevision;
+    this.writePolicy({ ...EMPTY_DELIVERY_LEAD_POLICY, status: "loading" }, lease);
+    try {
+      const response = await firstValueFrom(this.api.getBuyerDeliveryLeadPolicy());
+      if (!this.isCurrentPolicy(revision, lease)) return;
+      const policy = parseBuyerDeliveryLeadPolicy(response);
+      if (!policy) throw new Error("Invalid Buyer delivery lead policy response.");
+      this.writePolicy({ status: "ready", policy, errorMessage: null }, lease);
+    } catch {
+      if (!this.isCurrentPolicy(revision, lease)) return;
+      this.writePolicy({
+        status: "error",
+        policy: null,
+        errorMessage: "Delivery date rules could not be loaded. Retry before creating or submitting a request.",
+      }, lease);
+    }
+  }
 
   async loadAddresses(accountId: string): Promise<void> {
     const lease = this.sessions.captureSessionLease();
@@ -87,7 +133,7 @@ export class BuyerPurchaseRequestDraftStore {
   async createDraft(accountId: string, requestedDeliveryDate: string): Promise<PurchaseRequestDraft | null> {
     if (this.state().status === "loading") return null;
     const lease = this.sessions.captureSessionLease();
-    if (!lease || !accountId.trim() || !requestedDeliveryDate) return null;
+    if (!lease || !accountId.trim() || !this.allowsDeliveryDate(requestedDeliveryDate)) return null;
     const revision = ++this.revision;
     const addresses = this.state().addresses;
     this.write({ ...EMPTY_STATE, status: "loading" }, lease);
@@ -188,6 +234,7 @@ export class BuyerPurchaseRequestDraftStore {
   }
 
   async setPreferences(request: SetPurchaseRequestDraftPreferencesRequest): Promise<void> {
+    if (!this.allowsDeliveryDate(request.requestedDeliveryDate)) return;
     const draft = this.requireMutableDraft();
     if (!draft) return;
     const lease = this.snapshot().lease;
@@ -234,7 +281,12 @@ export class BuyerPurchaseRequestDraftStore {
     if (current.status === "submitting") return;
     const draft = current.draft;
     const lease = this.snapshot().lease;
-    if (!draft || !lease || !this.sessions.isSessionLeaseCurrent(lease)) return;
+    if (
+      !draft ||
+      !lease ||
+      !this.sessions.isSessionLeaseCurrent(lease) ||
+      !this.allowsDeliveryDate(draft.requestedDeliveryDate)
+    ) return;
     if (draft.status === "SUBMITTED") return;
     const revision = ++this.revision;
     const idempotencyKey = this.readOrCreateSubmitKey(draft.id, lease);
@@ -268,7 +320,15 @@ export class BuyerPurchaseRequestDraftStore {
 
   clear(): void {
     this.revision++;
+    this.policyRevision++;
     this.snapshot.set({ state: EMPTY_STATE, lease: null });
+    this.policySnapshot.set({ state: EMPTY_DELIVERY_LEAD_POLICY, lease: null });
+  }
+
+  allowsDeliveryDate(value: string): boolean {
+    const state = this.deliveryLeadPolicy();
+    const minimum = state.status === "ready" ? state.policy?.minimumAllowedDeliveryDate : null;
+    return Boolean(minimum && isIsoCalendarDate(value) && value >= minimum);
   }
 
   private async mutate(
@@ -354,8 +414,16 @@ export class BuyerPurchaseRequestDraftStore {
     return revision === this.revision && this.sessions.isSessionLeaseCurrent(lease);
   }
 
+  private isCurrentPolicy(revision: number, lease: PortalSessionLease): boolean {
+    return revision === this.policyRevision && this.sessions.isSessionLeaseCurrent(lease);
+  }
+
   private write(state: BuyerDraftWorkflowState, lease: PortalSessionLease | null): void {
     this.snapshot.set({ state, lease });
+  }
+
+  private writePolicy(state: BuyerDeliveryLeadPolicyState, lease: PortalSessionLease | null): void {
+    this.policySnapshot.set({ state, lease });
   }
 }
 
@@ -386,4 +454,28 @@ function createIdempotencyKey(): string {
   const uuid = globalThis.crypto?.randomUUID?.();
   if (uuid) return `buyer-pr-submit-${uuid}`;
   return `buyer-pr-submit-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function parseBuyerDeliveryLeadPolicy(value: unknown): BuyerDeliveryLeadPolicy | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const policy = value as Partial<BuyerDeliveryLeadPolicy>;
+  if (
+    !Number.isSafeInteger(policy.minimumDeliveryLeadBusinessDays) ||
+    (policy.minimumDeliveryLeadBusinessDays ?? 0) < 1 ||
+    typeof policy.minimumAllowedDeliveryDate !== "string" ||
+    !isIsoCalendarDate(policy.minimumAllowedDeliveryDate) ||
+    typeof policy.timezone !== "string" ||
+    !policy.timezone.trim()
+  ) return null;
+  return {
+    minimumDeliveryLeadBusinessDays: policy.minimumDeliveryLeadBusinessDays as number,
+    minimumAllowedDeliveryDate: policy.minimumAllowedDeliveryDate,
+    timezone: policy.timezone,
+  };
+}
+
+function isIsoCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }

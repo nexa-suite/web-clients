@@ -3,6 +3,7 @@ import { inject, Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { NEXA_API_HTTP_CONFIGURATION } from "../../../http/nexa-http";
 import type {
+  BuyerDeliveryLeadPolicy,
   CreatePurchaseRequestDraftRequest,
   MaterialChangeProposal,
   PurchaseRequestDetail,
@@ -26,6 +27,12 @@ export class NexaSalesCommitmentApi {
   private readonly http = inject(HttpClient);
   private readonly configuration = inject(NEXA_API_HTTP_CONFIGURATION);
   private readonly baseUrl = this.configuration.apiBaseUrl;
+
+  getBuyerDeliveryLeadPolicy(): Observable<BuyerDeliveryLeadPolicy> {
+    return this.http.get<BuyerDeliveryLeadPolicy>(
+      `${this.baseUrl}/buyer/delivery-lead-policy`,
+    );
+  }
 
   createDraft(request: CreatePurchaseRequestDraftRequest): Observable<HttpResponse<PurchaseRequestDraft>> {
     return this.http.post<PurchaseRequestDraft>(

@@ -6,7 +6,7 @@ import type { BuyerAddressResponse, PurchaseRequestDraft } from "@nexa/api";
 import { PortalBuyerEligibilityService } from "../../customer-buyer-relationships/application/public-api";
 import { CatalogStore, type BuyerCatalogItem, type CatalogDetailState, type CatalogPageState, type CatalogSearch } from "../../catalog-commercial-policy/application/public-api";
 import { PortalSessionStore, type PortalSessionLease } from "../../tenant-access-governance/application/public-api";
-import { BuyerDraftWorkflowState, BuyerPurchaseRequestDraftStore } from "../application/public-api";
+import { BuyerDeliveryLeadPolicyState, BuyerDraftWorkflowState, BuyerPurchaseRequestDraftStore } from "../application/public-api";
 import { BuyerRequestSelectionStore } from "../application/buyer-request-selection.store";
 import { BuyerPurchaseRequestDraftPageComponent } from "./buyer-purchase-request-draft-page.component";
 import { BUYER_WALLET_CAPABILITIES_PORT } from "../../payments/application/public-api";
@@ -94,10 +94,55 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
     itemName: "Another catalog item",
   } as BuyerCatalogItem;
 
+  it("blocks draft creation when delivery policy is unavailable or date is before API minimum", async () => {
+    const deliveryPolicy = deliveryPolicyMock();
+    deliveryPolicy.deliveryLeadPolicy.set({
+      status: "error",
+      policy: null,
+      errorMessage: "Delivery date rules could not be loaded.",
+    });
+    const store = {
+      state: signal<BuyerDraftWorkflowState>(emptyWorkflow()),
+      ...deliveryPolicy,
+      clear: vi.fn(),
+      loadAddresses: vi.fn(async () => undefined),
+      createDraft: vi.fn(async () => draft),
+    };
+    configureDraftPageTest(store, null, lease, catalogItem);
+    const fixture = TestBed.createComponent(BuyerPurchaseRequestDraftPageComponent);
+    await fixture.componentInstance.ngOnInit();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain("Delivery date rules could not be loaded.");
+    const dateInput = fixture.nativeElement.querySelector('input[type="date"]') as HTMLInputElement;
+    expect(dateInput.disabled).toBe(true);
+    const page = fixture.componentInstance as unknown as {
+      beginDraft(): Promise<void>;
+      requestedDeliveryDate: string;
+    };
+    await page.beginDraft();
+    expect(store.createDraft).not.toHaveBeenCalled();
+
+    deliveryPolicy.deliveryLeadPolicy.set({
+      status: "ready",
+      policy: {
+        minimumDeliveryLeadBusinessDays: 5,
+        minimumAllowedDeliveryDate: "2026-11-01",
+        timezone: "America/Lima",
+      },
+      errorMessage: null,
+    });
+    page.requestedDeliveryDate = "2026-10-31";
+    await page.beginDraft();
+    expect(store.createDraft).not.toHaveBeenCalled();
+    fixture.destroy();
+  });
+
   it("preserves catalog selection when leaving an existing draft route before draft loading finishes", async () => {
     const draftLoading = deferred<void>();
     const store = {
       state: signal<BuyerDraftWorkflowState>(emptyWorkflow()),
+      ...deliveryPolicyMock(),
       clear: vi.fn(),
       loadAddresses: vi.fn(async () => undefined),
       loadDraft: vi.fn(() => draftLoading.promise),
@@ -124,6 +169,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
     const state = signal<BuyerDraftWorkflowState>(emptyWorkflow());
     const store = {
       state,
+      ...deliveryPolicyMock(),
       clear: vi.fn(() => state.set(emptyWorkflow())),
       loadAddresses: vi.fn(async () => undefined),
       createDraft: vi.fn(async () => {
@@ -163,6 +209,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
     let lineSaveCount = 0;
     const store = {
       state,
+      ...deliveryPolicyMock(),
       clear: vi.fn(() => state.set(emptyWorkflow())),
       loadAddresses: vi.fn(async () => undefined),
       createDraft: vi.fn(async () => {
@@ -205,6 +252,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
     const catalogLoading = new Promise<void>((resolve) => { finishCatalogLoading = resolve; });
     const store = {
       state,
+      ...deliveryPolicyMock(),
       clear: vi.fn(() => state.set(emptyWorkflow())),
       loadAddresses: vi.fn(() => addressLoading),
     };
@@ -283,6 +331,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
     const state = signal<BuyerDraftWorkflowState>(emptyWorkflow());
     const store = {
       state,
+      ...deliveryPolicyMock(),
       clear: vi.fn(() => state.set(emptyWorkflow())),
       loadAddresses: vi.fn(async () => undefined),
     };
@@ -372,6 +421,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
     const state = signal<BuyerDraftWorkflowState>(emptyWorkflow());
     const store = {
       state,
+      ...deliveryPolicyMock(),
       clear: vi.fn(() => state.set(emptyWorkflow())),
       loadAddresses: vi.fn(async () => state.update((current) => ({ ...current, addresses: [address] }))),
       loadDraft: vi.fn(async () => state.set({
@@ -440,6 +490,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
     });
     const store = {
       state,
+      ...deliveryPolicyMock(),
       clear: vi.fn(),
       loadAddresses: vi.fn(async () => undefined),
       loadDraft: vi.fn(async () => undefined),
@@ -498,6 +549,7 @@ describe("BuyerPurchaseRequestDraftPageComponent", () => {
     });
     const store = {
       state: workflow,
+      ...deliveryPolicyMock(),
       clear: vi.fn(),
       loadAddresses: vi.fn(async () => undefined),
       loadDraft: vi.fn(async () => undefined),
@@ -577,6 +629,27 @@ function emptyWorkflow(): BuyerDraftWorkflowState {
     addresses: [],
     submissionKeyPending: false,
     errorMessage: null,
+  };
+}
+
+function deliveryPolicyMock() {
+  const deliveryLeadPolicy = signal<BuyerDeliveryLeadPolicyState>({
+    status: "ready",
+    policy: {
+      minimumDeliveryLeadBusinessDays: 5,
+      minimumAllowedDeliveryDate: "2026-11-01",
+      timezone: "America/Lima",
+    },
+    errorMessage: null,
+  });
+  return {
+    deliveryLeadPolicy,
+    loadDeliveryLeadPolicy: vi.fn(async () => undefined),
+    allowsDeliveryDate: vi.fn((value: string) => {
+      const state = deliveryLeadPolicy();
+      return state.status === "ready" &&
+        Boolean(state.policy && /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= state.policy.minimumAllowedDeliveryDate);
+    }),
   };
 }
 
